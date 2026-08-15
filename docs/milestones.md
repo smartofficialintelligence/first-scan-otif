@@ -4,6 +4,8 @@ Binding build order. Each milestone ends in a **runnable** path. Do not scaffold
 
 ## Milestone 1 — Local production model
 
+**Status:** implemented on branch `cursor/milestone-1-local-model-fd7a`.
+
 **In scope:** uv/pyproject, src layout, local Olist load, target construction, temporal split, Optuna+XGBoost, calibration, eval, serialize, shared `PredictionService`, FastAPI `/health` `/ready` `/v1/predict`, tests, Dockerfile, Makefile, README.
 
 **Out of scope:** GCP, dbt, Feast, MCP, Airflow, Terraform apply.
