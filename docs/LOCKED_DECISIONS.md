@@ -163,6 +163,8 @@ No automatic promotion past human gates H3/H4/H6.
 Initial configurable defaults are locked in [gate-defaults.md](gate-defaults.md).  
 Re-tune from evidence; do not bikeshed before first metrics.
 
+---
+
 ## 12. Explicitly deferred (do not bikeshed now)
 
 - Whether MLflow needs Cloud SQL vs file/GCS-backed store for v1 (default: Cloud Run + GCS artifacts; add DB only if required)
