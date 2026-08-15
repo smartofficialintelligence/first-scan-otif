@@ -1,1 +1,55 @@
-# production-ml-demo
+# Olist Production ML
+
+Public portfolio artifact: production-grade late-delivery risk scoring on the Olist Brazilian E-Commerce dataset, on **GCP**.
+
+This is not a notebook demo. It is an end-to-end ML platform slice: features, training, registry, serving, canary, monitoring, and cost-controlled teardown.
+
+## Locked architecture (short)
+
+| Layer | Choice |
+|---|---|
+| Warehouse / transforms | BigQuery + dbt |
+| Feature store | Feast (BQ offline, Redis online for demos) |
+| Orchestration | Airflow |
+| Training | Vertex AI Pipelines (XGBoost + Optuna) |
+| Experiments / registry | MLflow |
+| Model serving | Vertex AI Endpoint |
+| App APIs | FastAPI on Cloud Run (REST + MCP) |
+
+Full diagram: [ARCHITECTURE.md](ARCHITECTURE.md)  
+Binding decisions: [docs/LOCKED_DECISIONS.md](docs/LOCKED_DECISIONS.md)
+
+## ML problem
+
+At order approval time, predict `P(order delivered after the estimated delivery date)`.
+
+Details: [docs/ml-problem.md](docs/ml-problem.md)
+
+## Cost posture
+
+Demo resources are ephemeral:
+
+- `make demo-up` — stand up billable path  
+- `make demo-down` — tear down to ~$0/day idle  
+
+Policy: [COST.md](COST.md) · Ops: [RUNBOOK.md](RUNBOOK.md)
+
+## Simulation
+
+No organic traffic. Deterministic holdout replay drives canary, drift, and rollback demos.
+
+Contract: [docs/simulation.md](docs/simulation.md)
+
+## Build order
+
+Vertical slices only — see [docs/milestones.md](docs/milestones.md).
+
+**Current status:** architecture and contracts locked; Milestone 1 implementation not started.
+
+## Why not Databricks?
+
+Transferable open seams + real GCP IaC/IAM/CI matter more here than a single lakehouse vendor. Databricks Free Edition is great for learning; it is not this repo’s runtime. See [docs/adr/0001-gcp-not-databricks.md](docs/adr/0001-gcp-not-databricks.md).
+
+## Human gates
+
+Automation stops at risk-bearing steps (feature audit, promote, terraform apply, retrain approval). Listed in [docs/LOCKED_DECISIONS.md](docs/LOCKED_DECISIONS.md).
