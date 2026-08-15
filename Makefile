@@ -1,4 +1,5 @@
 .PHONY: sync lint typecheck test train-local serve-local smoke-local fixtures download-olist
+.PHONY: tf-fmt tf-validate dbt-deps dbt-compile ingest-bq
 
 sync:
 	uv sync --all-extras
@@ -30,3 +31,24 @@ serve-local:
 smoke-local:
 	curl -sf http://127.0.0.1:8080/health
 	curl -sf http://127.0.0.1:8080/ready
+
+# --- Milestone 2 (requires GCP secrets; do not terraform apply without H7) ---
+
+tf-fmt:
+	terraform -chdir=terraform/environments/dev fmt -recursive
+
+tf-validate:
+	terraform -chdir=terraform/environments/dev init -backend=false
+	terraform -chdir=terraform/environments/dev validate
+
+dbt-deps:
+	cd dbt && uv run dbt deps || true
+
+dbt-compile:
+	cd dbt && uv run dbt compile --profiles-dir .
+
+ingest-bq:
+	uv run python scripts/ingest_olist.py --data-dir data/raw
+
+ingest-fixtures-bq:
+	uv run python scripts/ingest_olist.py --data-dir data/fixtures

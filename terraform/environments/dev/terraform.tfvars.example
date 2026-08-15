@@ -1,0 +1,4 @@
+# Example tfvars — copy to terraform.tfvars locally (gitignored) after H7 review.
+# project_id = "your-gcp-project"
+# region     = "us-central1"
+# location   = "US"

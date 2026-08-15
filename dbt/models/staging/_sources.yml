@@ -1,0 +1,16 @@
+version: 2
+
+sources:
+  - name: olist_raw
+    description: Raw Olist CSVs loaded into BigQuery (demo-up).
+    schema: olist_raw
+    tables:
+      - name: orders
+        identifier: orders
+      - name: order_items
+      - name: customers
+      - name: products
+      - name: sellers
+      - name: payments
+      - name: geolocation
+      - name: category_translation

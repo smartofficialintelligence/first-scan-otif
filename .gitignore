@@ -14,3 +14,12 @@ artifacts/
 dist/
 build/
 *.egg-info/
+dbt/target/
+dbt/logs/
+dbt/dbt_packages/
+dbt/profiles.yml
+terraform/**/.terraform/
+terraform/**/*.tfstate*
+terraform/**/terraform.tfvars
+*.pem
+sa-key.json

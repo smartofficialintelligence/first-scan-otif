@@ -14,6 +14,8 @@ Binding build order. Each milestone ends in a **runnable** path. Do not scaffold
 
 ## Milestone 2 — BigQuery + dbt
 
+**Status:** scaffolded (dbt models + Terraform modules). Live BQ load/`dbt build` blocked until GCP secrets are available in this environment; `terraform apply` still requires H7.
+
 Raw → BQ → dbt staging/intermediate/marts → training table + tests.
 
 **Accept:** dbt tests pass; H2 feature review scheduled/completed for shipped features.
