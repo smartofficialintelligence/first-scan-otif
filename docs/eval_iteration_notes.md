@@ -2,21 +2,26 @@
 
 Date: 2026-08-16  
 Branch: `cursor/feature-model-iteration-642f`  
-Model: `local-20260816T081113Z`
+Model: `local-20260816T082828Z`
 
-## Baseline (prior full Olist train)
+## Problem change (ADR 0005)
 
-- Test PR-AUC ≈ **0.096**, ROC-AUC ≈ 0.67, Brier ≈ 0.046
-- Late rate overall ≈ 8.1%
+Original promise-miss target was too weak for a prod demo (~8% positive; test PR-AUC ~0.10–0.20).
 
-## After iteration
+**New target:** `long_delivery = delivery_days > 14` from `prediction_ts` (~29% overall).
 
-| Split | n | Late rate | PR-AUC | ROC-AUC | Brier | ECE |
-|---|---:|---:|---:|---:|---:|---:|
-| Valid | 14,471 | 12.1% | 0.359 | 0.783 | 0.091 | ~0.000 |
-| Test | 14,471 | 4.8% | **0.197** | 0.780 | 0.043 | 0.016 |
+## Full Olist metrics (temporal split)
 
-Changes that moved the needle: expanded PIT history features (seller/customer/category + order extras), temporal Optuna CV, early stopping, held-out isotonic calibration.
+| Split | PR-AUC | ROC-AUC | Brier | ECE |
+|---|---:|---:|---:|---:|
+| Valid | 0.728 | 0.850 | 0.145 | ~0.000 |
+| Test | **0.531** | 0.796 | 0.129 | 0.031 |
+
+Test @ 10% capacity: see `artifacts/eval_report.json` (precision typically ~0.55–0.60 in smoke runs).
+
+## Prior promise-miss baseline (for comparison)
+
+- Test PR-AUC ≈ 0.096 → 0.197 after feature iteration (still not demo-grade)
 
 Reproduce:
 
