@@ -11,6 +11,7 @@ models:
           - not_null
           - accepted_values:
               values: [0, 1]
+              quote: false
       - name: prediction_ts
         tests: [not_null]
 
@@ -28,6 +29,7 @@ models:
           - not_null
           - accepted_values:
               values: [0, 1]
+              quote: false
       - name: seller_order_count_30d
         tests: [not_null]
       - name: seller_late_rate_30d

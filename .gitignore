@@ -21,6 +21,9 @@ dbt/profiles.yml
 terraform/**/.terraform/
 terraform/**/*.tfstate*
 terraform/**/terraform.tfvars
+terraform/**/tfplan
+terraform/**/*.tfplan
+dbt/.user.yml
 *.pem
 sa-key.json
 .terraform/

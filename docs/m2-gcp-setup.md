@@ -18,12 +18,13 @@ Sanity check:
 ```bash
 bash scripts/check_gcp_env.sh
 # expect: GCP_PROJECT_ID=production-ml-model and JSON present
+# note: materialize script trims accidental whitespace on the project id
 ```
 
 ## After secrets are injected
 
 ```bash
-# 1) materialize key file (gitignored)
+# 1) materialize key file (gitignored); source-safe (exports only on stdout)
 source <(bash scripts/materialize_gcp_creds.sh)
 
 # 2) activate SA + project
@@ -42,7 +43,7 @@ terraform plan -out=tfplan
 # ONLY after human H7 approval:
 # terraform apply tfplan
 
-# 5) load + transform
+# 5) load + transform (fixtures work without apply; ingest creates olist_raw)
 make download-olist   # or use fixtures first
 make ingest-fixtures-bq   # safe smoke path
 # make ingest-bq          # full Olist

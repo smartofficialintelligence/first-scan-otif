@@ -53,11 +53,11 @@ select
   pay.installment_count,
   c.customer_state,
   s.seller_state as seller_state_primary,
-  -- haversine km
+  -- haversine km (BigQuery has no radians(); convert deg -> rad via acos(-1)/180)
   6371 * 2 * asin(sqrt(
-    pow(sin((radians(sg.lat) - radians(cg.lat)) / 2), 2)
-    + cos(radians(cg.lat)) * cos(radians(sg.lat))
-      * pow(sin((radians(sg.lng) - radians(cg.lng)) / 2), 2)
+    pow(sin(((acos(-1) / 180) * (sg.lat - cg.lat)) / 2), 2)
+    + cos((acos(-1) / 180) * cg.lat) * cos((acos(-1) / 180) * sg.lat)
+      * pow(sin(((acos(-1) / 180) * (sg.lng - cg.lng)) / 2), 2)
   )) as geo_distance_km,
   extract(hour from o.prediction_ts) as purchase_hour,
   extract(dayofweek from o.prediction_ts) - 1 as purchase_dow,
