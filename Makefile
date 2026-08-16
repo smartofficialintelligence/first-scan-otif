@@ -2,7 +2,7 @@
 .PHONY: m2-env-check gcp-auth tf-fmt tf-validate tf-plan dbt-deps dbt-compile dbt-build ingest-bq ingest-fixtures-bq
 .PHONY: feast-apply feast-historical feast-parity demo-up demo-down mcp-serve
 .PHONY: train-pipeline airflow-train-local replay-baseline canary-bad drift-check teardown-endpoint
-.PHONY: demo-decision agent-evals decision-eval
+.PHONY: demo-decision agent-evals decision-eval demo-decision-api
 
 export PATH := $(HOME)/.local/bin:/opt/google-cloud-sdk/bin:$(PATH)
 
@@ -51,6 +51,9 @@ mcp-serve:
 
 demo-decision:
 	uv run --extra agent python scripts/demo_decision_chain.py
+
+demo-decision-api:
+	bash scripts/demo_decision_api.sh
 
 agent-evals:
 	uv run --extra agent python evals/run_agent_evals.py
