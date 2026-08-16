@@ -109,9 +109,9 @@ ARCHITECTURE/COST/RUNBOOK actuals placeholders, demo script, teardown commands v
 
 ## Deferred — Decision + agentic action layer
 
-**Status:** D1–D6 in progress on `cursor/decision-policy-d1-d2-642f` (model quality gate passed).
+**Status:** D1–D7 on `cursor/decision-mcp-d7-642f` (stacks on D1–D6). Model quality gate passed.
 
 Full instruction set (D1–D13):  
 [followup-decision-agentic-layer.md](followup-decision-agentic-layer.md)
 
-**Current slice:** domain + EV policy + ActionExecutor + local JSONL ledger + policy replay + REST (`/v1/decision`, `/v1/action/simulate`, `/v1/policies/current`). No LangGraph / LangSmith yet.
+**Current slice:** EV policy + ActionExecutor + ledger + replay + REST + **MCP decision tools**. No LangGraph / LangSmith yet.
