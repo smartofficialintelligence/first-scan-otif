@@ -1,0 +1,30 @@
+name: Deploy API
+
+# Stub deploy workflow — no real deploy secrets required.
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - staging
+
+jobs:
+  deploy-stub:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Echo deploy steps (stub)
+        run: |
+          echo "=== Deploy API stub (no secrets / no live deploy) ==="
+          echo "1. Build container image from Dockerfile"
+          echo "2. Push image to Artifact Registry (project-specific)"
+          echo "3. Update Cloud Run service revision (enable_serving TF path)"
+          echo "4. Smoke: GET /health and GET /ready"
+          echo "Target environment: ${{ inputs.environment }}"
+          echo "Real deploy wiring lands after H7 + serving secrets are available."

@@ -1,6 +1,7 @@
 .PHONY: sync lint typecheck test train-local serve-local smoke-local fixtures download-olist
 .PHONY: m2-env-check gcp-auth tf-fmt tf-validate tf-plan dbt-deps dbt-compile dbt-build ingest-bq ingest-fixtures-bq
-.PHONY: feast-apply feast-historical feast-parity
+.PHONY: feast-apply feast-historical feast-parity demo-up demo-down mcp-serve
+.PHONY: train-pipeline airflow-train-local replay-baseline canary-bad drift-check teardown-endpoint
 
 export PATH := $(HOME)/.local/bin:/opt/google-cloud-sdk/bin:$(PATH)
 
@@ -28,12 +29,41 @@ train-local:
 train-olist:
 	uv run olist-train --data-dir data/raw --trials 25
 
+train-pipeline:
+	uv run python scripts/run_train_pipeline.py --data-dir data/fixtures --trials 3
+
 serve-local:
 	uv run uvicorn olist_ml.api.app:app --host 0.0.0.0 --port 8080
 
 smoke-local:
 	curl -sf http://127.0.0.1:8080/health
 	curl -sf http://127.0.0.1:8080/ready
+
+demo-up:
+	bash scripts/demo_up.sh
+
+demo-down:
+	bash scripts/demo_down.sh
+
+mcp-serve:
+	uv run olist-mcp
+
+replay-baseline:
+	uv run python scripts/replay_traffic.py --inprocess true --scenario baseline --no-challenger
+
+canary-bad:
+	uv run python scripts/create_bad_challenger.py
+	uv run python scripts/replay_traffic.py --inprocess true --scenario bad_canary
+	uv run python scripts/canary_decide.py
+
+drift-check:
+	uv run python airflow/dags/olist_drift_dag.py
+
+airflow-train-local:
+	uv run python airflow/dags/olist_train_dag.py --local --data-dir data/fixtures --trials 3
+
+teardown-endpoint:
+	uv run python scripts/teardown_endpoint.py
 
 # --- Milestone 2 (requires GCP secrets; do not terraform apply without H7) ---
 

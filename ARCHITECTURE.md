@@ -144,6 +144,20 @@ Client (REST or MCP)
 
 Always-on managed resources are **demo-scoped**. See [COST.md](COST.md) and `make demo-up` / `make demo-down` in [RUNBOOK.md](RUNBOOK.md).
 
+## Key paths (this branch)
+
+| Concern | Path |
+|---|---|
+| Local / Vertex training pipeline | `pipelines/` (`local_pipeline.py`, `vertex_pipeline.py`) |
+| MLflow candidate registry | `src/olist_ml/registry/` |
+| Feast repo | `feature_repo/` |
+| Canary replay / bad challenger / decide | `scripts/replay_traffic.py`, `scripts/create_bad_challenger.py`, `scripts/canary_decide.py` |
+| Traffic attribution | `src/olist_ml/canary/` |
+| Airflow DAGs (local-first) | `airflow/dags/olist_train_dag.py`, `airflow/dags/olist_drift_dag.py` |
+| MCP | `src/olist_ml/api/mcp_server.py` |
+| Demo up/down | `scripts/demo_up.sh`, `scripts/demo_down.sh` |
+| Milestone notes | `docs/m3-feast-setup.md` … `docs/m10-airflow.md` |
+
 ## Out of scope
 
 - Kubernetes, Kafka, Spark (unless a real requirement appears later)

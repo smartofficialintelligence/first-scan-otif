@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Sync dependencies
+        # Prefer extras that do not require GCP secrets; gcp/feast can be added when credentials exist.
+        run: uv sync --extra dev --extra ml --extra mcp
+
+      - name: Ruff
+        run: uv run ruff check src tests scripts pipelines
+
+      - name: Pytest
+        run: uv run pytest -q
+
+      - name: dbt parse
+        working-directory: dbt
+        env:
+          # Profile rendering needs these; parse does not open a BigQuery session.
+          GCP_PROJECT_ID: ci-placeholder
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/ci-gcp-placeholder.json
+        run: |
+          echo '{"type":"service_account","project_id":"ci-placeholder","private_key_id":"x","private_key":"-----BEGIN RSA PRIVATE KEY-----\nMIIBogIBAAJBAKplaceholder\n-----END RSA PRIVATE KEY-----\n","client_email":"ci@ci-placeholder.iam.gserviceaccount.com","client_id":"0","token_uri":"https://oauth2.googleapis.com/token"}' > /tmp/ci-gcp-placeholder.json
+          uv run dbt deps || true
+          uv run dbt parse --profiles-dir .
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+
+      - name: Terraform fmt + validate
+        working-directory: terraform/environments/dev
+        run: |
+          terraform fmt -check -recursive
+          terraform init -backend=false
+          terraform validate
+
+      - name: Docker build
+        run: docker build .

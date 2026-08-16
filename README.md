@@ -6,9 +6,21 @@ This is not a notebook demo. It is an end-to-end ML platform slice: features, tr
 
 ## Status
 
-**Milestone 1 complete (local):** train → evaluate → serialize → FastAPI predict, with tests.  
-**Milestone 2 complete (PR #3):** BigQuery + dbt + Terraform.  
-**Milestone 3 in progress:** Feast registry + offline retrieval + SQLite online (demo-off). See [docs/m3-feast-setup.md](docs/m3-feast-setup.md).
+| Milestone | Status |
+|---|---|
+| M1 Local production model | implemented (`cursor/milestone-1-local-model-fd7a`) |
+| M2 BigQuery + dbt | merged to `main` (PR #3) |
+| M3 Feast | implemented on `cursor/milestones-remaining-642f` (SQLite demo-off) |
+| M4 Vertex training + MLflow | implemented on `cursor/milestones-remaining-642f` (local pipeline + candidate registry) |
+| M5 Managed inference | implemented on `cursor/milestones-remaining-642f` (local REST + TF scaffolds) |
+| M6 MCP | implemented on `cursor/milestones-remaining-642f` |
+| M7 CI/CD + Terraform hardening | implemented on `cursor/milestones-remaining-642f` |
+| M8 Monitoring | implemented on `cursor/milestones-remaining-642f` (logs + drift stub) |
+| M9 Canary + replay + rollback | implemented on `cursor/milestones-remaining-642f` |
+| M10 Airflow triggers | implemented on `cursor/milestones-remaining-642f` (local DAGs; no Composer required) |
+| M11 Polish | implemented on `cursor/milestones-remaining-642f` (docs/runbook/cost placeholders) |
+
+Details: [docs/milestones.md](docs/milestones.md)
 
 ## Locked architecture (short)
 
@@ -31,7 +43,7 @@ At order approval time, predict `P(order delivered after the estimated delivery 
 
 Details: [docs/ml-problem.md](docs/ml-problem.md)
 
-## Quick start (Milestone 1)
+## Quick start (local)
 
 ```bash
 make sync
@@ -42,6 +54,14 @@ make serve-local
 # other terminal:
 curl -s localhost:8080/health
 curl -s localhost:8080/ready
+```
+
+Pipeline + canary (no GCP):
+
+```bash
+make train-pipeline
+make canary-bad          # bad challenger → ROLLBACK recommendation
+make airflow-train-local # local Airflow trigger (no Composer)
 ```
 
 Optional full Olist (when download mirror works or CSVs are placed in `data/raw`):
@@ -55,7 +75,7 @@ make train-olist
 
 Demo resources are ephemeral:
 
-- `make demo-up` — stand up billable path (later milestones)
+- `make demo-up` — stand up billable path (local API today; GCP gated)
 - `make demo-down` — tear down to ~$0/day idle
 
 Policy: [COST.md](COST.md) · Ops: [RUNBOOK.md](RUNBOOK.md)
@@ -64,7 +84,7 @@ Policy: [COST.md](COST.md) · Ops: [RUNBOOK.md](RUNBOOK.md)
 
 No organic traffic. Deterministic holdout replay drives canary, drift, and rollback demos.
 
-Contract: [docs/simulation.md](docs/simulation.md)
+Contract: [docs/simulation.md](docs/simulation.md) · Canary: [docs/m9-canary-replay.md](docs/m9-canary-replay.md)
 
 ## Build order
 

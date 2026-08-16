@@ -1,0 +1,25 @@
+name: Infra
+
+# Manual infra checks only. Terraform apply requires H7 human approval — do not add apply here.
+on:
+  workflow_dispatch:
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+
+      - name: Terraform fmt + validate
+        working-directory: terraform/environments/dev
+        run: |
+          terraform fmt -check -recursive
+          terraform init -backend=false
+          terraform validate
+
+      # terraform apply is intentionally omitted: H7 human gate required for any apply.

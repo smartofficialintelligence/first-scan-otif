@@ -1,51 +1,70 @@
-# Demo script (outline)
+# Demo script
 
-Locked sequence for interview / portfolio recording. Commands land with later milestones.
+Locked sequence for interview / portfolio recording. Prefer local commands first; GCP steps need H7 and secrets.
 
 ## Prep (day of)
 
-1. Confirm `demo-down` from any prior run  
-2. `make demo-up`  
-3. Wait for smoke green  
+1. Confirm prior `make demo-down`
+2. `make sync && make fixtures && make test`
+3. `make demo-up` (local uvicorn) → `make smoke-local`
 
 ## Demo 1 — Features
 
-- Show dbt marts in BigQuery  
-- Show Feast registry + online seller lookup  
+```bash
+# dbt (needs GCP):
+make ingest-fixtures-bq && make dbt-build
+# Feast (needs GCP; SQLite online demo-off):
+make feast-apply && make feast-historical
+```
 
 ## Demo 2 — Train
 
-- Trigger Vertex training pipeline  
-- Open MLflow run: params, metrics, Git SHA, snapshot ID  
-- Show registered candidate (not yet champion)  
+```bash
+make train-pipeline
+# or: make airflow-train-local
+# Show artifacts/mlruns + REGISTERED_CANDIDATE (not champion)
+```
 
 ## Demo 3 — Serve
 
-- REST `/v1/predict`  
-- MCP `predict_late_delivery`  
-- Response includes `model_version`  
+```bash
+curl -s localhost:8080/health
+curl -s localhost:8080/ready
+curl -s localhost:8080/v1/model
+# POST /v1/predict  |  make mcp-serve → predict_late_delivery
+# Response includes model_version
+```
 
 ## Demo 4 — Canary
 
-- Deploy challenger 90/10  
-- `make replay-baseline`  
-- Show version-attributed prediction logs + comparative metrics  
+```bash
+make replay-baseline
+# Inspect artifacts/prediction_logs.jsonl — traffic_bucket + model_version
+```
 
 ## Demo 5 — Rollback
 
-- `make canary-bad`  
-- Gate fails → traffic back to champion 100%  
+```bash
+make canary-bad
+# create_bad_challenger → replay → canary_decide
+# Expect ROLLBACK → 100% champion recommendation (never auto-promote)
+```
 
 ## Demo 6 — Drift / retrain
 
-- `make replay-drift`  
-- Airflow drift check alarm  
-- H5 → pipeline → new candidate (H6 before promote)  
+```bash
+make drift-check
+cat artifacts/drift_alarm.json
+# H5 → make airflow-train-local / train-pipeline → new candidate
+# H6 required before promote
+```
 
 ## Demo 7 — Cost / teardown
 
-- Show monitoring signals  
-- `make demo-down`  
-- Confirm always-on resources gone; note COST.md  
+```bash
+make demo-down
+make teardown-endpoint   # dry-run unless --apply with live Vertex
+# Fill COST.md actuals table after paid demo
+```
 
 **Never** skip human gates in the recorded story — show the approval step even if it is a CLI confirm.
