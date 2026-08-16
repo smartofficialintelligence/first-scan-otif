@@ -50,6 +50,18 @@ make ingest-fixtures-bq   # safe smoke path
 cd dbt && uv run dbt build --profiles-dir .
 ```
 
+## Dataset naming
+
+Terraform owns these BigQuery datasets:
+
+| Dataset | Role |
+|---|---|
+| `olist_raw` | Landing zone (ingest) |
+| `olist_dbt` | dbt profile default (unused by models with `+schema`) |
+| `staging` / `intermediate` / `ml` | dbt model datasets |
+
+`dbt/macros/generate_schema_name.sql` maps `+schema: staging` → dataset `staging` (not `olist_dbt_staging`).
+
 ## Makefile helpers
 
 - `make m2-env-check` — verify secrets without printing key material

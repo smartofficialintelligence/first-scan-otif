@@ -16,7 +16,7 @@ resource "google_bigquery_dataset" "raw" {
 resource "google_bigquery_dataset" "dbt" {
   dataset_id                 = "olist_dbt"
   friendly_name              = "Olist dbt default"
-  description                = "dbt target dataset (models land in staging/intermediate/ml schemas)"
+  description                = "dbt profile default dataset; models with +schema land in staging/intermediate/ml"
   location                   = var.location
   delete_contents_on_destroy = true
 }
