@@ -8,7 +8,6 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from olist_ml.api.dependencies import settings_dep
 from olist_ml.config import Settings
 from olist_ml.training.pipeline import run_training
 

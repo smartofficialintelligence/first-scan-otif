@@ -20,8 +20,8 @@ jobs:
         run: uv python install 3.12
 
       - name: Sync dependencies
-        # Prefer extras that do not require GCP secrets; gcp/feast can be added when credentials exist.
-        run: uv sync --extra dev --extra ml --extra mcp
+        # Prefer extras that do not require live GCP; placeholder creds suffice for dbt parse.
+        run: uv sync --extra dev --extra ml --extra mcp --extra agent --extra gcp
 
       - name: Ruff
         run: uv run ruff check src tests scripts pipelines
@@ -37,6 +37,8 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/ci-gcp-placeholder.json
         run: |
           echo '{"type":"service_account","project_id":"ci-placeholder","private_key_id":"x","private_key":"-----BEGIN RSA PRIVATE KEY-----\nMIIBogIBAAJBAKplaceholder\n-----END RSA PRIVATE KEY-----\n","client_email":"ci@ci-placeholder.iam.gserviceaccount.com","client_id":"0","token_uri":"https://oauth2.googleapis.com/token"}' > /tmp/ci-gcp-placeholder.json
+          # profiles.yml is gitignored; use the checked-in example for CI parse.
+          cp -f profiles.yml.example profiles.yml
           uv run dbt deps || true
           uv run dbt parse --profiles-dir .
 

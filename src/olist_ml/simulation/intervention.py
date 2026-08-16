@@ -6,9 +6,9 @@ import hashlib
 
 import numpy as np
 
+from olist_ml.decisions.economics import BusinessLossConfig
 from olist_ml.decisions.schemas import ActionEconomics, ActionType
 from olist_ml.decisions.value import business_loss_if_long
-from olist_ml.decisions.economics import BusinessLossConfig
 
 
 def derive_seed(*parts: str, base_seed: int = 42) -> int:
