@@ -20,8 +20,8 @@ jobs:
         run: uv python install 3.12
 
       - name: Sync dependencies
-        # Prefer extras that do not require GCP secrets; gcp/feast can be added when credentials exist.
-        run: uv sync --extra dev --extra ml --extra mcp --extra agent
+        # Prefer extras that do not require live GCP; placeholder creds suffice for dbt parse.
+        run: uv sync --extra dev --extra ml --extra mcp --extra agent --extra gcp
 
       - name: Ruff
         run: uv run ruff check src tests scripts pipelines
