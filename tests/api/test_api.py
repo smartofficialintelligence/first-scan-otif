@@ -163,7 +163,10 @@ def _predict_payload(order_id: str = "demo") -> dict:
 def test_decision_and_policy_endpoints(client: TestClient) -> None:
     policy = client.get("/v1/policies/current")
     assert policy.status_code == 200
-    assert policy.json()["policy_version"] == "expected-value-policy-v1"
+    body = policy.json()
+    assert body["policy_version"] == "expected-value-policy-v1"
+    assert body["economics_gate"]["status"] == "pending_approval"
+    assert body["causal_roi_claim_allowed"] is False
 
     resp = client.post("/v1/decision", json={**_predict_payload("d1"), "simulate": False})
     assert resp.status_code == 200, resp.text
@@ -189,6 +192,13 @@ def test_decision_with_simulate(client: TestClient) -> None:
     assert body["action"]["status"] == "simulated"
     assert "observed_long_delivery" in body["action"]
     assert "simulated_long_delivery" in body["action"]
+
+    action_id = body["action"]["action_id"]
+    lookup = client.get(f"/v1/actions/{action_id}")
+    assert lookup.status_code == 200
+    assert lookup.json()["records"]
+    missing = client.get("/v1/actions/does-not-exist")
+    assert missing.status_code == 404
 
 
 def test_agent_review_endpoint(client: TestClient) -> None:

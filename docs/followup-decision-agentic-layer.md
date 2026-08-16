@@ -1,6 +1,6 @@
 # Follow-up: Decision + Agentic Action Layer
 
-**Status:** D1–D13 implemented (local-first). LangSmith cloud optional; economics remain simulation assumptions (H9/H10).  
+**Status:** COMPLETE (local-first). D1–D13 shipped; LangSmith opt-in when keyed; H9/H10 remain `pending_approval` until a human signs `config/policy_economics.yaml`.  
 **Saved:** 2026-08-16  
 **Model gate:** passed (`long_delivery` >14d; test PR-AUC ~0.53; see `docs/business_assessment.md`).
 
@@ -654,11 +654,13 @@ Treat the agent as an untrusted decision participant. Validate tool args, action
 | D6 | REST | done |
 | D7 | MCP tools | done |
 | D8 | LangGraph agent review | done (tool-driven; no LLM key required) |
-| D9 | LangSmith + agent eval harness | local JSON evals done; LangSmith cloud optional |
+| D9 | LangSmith + agent eval harness | done — local JSON evals + optional LangSmith ([d9-langsmith.md](d9-langsmith.md)) |
 | D10 | Human approval node | done |
 | D11 | Airflow batch evaluation | local-first stub done |
 | D12 | Monitoring | decision/agent counters on `/v1/metrics` |
 | D13 | Demo harness | `scripts/demo_decision_chain.py` / `make demo-decision` |
+
+Human gates **H9–H12** formalized: [h9-h10-economics-gate.md](h9-h10-economics-gate.md). H9/H10 stay pending until stakeholder approval; H12 real execution remains disabled.
 
 Each milestone must leave the system runnable. **Do not start with the LLM agent.**
 

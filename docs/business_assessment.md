@@ -56,13 +56,13 @@ loss_if_long = $10 + 0.10 × basket_value
 EV for prevention actions: `P(risk) × prevent × loss − cost`  
 EV for notification: `P(risk) × loss × impact_reduction − cost`
 
-Under these assumptions, intervening on the **top 10%** looks **positive-EV** for EXPEDITE / notification / escalation; MANUAL_REVIEW is marginal. **Do not treat $ as proven ROI** until H9/H10 approve assumptions and the decision layer runs policy replay.
+Under these assumptions, intervening on the **top 10%** looks **positive-EV** for EXPEDITE / notification / escalation; MANUAL_REVIEW is marginal. **Do not treat $ as proven ROI** until H9/H10 approve assumptions ([h9-h10-economics-gate.md](h9-h10-economics-gate.md)).
 
 ## Business read
 
 - Ranking is strong enough for a capacity-constrained ops demo.
 - The actionable story is **enrichment at a budgeted flag rate** (precision/lift @ 10%), not overall accuracy.
-- Next modeling is optional; next product step is deterministic EV policy (D1–D2) with versioned assumptions.
+- Decision layer (D1–D13) is shipped; check `make economics-gate` before claiming ROI.
 
 ## Regenerate
 

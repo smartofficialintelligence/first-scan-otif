@@ -66,6 +66,19 @@ def build_agent_review_graph():
 
 def run_agent_review(initial: dict[str, Any]) -> dict[str, Any]:
     """Execute the agent-review graph and return final state as a dict."""
+    from olist_ml.agents.tracing import configure_tracing, trace_metadata, tracing_enabled
+
+    trace_status = configure_tracing()
     app = build_agent_review_graph()
-    result = app.invoke(initial)
-    return dict(result)
+    config: dict[str, Any] = {}
+    if tracing_enabled() and trace_status.get("enabled"):
+        config["metadata"] = trace_metadata(
+            order_id=initial.get("order_id"),
+            prediction_id=initial.get("prediction_id"),
+        )
+        config["run_name"] = "agent_review"
+        config["tags"] = ["olist-ml", "agent-review", "simulation"]
+    result = app.invoke(initial, config=config) if config else app.invoke(initial)
+    out = dict(result)
+    out["langsmith"] = trace_status
+    return out

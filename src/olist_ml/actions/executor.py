@@ -34,6 +34,11 @@ class ActionExecutor:
         econ = self.config.actions.get(request.action_type)
         if econ is None or not econ.eligible:
             raise ValueError(f"Action not approved/eligible: {request.action_type}")
+        if self.config.routing.real_external_execution_enabled:
+            raise RuntimeError(
+                "H12: real external execution is disabled for this portfolio; "
+                "set routing.real_external_execution_enabled=false"
+            )
 
         seed = request.seed
         if seed is None:

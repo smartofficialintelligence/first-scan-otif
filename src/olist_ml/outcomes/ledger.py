@@ -52,6 +52,9 @@ class DecisionLedger:
     def for_order(self, order_id: str) -> list[dict[str, Any]]:
         return [r for r in self.read_all() if r.get("order_id") == order_id]
 
+    def for_action(self, action_id: str) -> list[dict[str, Any]]:
+        return [r for r in self.read_all() if r.get("action_id") == action_id]
+
     def extend(self, records: Iterable[tuple[str, BaseModel | dict[str, Any]]]) -> None:
         for record_type, payload in records:
             self.append(record_type, payload)

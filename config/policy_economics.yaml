@@ -6,6 +6,17 @@ assumptions_disclaimer: >
   Action costs, prevention rates, and impact reductions are scenario
   assumptions for portfolio simulation only. They are not causal estimates.
 
+# Human gates H9/H10 — status must stay pending_approval until a stakeholder signs.
+economics_gate:
+  status: pending_approval  # pending_approval | approved | rejected
+  h9_business_loss: pending
+  h10_intervention_effectiveness: pending
+  approved_by: null
+  approved_at: null
+  notes: >
+    Portfolio defaults for simulation/demo only. Do not present as causal ROI
+    until H9 and H10 are explicitly approved.
+
 business_loss:
   fixed_long_delivery_cost: 10.0
   order_value_loss_rate: 0.10
@@ -39,7 +50,11 @@ actions:
     eligible: true
 
 routing:
-  # Agent-review flags for LangGraph /v1/agent/review (D8/D10).
+  # Agent-review flags for LangGraph /v1/agent/review (D8/D10). H11 scopes these.
   high_value_order_threshold: 250.0
   top_actions_ev_margin: 1.0
   enable_agent_review_flags: true
+  # H11 — high-value / near-tie / high-cost selections require human approval in agent path.
+  require_human_approval_for_agent_review: true
+  # H12 — real external execution remains out of scope for this portfolio.
+  real_external_execution_enabled: false

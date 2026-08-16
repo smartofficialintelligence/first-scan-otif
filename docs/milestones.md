@@ -109,9 +109,9 @@ ARCHITECTURE/COST/RUNBOOK actuals placeholders, demo script, teardown commands v
 
 ## Deferred — Decision + agentic action layer
 
-**Status:** D1–D13 merged to `main` (PRs #9–#12). Model quality gate passed.
+**Status:** COMPLETE on `main` (D1–D13 + CI fixes + demo polish). Remaining human work: **sign H9/H10** when ready ([h9-h10-economics-gate.md](h9-h10-economics-gate.md)).
 
 Full instruction set (D1–D13):  
 [followup-decision-agentic-layer.md](followup-decision-agentic-layer.md)
 
-**Current slice:** EV policy + ActionExecutor + ledger + replay + REST + MCP decision tools + LangGraph agent review (`POST /v1/agent/review`) + human gate + local agent evals + decision-eval Airflow stub + demo harness (`make demo-decision`). LangSmith cloud tracing remains optional. Interviewer sequence: [demo-script.md](demo-script.md) Demo 7.
+**Shipped:** EV policy + ActionExecutor + ledger + replay + REST + MCP + LangGraph agent review + human gate + local evals + optional LangSmith + decision-eval Airflow stub + demo harness. Interviewer sequence: [demo-script.md](demo-script.md) Demo 7.

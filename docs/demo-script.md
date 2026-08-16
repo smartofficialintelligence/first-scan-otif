@@ -111,7 +111,8 @@ curl -s localhost:8080/v1/policies/current
 1. Model ranks long-delivery risk; policy chooses actions by expected value under **versioned simulation assumptions**.
 2. Agent may only pick approved actions; near-ties prefer lower cost; high-value can require human approval.
 3. ActionExecutor is simulation-only — not live seller/customer side effects.
-4. H9/H10 still gate “real” economics; do not present simulated net value as proven ROI.
+4. H9/H10 still gate “real” economics; do not present simulated net value as proven ROI (`make economics-gate`).
+5. Optional LangSmith: set `LANGSMITH_API_KEY` — see [d9-langsmith.md](d9-langsmith.md).
 
 MCP path (same services): `make mcp-serve` → `recommend_policy_action` / `execute_simulated_action`.
 
