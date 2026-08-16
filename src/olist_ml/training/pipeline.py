@@ -64,6 +64,8 @@ def run_training(settings: Settings, data_dir: Path | None = None) -> ModelMeta:
         y_train,
         best_params=study.best_params,
         seed=settings.random_seed,
+        X_df_valid=X_valid_df,
+        y_valid=y_valid,
     )
 
     valid_report = evaluate_predictions(

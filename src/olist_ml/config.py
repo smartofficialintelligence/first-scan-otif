@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     random_seed: int = 42
 
     # Optuna / training
-    n_optuna_trials: int = 10
+    n_optuna_trials: int = 25
     cv_folds: int = 3
     test_fraction: float = 0.15
     valid_fraction: float = 0.15

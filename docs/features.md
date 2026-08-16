@@ -37,6 +37,11 @@ Windows: **7d / 30d / 90d**. Rolling logic must be `closed="left"` equivalent in
 | `payment_type_primary` | Dominant payment type | Low |
 | `installment_count` | From payments | Low |
 | `estimated_delivery_horizon_days` | `order_estimated_delivery_date - prediction_ts` | Low — promise known at purchase |
+| `approval_lag_hours` | `prediction_ts - order_purchase_timestamp` (clipped ≥0) | Low |
+| `freight_to_basket_ratio` | `freight_value / basket_value` | Low |
+| `same_state` | customer_state == seller_state_primary | Low |
+| `avg_product_weight_g` | Mean item weight on order | Low |
+| `primary_category` | First / primary product category (categorical) | Low |
 | `customer_state` | From customer | Low |
 | `seller_state_primary` | Primary seller state | Low |
 | `geo_distance_km` | Haversine customer↔seller centroid/proxy | Medium — use only geolocation available historically; document zip aggregation |
@@ -52,6 +57,7 @@ Computed per entity with PIT correctness.
 | `seller_avg_freight_*` | seller | 30/90d | Optional | Low if PIT |
 | `seller_avg_basket_*` | seller | 30/90d | Optional | Low if PIT |
 | `category_late_rate_*` | category | 30/90d | No (v1) | Low if PIT |
+| `category_order_count_*` | category | 90d | No (v1) | Low if PIT |
 | `customer_order_count_*` | customer | 30/90d | No (v1) | Low if PIT; cold-start common |
 | `customer_late_rate_*` | customer | 90d | No (v1) | Low if PIT; sparse |
 

@@ -27,6 +27,13 @@ class PredictRequest(BaseModel):
     seller_state_primary: str = "unknown"
     geo_distance_km: float = Field(default=0.0, ge=0)
 
+    # Request-native extras (knowable at prediction_ts).
+    approval_lag_hours: float | None = Field(default=None, ge=0)
+    same_state: float | None = None
+    avg_product_weight_g: float | None = Field(default=None, ge=0)
+    freight_to_basket_ratio: float | None = Field(default=None, ge=0)
+    primary_category: str = "unknown"
+
     # Optional historical features when Feast online is unavailable (local mode).
     seller_order_count_7d: float | None = None
     seller_order_count_30d: float | None = None
@@ -34,8 +41,23 @@ class PredictRequest(BaseModel):
     seller_late_rate_7d: float | None = None
     seller_late_rate_30d: float | None = None
     seller_late_rate_90d: float | None = None
+    seller_avg_freight_30d: float | None = None
+    seller_avg_freight_90d: float | None = None
+    seller_avg_basket_30d: float | None = None
+    seller_avg_basket_90d: float | None = None
+    customer_order_count_30d: float | None = None
+    customer_order_count_90d: float | None = None
+    customer_late_rate_90d: float | None = None
+    category_late_rate_30d: float | None = None
+    category_late_rate_90d: float | None = None
+    category_order_count_90d: float | None = None
 
-    @field_validator("payment_type_primary", "customer_state", "seller_state_primary")
+    @field_validator(
+        "payment_type_primary",
+        "customer_state",
+        "seller_state_primary",
+        "primary_category",
+    )
     @classmethod
     def normalize_str(cls, value: str) -> str:
         return value.strip().lower() if value else "unknown"
