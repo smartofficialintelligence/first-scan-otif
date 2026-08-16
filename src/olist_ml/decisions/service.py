@@ -34,7 +34,11 @@ def _git_sha() -> str | None:
 class DecisionService:
     """Expected-value policy decisions from prediction metadata + basket value."""
 
-    def __init__(self, config: PolicyEconomicsConfig | None = None, config_path: Path | str | None = None) -> None:
+    def __init__(
+        self,
+        config: PolicyEconomicsConfig | None = None,
+        config_path: Path | str | None = None,
+    ) -> None:
         if config is not None:
             self.config = config
         else:
@@ -61,7 +65,10 @@ class DecisionService:
             f"{recommended.formula}."
         )
         if agent_flag:
-            rationale += " Flagged for agent review (routing thresholds); not executed by an agent in D1–D2."
+            rationale += (
+                " Flagged for agent review (routing thresholds); "
+                "not executed by an agent in D1–D2."
+            )
 
         return DecisionResult(
             decision_id=str(uuid.uuid4()),

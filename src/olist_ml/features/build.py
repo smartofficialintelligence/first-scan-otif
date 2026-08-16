@@ -125,7 +125,8 @@ def _add_time_parts(df: pd.DataFrame) -> pd.DataFrame:
     # Known at prediction time (approval lag).
     if "order_purchase_timestamp" in out.columns:
         purchase = pd.to_datetime(out["order_purchase_timestamp"], utc=True, errors="coerce")
-        out["approval_lag_hours"] = ((ts - purchase).dt.total_seconds() / 3600.0).clip(lower=0).fillna(0.0)
+        lag_hours = (ts - purchase).dt.total_seconds() / 3600.0
+        out["approval_lag_hours"] = lag_hours.clip(lower=0).fillna(0.0)
     else:
         out["approval_lag_hours"] = 0.0
     return out
@@ -252,9 +253,13 @@ def build_feature_table(
     base = _add_time_parts(base)
     base = _attach_history(base)
 
-    base["payment_type_primary"] = base["payment_type_primary"].fillna("unknown").astype(str).str.lower()
+    base["payment_type_primary"] = (
+        base["payment_type_primary"].fillna("unknown").astype(str).str.lower()
+    )
     base["customer_state"] = base["customer_state"].fillna("unknown").astype(str).str.lower()
-    base["seller_state_primary"] = base["seller_state_primary"].fillna("unknown").astype(str).str.lower()
+    base["seller_state_primary"] = (
+        base["seller_state_primary"].fillna("unknown").astype(str).str.lower()
+    )
     base["primary_category"] = base["primary_category"].fillna("unknown").astype(str).str.lower()
     base["installment_count"] = base["installment_count"].fillna(1).astype(float)
     base["same_state"] = (
