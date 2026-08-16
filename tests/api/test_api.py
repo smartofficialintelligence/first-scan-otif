@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from olist_ml.api.dependencies import prediction_service_dep, settings_dep
+from olist_ml.api.dependencies import settings_dep
 from olist_ml.config import Settings
 from olist_ml.training.pipeline import run_training
 
@@ -23,6 +23,7 @@ def trained_settings(tmp_path_factory: pytest.TempPathFactory) -> Settings:
         artifact_dir=root,
         model_path=root / "model.joblib",
         model_meta_path=root / "model_meta.json",
+        decision_ledger_path=root / "decision_ledger.jsonl",
         n_optuna_trials=2,
         cv_folds=2,
         auth_mode="off",
@@ -33,26 +34,37 @@ def trained_settings(tmp_path_factory: pytest.TempPathFactory) -> Settings:
 
 @pytest.fixture()
 def client(trained_settings: Settings) -> TestClient:
-    settings_dep.cache_clear()
-    prediction_service_dep.cache_clear()
-
     def _settings() -> Settings:
         return trained_settings
 
-    # Patch cached deps
     import olist_ml.api.dependencies as deps
+    from olist_ml.actions.executor import ActionExecutor
     from olist_ml.api.app import create_app
+    from olist_ml.decisions.service import DecisionService
     from olist_ml.inference.predictor import PredictionService
+    from olist_ml.outcomes.ledger import DecisionLedger
 
     deps.settings_dep.cache_clear()
     deps.prediction_service_dep.cache_clear()
+    deps.decision_service_dep.cache_clear()
+    deps.action_executor_dep.cache_clear()
+    deps.decision_ledger_dep.cache_clear()
 
     service = PredictionService(trained_settings)
     service.load()
+    decision_svc = DecisionService(config_path=trained_settings.policy_economics_path)
+    executor = ActionExecutor(
+        config_path=trained_settings.policy_economics_path,
+        base_seed=trained_settings.decision_base_seed,
+    )
+    ledger = DecisionLedger(trained_settings.decision_ledger_path)
 
     app = create_app()
     app.dependency_overrides[deps.settings_dep] = _settings
     app.dependency_overrides[deps.prediction_service_dep] = lambda: service
+    app.dependency_overrides[deps.decision_service_dep] = lambda: decision_svc
+    app.dependency_overrides[deps.action_executor_dep] = lambda: executor
+    app.dependency_overrides[deps.decision_ledger_dep] = lambda: ledger
     return TestClient(app)
 
 
@@ -125,3 +137,56 @@ def test_explain(client: TestClient) -> None:
 def test_invalid_payload(client: TestClient) -> None:
     resp = client.post("/v1/predict", json={"order_id": "x"})
     assert resp.status_code == 422
+
+
+def _predict_payload(order_id: str = "demo") -> dict:
+    return {
+        "order_id": order_id,
+        "seller_id": "s000",
+        "purchase_timestamp": datetime(2018, 2, 10, 12, 0, tzinfo=UTC).isoformat(),
+        "prediction_timestamp": datetime(2018, 2, 10, 12, 0, tzinfo=UTC).isoformat(),
+        "item_count": 2,
+        "basket_value": 180.0,
+        "freight_value": 15.0,
+        "seller_count": 1,
+        "category_count": 1,
+        "payment_type_primary": "credit_card",
+        "installment_count": 1,
+        "estimated_delivery_horizon_days": 5.0,
+        "customer_state": "SP",
+        "seller_state_primary": "RJ",
+        "geo_distance_km": 100.0,
+        "seller_order_count_30d": 3,
+        "seller_late_rate_30d": 0.5,
+    }
+
+
+def test_decision_and_policy_endpoints(client: TestClient) -> None:
+    policy = client.get("/v1/policies/current")
+    assert policy.status_code == 200
+    assert policy.json()["policy_version"] == "expected-value-policy-v1"
+
+    resp = client.post("/v1/decision", json={**_predict_payload("d1"), "simulate": False})
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert "prediction" in body and "decision" in body
+    assert body["prediction"]["prediction_id"]
+    assert body["decision"]["recommended_action"]
+    assert "alternative_actions" in body["decision"]
+
+    hist = client.get("/v1/orders/d1/decision")
+    assert hist.status_code == 200
+    assert len(hist.json()["records"]) >= 2
+
+
+def test_decision_with_simulate(client: TestClient) -> None:
+    resp = client.post(
+        "/v1/decision",
+        json={**_predict_payload("d2"), "simulate": True, "observed_long_delivery": True},
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert "action" in body
+    assert body["action"]["status"] == "simulated"
+    assert "observed_long_delivery" in body["action"]
+    assert "simulated_long_delivery" in body["action"]

@@ -109,3 +109,24 @@ class ExplainResponse(BaseModel):
     method: Literal["stub", "shap"] = "stub"
     note: str | None = None
     target: str = "long_delivery_gt_14d"
+
+
+class DecideRequest(PredictRequest):
+    """Run prediction then expected-value decision. Optionally simulate action."""
+
+    simulate: bool = False
+    observed_long_delivery: bool | None = None
+    persist_ledger: bool = True
+
+
+class ActionSimulateRequest(BaseModel):
+    order_id: str
+    prediction_id: str
+    decision_id: str
+    action_type: str
+    model_version: str
+    policy_version: str
+    observed_long_delivery: bool
+    basket_value: float = Field(ge=0)
+    expected_net_value: float | None = None
+    persist_ledger: bool = True

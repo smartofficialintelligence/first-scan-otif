@@ -1,6 +1,6 @@
 # Follow-up: Decision + Agentic Action Layer
 
-**Status:** IN PROGRESS — D1–D2 started after model accepted as demo-effective.  
+**Status:** IN PROGRESS — D1–D6 implemented (EV policy, ActionExecutor, local ledger, replay, REST).  
 **Saved:** 2026-08-16  
 **Model gate:** passed (`long_delivery` >14d; test PR-AUC ~0.53; see `docs/business_assessment.md`).
 
