@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -16,29 +17,31 @@ def main() -> None:
     rows = []
     items = []
     payments = []
+    start = datetime(2018, 1, 1, 10, 0, 0)
     for i in range(40):
         oid = f"o{i:03d}"
         cid = f"c{i % 8:03d}"
         sid = f"s{i % 5:03d}"
-        day = 1 + (i % 28)
-        month = 1 if i < 20 else 2
-        purchase = f"2018-{month:02d}-{day:02d}T10:00:00"
-        approved = f"2018-{month:02d}-{day:02d}T11:00:00"
-        estimated = f"2018-{month:02d}-{min(day + 5, 28):02d}T00:00:00"
-        # ~30% late
-        late = i % 3 == 0
-        delivered_day = min(day + (8 if late else 3), 28)
-        delivered = f"2018-{month:02d}-{delivered_day:02d}T15:00:00"
+        purchase_dt = start + timedelta(days=i)
+        approved_dt = purchase_dt + timedelta(hours=1)
+        # ~30% long delivery (>14 days from approval)
+        long = i % 3 == 0
+        delivered_dt = approved_dt + timedelta(days=(18 if long else 5), hours=4)
+        estimated_dt = (approved_dt + timedelta(days=12)).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
         rows.append(
             {
                 "order_id": oid,
                 "customer_id": cid,
                 "order_status": "delivered",
-                "order_purchase_timestamp": purchase,
-                "order_approved_at": approved,
-                "order_delivered_carrier_date": f"2018-{month:02d}-{day:02d}T18:00:00",
-                "order_delivered_customer_date": delivered,
-                "order_estimated_delivery_date": estimated,
+                "order_purchase_timestamp": purchase_dt.isoformat(timespec="seconds"),
+                "order_approved_at": approved_dt.isoformat(timespec="seconds"),
+                "order_delivered_carrier_date": (approved_dt + timedelta(hours=7)).isoformat(
+                    timespec="seconds"
+                ),
+                "order_delivered_customer_date": delivered_dt.isoformat(timespec="seconds"),
+                "order_estimated_delivery_date": estimated_dt.isoformat(timespec="seconds"),
             }
         )
         items.append(
@@ -47,7 +50,7 @@ def main() -> None:
                 "order_item_id": 1,
                 "product_id": f"p{i % 6:03d}",
                 "seller_id": sid,
-                "shipping_limit_date": estimated,
+                "shipping_limit_date": estimated_dt.isoformat(timespec="seconds"),
                 "price": 50 + i,
                 "freight_value": 10 + (i % 5),
             }

@@ -2,11 +2,11 @@ version: 2
 
 models:
   - name: fct_order_labels
-    description: Late-delivery labels at order grain (H1).
+    description: Long-delivery labels at order grain (H1 amended; >14d from prediction_ts).
     columns:
       - name: order_id
         tests: [unique, not_null]
-      - name: late_delivery
+      - name: long_delivery
         tests:
           - not_null
           - accepted_values:
@@ -24,7 +24,7 @@ models:
         tests: [not_null]
       - name: prediction_ts
         tests: [not_null]
-      - name: late_delivery
+      - name: long_delivery
         tests:
           - not_null
           - accepted_values:

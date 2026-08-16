@@ -34,7 +34,7 @@ def set_service(service: PredictionService) -> None:
     _service = service
 
 
-def predict_late_delivery(
+def predict_long_delivery(
     order_id: str,
     seller_id: str,
     purchase_timestamp: str,
@@ -100,7 +100,7 @@ def get_model_metrics(service: PredictionService | None = None) -> dict[str, Any
     return svc.model_info().model_dump(mode="json")
 
 
-def explain_late_delivery(
+def explain_long_delivery(
     order_id: str,
     seller_id: str,
     purchase_timestamp: str,
@@ -168,7 +168,7 @@ def create_mcp_server():
         instructions="Olist late-delivery risk scoring via shared PredictionService.",
     )
 
-    @server.tool(name="predict_late_delivery")
+    @server.tool(name="predict_long_delivery")
     def _predict(
         order_id: str,
         seller_id: str,
@@ -193,7 +193,7 @@ def create_mcp_server():
         seller_late_rate_90d: float | None = None,
     ) -> dict[str, Any]:
         """Score late-delivery probability for an order."""
-        return predict_late_delivery(
+        return predict_long_delivery(
             order_id=order_id,
             seller_id=seller_id,
             purchase_timestamp=purchase_timestamp,
@@ -227,7 +227,7 @@ def create_mcp_server():
         """Return model metadata including training metrics when available."""
         return get_model_metrics()
 
-    @server.tool(name="explain_late_delivery")
+    @server.tool(name="explain_long_delivery")
     def _explain(
         order_id: str,
         seller_id: str,
@@ -252,7 +252,7 @@ def create_mcp_server():
         seller_late_rate_90d: float | None = None,
     ) -> dict[str, Any]:
         """Return a stub feature explanation (same path as REST /v1/explain)."""
-        return explain_late_delivery(
+        return explain_long_delivery(
             order_id=order_id,
             seller_id=seller_id,
             purchase_timestamp=purchase_timestamp,

@@ -44,8 +44,8 @@ See [ARCHITECTURE.md](../ARCHITECTURE.md) and [ADR 0002](adr/0002-feast-mlflow-a
 |---|---|
 | Entity | Olist order (`order_id`) |
 | Prediction moment | `order_approved_at` (fallback: `order_purchase_timestamp` if approval null) |
-| Target | `late_delivery = order_delivered_customer_date > order_estimated_delivery_date` |
-| Output | `P(late_delivery)` calibrated probability + risk band |
+| Target | `long_delivery = (order_delivered_customer_date - prediction_ts) > 14 days` (H1 amended; see [ADR 0005](adr/0005-long-delivery-target.md)) |
+| Output | `P(long_delivery)` calibrated probability + risk band |
 | Exclude | Orders missing delivery date, estimated delivery date, or prediction timestamp; cancelled / non-delivered where target undefined |
 | Unavailable at prediction time | All post-approval logistics timestamps, carrier events, review scores, post-purchase status changes, anything after prediction timestamp |
 | Primary metric | PR-AUC |
@@ -122,7 +122,7 @@ Details: [COST.md](../COST.md), [ADR 0003](adr/0003-demo-cost-switches.md).
 | Decision | Locked value |
 |---|---|
 | REST | `GET /health`, `GET /ready`, `GET /v1/model`, `POST /v1/predict`, `POST /v1/explain` |
-| MCP tools | `predict_late_delivery`, `explain_late_delivery`, `get_model_status`, `get_model_metrics` |
+| MCP tools | `predict_long_delivery`, `explain_long_delivery`, `get_model_status`, `get_model_metrics` |
 | Shared path | REST and MCP → `PredictionService` → Feast online (when on) + Vertex Endpoint |
 | Auth (demo) | API key required when `AUTH_MODE=api_key`; open only for local dev |
 | Explain | SHAP on sampled/synchronous path behind `/v1/explain` with latency guardrails (timeout/budget) |

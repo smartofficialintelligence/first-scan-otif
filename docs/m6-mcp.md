@@ -13,10 +13,10 @@ uv sync --extra mcp
 
 | Tool | Maps to |
 |------|---------|
-| `predict_late_delivery` | `PredictionService.predict_one` |
+| `predict_long_delivery` | `PredictionService.predict_one` |
 | `get_model_status` | `PredictionService.readiness` |
 | `get_model_metrics` | `PredictionService.model_info` |
-| `explain_late_delivery` | `PredictionService.explain_one` (same stub as `/v1/explain`) |
+| `explain_long_delivery` | `PredictionService.explain_one` (same stub as `/v1/explain`) |
 
 Predict/explain args mirror `PredictRequest` fields (timestamps as ISO-8601 strings).
 

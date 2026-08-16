@@ -31,7 +31,7 @@ make train-pipeline
 curl -s localhost:8080/health
 curl -s localhost:8080/ready
 curl -s localhost:8080/v1/model
-# POST /v1/predict  |  make mcp-serve → predict_late_delivery
+# POST /v1/predict  |  make mcp-serve → predict_long_delivery
 # Response includes model_version
 ```
 

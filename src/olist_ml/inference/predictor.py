@@ -109,7 +109,7 @@ class PredictionService:
             )
             return PredictResponse(
                 order_id=request.order_id,
-                late_delivery_probability=proba,
+                long_delivery_probability=proba,
                 risk_band=band,  # type: ignore[arg-type]
                 model_version=self._meta.model_version,
                 prediction_timestamp=pred_ts,
@@ -149,7 +149,7 @@ class PredictionService:
             return ExplainResponse(
                 order_id=prediction.order_id,
                 model_version=prediction.model_version,
-                late_delivery_probability=prediction.late_delivery_probability,
+                long_delivery_probability=prediction.long_delivery_probability,
                 top_features=top_features,
                 method="stub",
                 note=EXPLAIN_TIMEOUT_NOTE,

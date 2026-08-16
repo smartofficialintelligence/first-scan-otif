@@ -57,17 +57,32 @@ def test_train_and_deterministic_predict(tmp_path: Path) -> None:
         customer_state=str(row["customer_state"]),
         seller_state_primary=str(row["seller_state_primary"]),
         geo_distance_km=float(row["geo_distance_km"]),
+        approval_lag_hours=float(row["approval_lag_hours"]),
+        same_state=float(row["same_state"]),
+        avg_product_weight_g=float(row["avg_product_weight_g"]),
+        freight_to_basket_ratio=float(row["freight_to_basket_ratio"]),
+        primary_category=str(row["primary_category"]),
         seller_order_count_7d=float(row["seller_order_count_7d"]),
         seller_order_count_30d=float(row["seller_order_count_30d"]),
         seller_order_count_90d=float(row["seller_order_count_90d"]),
         seller_late_rate_7d=float(row["seller_late_rate_7d"]),
         seller_late_rate_30d=float(row["seller_late_rate_30d"]),
         seller_late_rate_90d=float(row["seller_late_rate_90d"]),
+        seller_avg_freight_30d=float(row["seller_avg_freight_30d"]),
+        seller_avg_freight_90d=float(row["seller_avg_freight_90d"]),
+        seller_avg_basket_30d=float(row["seller_avg_basket_30d"]),
+        seller_avg_basket_90d=float(row["seller_avg_basket_90d"]),
+        customer_order_count_30d=float(row["customer_order_count_30d"]),
+        customer_order_count_90d=float(row["customer_order_count_90d"]),
+        customer_late_rate_90d=float(row["customer_late_rate_90d"]),
+        category_late_rate_30d=float(row["category_late_rate_30d"]),
+        category_late_rate_90d=float(row["category_late_rate_90d"]),
+        category_order_count_90d=float(row["category_order_count_90d"]),
     )
     a = service.predict_one(req)
     b = service.predict_one(req)
-    assert a.late_delivery_probability == b.late_delivery_probability
-    assert 0.0 <= a.late_delivery_probability <= 1.0
+    assert a.long_delivery_probability == b.long_delivery_probability
+    assert 0.0 <= a.long_delivery_probability <= 1.0
     assert a.model_version == meta.model_version
     assert a.risk_band in {"low", "medium", "high"}
 

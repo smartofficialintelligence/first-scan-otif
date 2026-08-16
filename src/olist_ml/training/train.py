@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import xgboost as xgb
 from sklearn.calibration import CalibratedClassifierCV
+from sklearn.frozen import FrozenEstimator
 
 from olist_ml.features.assembler import make_preprocessor
 from olist_ml.logging import get_logger
@@ -36,6 +37,7 @@ def build_xgb_params(
     *,
     y_train: np.ndarray,
     seed: int,
+    early_stopping_rounds: int | None = 50,
 ) -> dict[str, Any]:
     pos = max(int((y_train == 1).sum()), 1)
     neg = max(int((y_train == 0).sum()), 1)
@@ -50,6 +52,8 @@ def build_xgb_params(
             "verbosity": 0,
         }
     )
+    if early_stopping_rounds is not None:
+        params["early_stopping_rounds"] = early_stopping_rounds
     return params
 
 
@@ -60,17 +64,61 @@ def train_calibrated_model(
     best_params: dict[str, Any],
     seed: int = 42,
     calibrate: bool = True,
+    X_valid: np.ndarray | None = None,
+    y_valid: np.ndarray | None = None,
 ) -> CalibratedClassifierCV | xgb.XGBClassifier:
-    params = build_xgb_params(best_params, y_train=y_train, seed=seed)
+    use_valid = (
+        X_valid is not None
+        and y_valid is not None
+        and len(y_valid) >= 20
+        and len(np.unique(y_valid)) >= 2
+    )
+    params = build_xgb_params(
+        best_params,
+        y_train=y_train,
+        seed=seed,
+        early_stopping_rounds=50 if use_valid else None,
+    )
     base = xgb.XGBClassifier(**params)
-    if not calibrate or len(np.unique(y_train)) < 2 or len(y_train) < 30:
-        logger.warning("Skipping calibration (insufficient data or disabled)")
+    if use_valid:
+        base.fit(X_train, y_train, eval_set=[(X_valid, y_valid)], verbose=False)
+        logger.info(
+            "Fitted XGBoost with early stopping; best_iteration=%s",
+            getattr(base, "best_iteration", None),
+        )
+    else:
+        params.pop("early_stopping_rounds", None)
+        base = xgb.XGBClassifier(**params)
         base.fit(X_train, y_train)
+
+    if not calibrate:
         return base
 
-    calibrated = CalibratedClassifierCV(base, method="isotonic", cv=3)
+    if use_valid:
+        calibrated = CalibratedClassifierCV(FrozenEstimator(base), method="isotonic")
+        calibrated.fit(X_valid, y_valid)
+        logger.info(
+            "Trained XGBoost + held-out isotonic calibration (train=%s valid=%s)",
+            f"{len(y_train):,}",
+            f"{len(y_valid):,}",
+        )
+        return calibrated
+
+    if len(np.unique(y_train)) < 2 or len(y_train) < 30:
+        logger.warning("Skipping calibration (insufficient data)")
+        return base
+
+    calibrated = CalibratedClassifierCV(
+        xgb.XGBClassifier(
+            **build_xgb_params(
+                best_params, y_train=y_train, seed=seed, early_stopping_rounds=None
+            )
+        ),
+        method="isotonic",
+        cv=3,
+    )
     calibrated.fit(X_train, y_train)
-    logger.info("Trained calibrated XGBoost on %s rows", f"{len(y_train):,}")
+    logger.info("Trained CV-calibrated XGBoost on %s rows", f"{len(y_train):,}")
     return calibrated
 
 
@@ -80,8 +128,18 @@ def train_model_bundle(
     *,
     best_params: dict[str, Any],
     seed: int = 42,
+    X_df_valid: pd.DataFrame | None = None,
+    y_valid: np.ndarray | None = None,
 ) -> ModelBundle:
     pre = make_preprocessor()
     X_tr = pre.fit_transform(X_df_train)
-    model = train_calibrated_model(X_tr, y_train, best_params=best_params, seed=seed)
+    X_va = pre.transform(X_df_valid) if X_df_valid is not None else None
+    model = train_calibrated_model(
+        X_tr,
+        y_train,
+        best_params=best_params,
+        seed=seed,
+        X_valid=X_va,
+        y_valid=y_valid,
+    )
     return ModelBundle(pre, model)

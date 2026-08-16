@@ -25,7 +25,7 @@ select
   coalesce(h.seller_late_rate_7d, 0.0) as seller_late_rate_7d,
   coalesce(h.seller_late_rate_30d, 0.0) as seller_late_rate_30d,
   coalesce(h.seller_late_rate_90d, 0.0) as seller_late_rate_90d,
-  l.late_delivery
+  l.long_delivery
 from {{ ref('int_order_summary') }} s
 inner join {{ ref('fct_order_labels') }} l using (order_id)
 left join {{ ref('int_seller_history') }} h using (order_id)

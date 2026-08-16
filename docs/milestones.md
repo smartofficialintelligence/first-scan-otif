@@ -104,3 +104,14 @@ See [m10-airflow.md](m10-airflow.md).
 ARCHITECTURE/COST/RUNBOOK actuals placeholders, demo script, teardown commands verified locally.
 
 **Accept:** interviewer can follow demo script end-to-end; idle cost ~$0 after down.
+
+---
+
+## Deferred — Decision + agentic action layer
+
+**Status:** DEFERRED until the predictive model is accepted as demo-effective.
+
+Full instruction set (D1–D13, economics, LangGraph/LangSmith, MCP tools, replay, eval gates):  
+[followup-decision-agentic-layer.md](followup-decision-agentic-layer.md)
+
+**Do not start** until human green-light after model quality review. First slice when unblocked: D1–D2 only (domain + deterministic EV policy).
