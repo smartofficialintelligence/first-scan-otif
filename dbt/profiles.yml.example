@@ -1,0 +1,17 @@
+olist_ml:
+  target: dev
+  outputs:
+    dev:
+      type: bigquery
+      method: service-account
+      project: "{{ env_var('GCP_PROJECT_ID') }}"
+      dataset: olist_dbt
+      location: US
+      keyfile: "{{ env_var('GOOGLE_APPLICATION_CREDENTIALS') }}"
+      threads: 4
+      timeout_seconds: 300
+      priority: interactive
+    # Local compile-only fallback when using fixtures via DuckDB (optional later)
+    # duckdb:
+    #   type: duckdb
+    #   path: ../data/dbt_local.duckdb

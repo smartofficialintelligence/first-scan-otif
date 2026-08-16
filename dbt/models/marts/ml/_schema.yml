@@ -1,0 +1,42 @@
+version: 2
+
+models:
+  - name: fct_order_labels
+    description: Late-delivery labels at order grain (H1).
+    columns:
+      - name: order_id
+        tests: [unique, not_null]
+      - name: late_delivery
+        tests:
+          - not_null
+          - accepted_values:
+              values: [0, 1]
+              quote: false
+      - name: prediction_ts
+        tests: [not_null]
+
+  - name: fct_order_features
+    description: PIT-safe order features + label for training.
+    columns:
+      - name: order_id
+        tests: [unique, not_null]
+      - name: seller_id
+        tests: [not_null]
+      - name: prediction_ts
+        tests: [not_null]
+      - name: late_delivery
+        tests:
+          - not_null
+          - accepted_values:
+              values: [0, 1]
+              quote: false
+      - name: seller_order_count_30d
+        tests: [not_null]
+      - name: seller_late_rate_30d
+        tests: [not_null]
+
+  - name: int_seller_history
+    description: Seller rolling history strictly before each order.
+    columns:
+      - name: order_id
+        tests: [unique, not_null]

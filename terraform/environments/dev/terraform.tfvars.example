@@ -1,0 +1,6 @@
+# Example tfvars — copy to terraform.tfvars locally (gitignored).
+# Review the plan (H7) before `terraform apply`.
+project_id = "production-ml-model"
+region     = "us-central1"
+location   = "US"
+name_prefix = "olist-ml"

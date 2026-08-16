@@ -1,0 +1,9 @@
+customer_id,customer_unique_id,customer_zip_code_prefix,customer_city,customer_state
+c000,cu000,1000,sao paulo,SP
+c001,cu001,1001,sao paulo,RJ
+c002,cu002,1002,sao paulo,MG
+c003,cu003,1003,sao paulo,SP
+c004,cu004,1004,sao paulo,RS
+c005,cu005,1005,sao paulo,PR
+c006,cu006,1006,sao paulo,BA
+c007,cu007,1007,sao paulo,PE

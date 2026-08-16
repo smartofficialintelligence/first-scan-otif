@@ -1,0 +1,7 @@
+product_id,product_category_name,product_name_lenght,product_description_lenght,product_photos_qty,product_weight_g,product_length_cm,product_height_cm,product_width_cm
+p000,beleza,10,100,1,500,20,10,15
+p001,cama,10,100,1,500,20,10,15
+p002,esporte,10,100,1,500,20,10,15
+p003,beleza,10,100,1,500,20,10,15
+p004,casa,10,100,1,500,20,10,15
+p005,toys,10,100,1,500,20,10,15

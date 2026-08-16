@@ -1,0 +1,31 @@
+name: olist_ml
+version: 1.0.0
+config-version: 2
+profile: olist_ml
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - target
+  - dbt_packages
+
+models:
+  olist_ml:
+    staging:
+      +schema: staging
+      +materialized: view
+    intermediate:
+      +schema: intermediate
+      +materialized: view
+    marts:
+      ml:
+        +schema: ml
+        +materialized: table
+
+vars:
+  prediction_ts_fallback: true

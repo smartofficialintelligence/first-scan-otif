@@ -1,0 +1,4 @@
+{
+  "install": "curl -LsSf https://astral.sh/uv/install.sh | sh\nexport PATH=\"$HOME/.local/bin:$PATH\"\nuv sync --all-extras\n\n# Terraform\nif ! command -v terraform >/dev/null 2>&1; then\n  TF_VER=1.9.8\n  curl -fsSL \"https://releases.hashicorp.com/terraform/${TF_VER}/terraform_${TF_VER}_linux_amd64.zip\" -o /tmp/terraform.zip\n  sudo unzip -o /tmp/terraform.zip -d /usr/local/bin\n  rm -f /tmp/terraform.zip\nfi\n\n# gcloud SDK\nif [ ! -x /opt/google-cloud-sdk/bin/gcloud ]; then\n  curl -fsSL https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-linux-x86_64.tar.gz -o /tmp/gcloud.tar.gz\n  sudo tar -xzf /tmp/gcloud.tar.gz -C /opt\n  rm -f /tmp/gcloud.tar.gz\nfi\n\necho \"Milestone 2 tools ready. Required secrets: GCP_PROJECT_ID, GOOGLE_APPLICATION_CREDENTIALS_JSON\"",
+  "start": "export PATH=\"$HOME/.local/bin:/opt/google-cloud-sdk/bin:$PATH\""
+}
