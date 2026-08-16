@@ -6,11 +6,15 @@ from olist_ml.agents.tracing import configure_tracing, tracing_enabled
 from olist_ml.decisions.economics import clear_policy_cache, load_policy_economics
 
 
-def test_economics_gate_defaults_pending() -> None:
+def test_economics_gate_simulation_approved_not_causal() -> None:
     clear_policy_cache()
     cfg = load_policy_economics()
-    assert cfg.economics_gate.status == "pending_approval"
-    assert not cfg.economics_gate.is_approved
+    assert cfg.economics_gate.status == "approved"
+    assert cfg.economics_gate.is_approved is True
+    assert cfg.economics_gate.simulation_claims_allowed is True
+    assert cfg.economics_gate.allow_causal_roi_claims is False
+    assert cfg.economics_gate.causal_roi_claim_allowed is False
+    assert cfg.policy_config_version == "econ-sim-v2"
     assert cfg.routing.real_external_execution_enabled is False
 
 

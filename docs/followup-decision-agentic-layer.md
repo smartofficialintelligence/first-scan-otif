@@ -1,6 +1,6 @@
 # Follow-up: Decision + Agentic Action Layer
 
-**Status:** COMPLETE (local-first). D1–D13 shipped; LangSmith opt-in when keyed; H9/H10 remain `pending_approval` until a human signs `config/policy_economics.yaml`.  
+**Status:** COMPLETE. D1–D13 shipped; H9/H10 approved as simulation defaults (`econ-sim-v2`); `allow_causal_roi_claims` remains false.  
 **Saved:** 2026-08-16  
 **Model gate:** passed (`long_delivery` >14d; test PR-AUC ~0.53; see `docs/business_assessment.md`).
 
@@ -660,7 +660,7 @@ Treat the agent as an untrusted decision participant. Validate tool args, action
 | D12 | Monitoring | decision/agent counters on `/v1/metrics` |
 | D13 | Demo harness | `scripts/demo_decision_chain.py` / `make demo-decision` |
 
-Human gates **H9–H12** formalized: [h9-h10-economics-gate.md](h9-h10-economics-gate.md). H9/H10 stay pending until stakeholder approval; H12 real execution remains disabled.
+Human gates **H9–H12** formalized: [h9-h10-economics-gate.md](h9-h10-economics-gate.md). H9/H10 approved for simulation defaults; causal ROI claims remain off. H12 real execution remains disabled.
 
 Each milestone must leave the system runnable. **Do not start with the LLM agent.**
 

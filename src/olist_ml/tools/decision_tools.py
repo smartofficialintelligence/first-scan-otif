@@ -157,7 +157,8 @@ def list_available_actions(
         "policy_config_version": cfg.policy_config_version,
         "assumptions_disclaimer": cfg.assumptions_disclaimer,
         "economics_gate": cfg.economics_gate.model_dump(),
-        "causal_roi_claim_allowed": cfg.economics_gate.is_approved,
+        "simulation_claims_allowed": cfg.economics_gate.simulation_claims_allowed,
+        "causal_roi_claim_allowed": cfg.economics_gate.causal_roi_claim_allowed,
         "actions": [
             {
                 "action": a.value,

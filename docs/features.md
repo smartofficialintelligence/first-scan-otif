@@ -1,6 +1,6 @@
 # Feature Architecture
 
-Status: **candidate set locked for implementation**; **H2 human audit still required** before calling the set production-approved.
+Status: **candidate set locked**; **H2 audit completed for portfolio v1** — see [h2-feature-audit.md](h2-feature-audit.md).
 
 ## Layers (dbt)
 
@@ -100,3 +100,5 @@ For every feature:
 4. Knowable at `prediction_ts`? (yes/no)
 5. Online or offline only
 6. Owner / docstring in Feast registry
+
+**Portfolio v1:** checklist recorded as passed in [h2-feature-audit.md](h2-feature-audit.md) (2026-08-16). Re-run before live production promote.

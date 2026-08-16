@@ -56,7 +56,7 @@ loss_if_long = $10 + 0.10 × basket_value
 EV for prevention actions: `P(risk) × prevent × loss − cost`  
 EV for notification: `P(risk) × loss × impact_reduction − cost`
 
-Under these assumptions, intervening on the **top 10%** looks **positive-EV** for EXPEDITE / notification / escalation; MANUAL_REVIEW is marginal. **Do not treat $ as proven ROI** until H9/H10 approve assumptions ([h9-h10-economics-gate.md](h9-h10-economics-gate.md)).
+Under these assumptions, intervening on the **top 10%** looks **positive-EV** for EXPEDITE / notification / escalation; MANUAL_REVIEW is marginal. H9/H10 are approved as **simulation defaults** ([h9-h10-economics-gate.md](h9-h10-economics-gate.md)); causal ROI claims remain disallowed.
 
 ## Business read
 

@@ -126,7 +126,7 @@ def test_decision_service_from_prediction(policy_cfg) -> None:
     assert result.prediction_id == "pred-1"
     assert result.order_id == "o1"
     assert result.policy_version == "expected-value-policy-v1"
-    assert result.policy_config_version == "econ-sim-v1"
+    assert result.policy_config_version == "econ-sim-v2"
     assert result.recommended_action in set(ActionType)
     assert len(result.alternative_actions) >= 1
     assert len(result.assumptions_disclaimer) > 0

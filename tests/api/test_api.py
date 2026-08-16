@@ -165,7 +165,8 @@ def test_decision_and_policy_endpoints(client: TestClient) -> None:
     assert policy.status_code == 200
     body = policy.json()
     assert body["policy_version"] == "expected-value-policy-v1"
-    assert body["economics_gate"]["status"] == "pending_approval"
+    assert body["economics_gate"]["status"] == "approved"
+    assert body["simulation_claims_allowed"] is True
     assert body["causal_roi_claim_allowed"] is False
 
     resp = client.post("/v1/decision", json={**_predict_payload("d1"), "simulate": False})

@@ -33,17 +33,18 @@ def main() -> int:
         "policy_config_version": cfg.policy_config_version,
         "economics_gate": gate.model_dump(),
         "is_approved": gate.is_approved,
-        "causal_roi_claim_allowed": gate.is_approved,
+        "simulation_claims_allowed": gate.simulation_claims_allowed,
+        "causal_roi_claim_allowed": gate.causal_roi_claim_allowed,
         "disclaimer": cfg.assumptions_disclaimer,
         "guidance": (
-            "Simulation defaults only."
-            if not gate.is_approved
-            else "H9/H10 approved — still not a causal guarantee."
+            "Simulation defaults approved for demo/replay under versioned assumptions."
+            if gate.simulation_claims_allowed
+            else "Simulation defaults only — H9/H10 still pending."
         ),
     }
     print(json.dumps(report, indent=2))
     if args.require_approved and not gate.is_approved:
-        print("H9/H10 not approved — refusing causal-ROI claim path.", file=sys.stderr)
+        print("H9/H10 not approved — refusing simulation-claim path.", file=sys.stderr)
         return 1
     return 0
 
