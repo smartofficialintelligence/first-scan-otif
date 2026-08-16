@@ -83,3 +83,17 @@ After the first complete paid demo, fill in:
 - Revised target for next demo
 
 Keep this file honest; do not invent numbers.
+
+## Actuals placeholder (fill after live demo)
+
+| Service | Planned estimate | Actual $ | Hours on | Notes |
+|---|---|---|---|---|
+| BigQuery (query + storage) | TBD | TBD | TBD | |
+| Vertex AI Endpoint | TBD | TBD | TBD | Tear down same day |
+| Cloud Run (API / MLflow) | TBD | TBD | TBD | `min_instances=0` |
+| Memorystore Redis | TBD | TBD | TBD | Demo-on only |
+| Cloud Composer | TBD | TBD | TBD | Prefer local Airflow; delete if created |
+| Artifact Registry / GCS | TBD | TBD | TBD | Retain OK |
+| **Total** | **≤ $30 target** | **TBD** | | Update after first paid demo |
+
+Idle after `demo-down`: target **~$0/day** (optional storage cents if data retained).

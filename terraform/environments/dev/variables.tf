@@ -20,3 +20,15 @@ variable "name_prefix" {
   description = "Resource name prefix"
   default     = "olist-ml"
 }
+
+variable "enable_serving" {
+  type        = bool
+  description = "When true, instantiate Cloud Run + Vertex endpoint modules (default false for validate-without-serving)."
+  default     = false
+}
+
+variable "serving_image" {
+  type        = string
+  description = "Container image for Cloud Run when enable_serving=true"
+  default     = "us-docker.pkg.dev/cloudrun/container/hello"
+}

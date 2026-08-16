@@ -22,31 +22,48 @@ Raw → BQ → dbt staging/intermediate/marts → training table + tests.
 
 ## Milestone 3 — Feast
 
-**Status:** in progress on `cursor/milestone-3-feast-642f`.
+**Status:** implemented on `cursor/milestones-remaining-642f`.
 
 dbt marts → Feast registry; offline retrieval for training; online seller features when demo-on (SQLite for demo-off).
 
 **Accept:** entity lookup works; freshness visible; offline/online parity test exists.
 
+See [m3-feast-setup.md](m3-feast-setup.md).
+
 ## Milestone 4 — Vertex training + MLflow
 
+**Status:** implemented on `cursor/milestones-remaining-642f`.
+
 Vertex Pipeline: validate → tune → train → calibrate → evaluate → log MLflow → register candidate.
+Local path: `python -m pipelines.local_pipeline` / `make train-pipeline` (MLflow file store under `artifacts/mlruns`). Lifecycle stops at `REGISTERED_CANDIDATE` (no auto-promote).
 
 **Accept:** one pipeline run produces a registered candidate with lineage metadata.
 
+See [m4-training-mlflow.md](m4-training-mlflow.md).
+
 ## Milestone 5 — Managed inference
+
+**Status:** implemented on `cursor/milestones-remaining-642f` (local REST + demo scripts + TF scaffolds; Vertex apply gated).
 
 MLflow/champion artifact → Vertex Endpoint → Cloud Run FastAPI.
 
 **Accept:** live REST predict; `model_version` returned; demo-down tears endpoint down.
 
+See [m5-serving.md](m5-serving.md).
+
 ## Milestone 6 — MCP
+
+**Status:** implemented on `cursor/milestones-remaining-642f`.
 
 MCP tools call the same `PredictionService`.
 
 **Accept:** agent-invokable predict/status without duplicated inference logic.
 
+See [m6-mcp.md](m6-mcp.md).
+
 ## Milestone 7 — CI/CD + Terraform hardening
+
+**Status:** implemented on `cursor/milestones-remaining-642f` (Terraform modules + validate path; deploy workflows may still expand).
 
 PR CI (lint/type/test/dbt compile/tf validate/docker). Deploy workflows. H7 for apply.
 
@@ -54,24 +71,36 @@ PR CI (lint/type/test/dbt compile/tf validate/docker). Deploy workflows. H7 for 
 
 ## Milestone 8 — Monitoring
 
+**Status:** implemented on `cursor/milestones-remaining-642f` (prediction logs + drift alarm stub; dashboards optional later).
+
 Service + ML telemetry (latency, errors, drift, prediction mix, delayed-label quality).
 
 **Accept:** dashboards or exported metrics show both service and ML signals; drift ≠ quality documented.
 
 ## Milestone 9 — Canary + replay + rollback
 
+**Status:** implemented on `cursor/milestones-remaining-642f`.
+
 Implements [simulation.md](simulation.md): baseline canary, bad challenger rollback, prediction logs.
 
 **Accept:** 90/10 version attribution; bad canary rolls back to 100% champion.
 
+See [m9-canary-replay.md](m9-canary-replay.md).
+
 ## Milestone 10 — Airflow triggers
+
+**Status:** implemented on `cursor/milestones-remaining-642f`.
 
 Schedule + drift/performance → candidate training pipeline; still requires H5/H6.
 
 **Accept:** trigger produces candidate; no auto-promote.
 
+See [m10-airflow.md](m10-airflow.md).
+
 ## Milestone 11 — Polish
 
-ARCHITECTURE/COST/RUNBOOK actuals, demo script, screenshots, teardown verified.
+**Status:** implemented on `cursor/milestones-remaining-642f`.
+
+ARCHITECTURE/COST/RUNBOOK actuals placeholders, demo script, teardown commands verified locally.
 
 **Accept:** interviewer can follow demo script end-to-end; idle cost ~$0 after down.

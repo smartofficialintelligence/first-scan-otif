@@ -66,3 +66,21 @@ class ReadyResponse(BaseModel):
     ready: bool
     model_version: str | None = None
     detail: str | None = None
+
+
+class ExplainRequest(PredictRequest):
+    """Same feature payload as predict; explanation is a deterministic stub by default."""
+
+
+class TopFeatureContribution(BaseModel):
+    feature: str
+    contribution: float
+
+
+class ExplainResponse(BaseModel):
+    order_id: str
+    model_version: str
+    late_delivery_probability: float = Field(ge=0, le=1)
+    top_features: list[TopFeatureContribution]
+    method: Literal["stub", "shap"] = "stub"
+    note: str | None = None

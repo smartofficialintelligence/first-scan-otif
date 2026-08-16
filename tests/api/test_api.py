@@ -57,9 +57,13 @@ def client(trained_settings: Settings) -> TestClient:
 
 
 def test_health_ready_predict(client: TestClient) -> None:
+    from olist_ml.monitoring.metrics import get_metrics
+
+    get_metrics().reset()
     assert client.get("/health").json()["status"] == "ok"
     ready = client.get("/ready").json()
     assert ready["ready"] is True
+    assert "service" in client.get("/v1/metrics").json()
     payload = {
         "order_id": "demo",
         "seller_id": "s000",
@@ -85,6 +89,35 @@ def test_health_ready_predict(client: TestClient) -> None:
     assert body["order_id"] == "demo"
     assert 0.0 <= body["late_delivery_probability"] <= 1.0
     assert "model_version" in body
+
+
+def test_explain(client: TestClient) -> None:
+    payload = {
+        "order_id": "demo",
+        "seller_id": "s000",
+        "purchase_timestamp": datetime(2018, 2, 10, 12, 0, tzinfo=UTC).isoformat(),
+        "prediction_timestamp": datetime(2018, 2, 10, 12, 0, tzinfo=UTC).isoformat(),
+        "item_count": 2,
+        "basket_value": 120.0,
+        "freight_value": 15.0,
+        "seller_count": 1,
+        "category_count": 1,
+        "payment_type_primary": "credit_card",
+        "installment_count": 1,
+        "estimated_delivery_horizon_days": 5.0,
+        "customer_state": "SP",
+        "seller_state_primary": "RJ",
+        "geo_distance_km": 100.0,
+        "seller_order_count_30d": 3,
+        "seller_late_rate_30d": 0.2,
+    }
+    resp = client.post("/v1/explain", json=payload)
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["order_id"] == "demo"
+    assert body["method"] == "stub"
+    assert "top_features" in body
+    assert body["model_version"]
 
 
 def test_invalid_payload(client: TestClient) -> None:

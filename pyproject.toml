@@ -30,16 +30,24 @@ dev = [
   "pandas-stubs>=2.2.0",
   "types-PyYAML>=6.0.0",
 ]
+ml = [
+  "mlflow>=2.14.0",
+]
 gcp = [
   "google-cloud-bigquery>=3.25.0",
   "dbt-bigquery>=1.8.0",
   "google-cloud-storage>=2.18.0",
   "feast[gcp]>=0.40.0",
+  "google-cloud-aiplatform>=1.60.0",
+]
+mcp = [
+    "mcp>=1.0.0",
 ]
 
 [project.scripts]
 olist-train = "olist_ml.training.pipeline:main"
 olist-serve = "olist_ml.api.app:run"
+olist-mcp = "olist_ml.api.mcp_server:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -53,12 +61,12 @@ package = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src"]
+pythonpath = ["src", "."]
 
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-src = ["src", "tests", "scripts"]
+src = ["src", "tests", "scripts", "pipelines"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
@@ -66,7 +74,7 @@ ignore = ["B008"]  # FastAPI Depends() in defaults is idiomatic
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["E501"]
-"scripts/**" = ["E501"]
+"scripts/**" = ["E501", "E402"]
 
 [tool.mypy]
 python_version = "3.12"
