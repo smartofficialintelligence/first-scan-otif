@@ -14,7 +14,7 @@ Binding build order. Each milestone ends in a **runnable** path. Do not scaffold
 
 ## Milestone 2 — BigQuery + dbt
 
-**Status:** live on `cursor/milestone-2-bq-dbt-fd7a` (PR #3). Fixture ingest + `dbt build` succeeded (29/29). `terraform plan` saved (`tfplan`, 10 adds); **`terraform apply` still requires H7**.
+**Status:** infra applied on `cursor/milestone-2-bq-dbt-fd7a` (PR #3). Fixture ingest + `dbt build` (29/29). **H7 terraform apply complete** (imported pre-existing `olist_raw` from ingest).
 
 Raw → BQ → dbt staging/intermediate/marts → training table + tests.
 
