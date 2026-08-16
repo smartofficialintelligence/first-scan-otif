@@ -7,7 +7,7 @@ This is not a notebook demo. It is an end-to-end ML platform slice: features, tr
 ## Status
 
 **Milestone 1 complete (local):** train → evaluate → serialize → FastAPI predict, with tests.  
-**Milestone 2 in progress (PR #3):** dbt + Terraform wired for live BigQuery. Fixture ingest + `dbt build` green; `terraform apply` awaits H7. See [docs/m2-gcp-setup.md](docs/m2-gcp-setup.md).
+**Milestone 2 in progress (PR #3):** dbt + Terraform wired for live BigQuery. Fixture ingest + `dbt build` green; **H7 terraform apply complete**. See [docs/m2-gcp-setup.md](docs/m2-gcp-setup.md).
 
 ## Locked architecture (short)
 
