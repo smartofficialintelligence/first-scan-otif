@@ -81,8 +81,8 @@ def test_train_and_deterministic_predict(tmp_path: Path) -> None:
     )
     a = service.predict_one(req)
     b = service.predict_one(req)
-    assert a.late_delivery_probability == b.late_delivery_probability
-    assert 0.0 <= a.late_delivery_probability <= 1.0
+    assert a.long_delivery_probability == b.long_delivery_probability
+    assert 0.0 <= a.long_delivery_probability <= 1.0
     assert a.model_version == meta.model_version
     assert a.risk_band in {"low", "medium", "high"}
 

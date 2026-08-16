@@ -76,15 +76,15 @@ def test_get_model_metrics(trained_service: PredictionService) -> None:
     assert len(info["feature_names"]) > 0
 
 
-def test_predict_late_delivery(trained_service: PredictionService) -> None:
-    body = mcp_server.predict_late_delivery(service=trained_service, **_payload())
+def test_predict_long_delivery(trained_service: PredictionService) -> None:
+    body = mcp_server.predict_long_delivery(service=trained_service, **_payload())
     assert body["order_id"] == "mcp-demo"
-    assert 0.0 <= body["late_delivery_probability"] <= 1.0
+    assert 0.0 <= body["long_delivery_probability"] <= 1.0
     assert "model_version" in body
 
 
-def test_explain_late_delivery(trained_service: PredictionService) -> None:
-    body = mcp_server.explain_late_delivery(service=trained_service, **_payload())
+def test_explain_long_delivery(trained_service: PredictionService) -> None:
+    body = mcp_server.explain_long_delivery(service=trained_service, **_payload())
     assert body["order_id"] == "mcp-demo"
     assert body["method"] == "stub"
     assert "top_features" in body

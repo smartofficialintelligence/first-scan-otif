@@ -139,7 +139,7 @@ def _pit_window_stats(
     windows_days: dict[str, int],
     count_prefix: str,
     rate_prefix: str | None = None,
-    rate_source: str = "late_delivery",
+    rate_source: str = "long_delivery",
     mean_specs: list[tuple[str, str]] | None = None,
 ) -> pd.DataFrame:
     """
@@ -299,7 +299,7 @@ def build_feature_table(
     for col in fill0:
         base[col] = base[col].fillna(0).astype(float)
 
-    required = FEATURE_COLUMNS + ["late_delivery", "order_id", "seller_id", "prediction_ts"]
+    required = FEATURE_COLUMNS + ["long_delivery", "order_id", "seller_id", "prediction_ts"]
     missing = [c for c in required if c not in base.columns]
     if missing:
         raise ValueError(f"Feature build missing columns: {missing}")

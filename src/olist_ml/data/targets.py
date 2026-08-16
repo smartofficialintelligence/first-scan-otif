@@ -1,4 +1,4 @@
-"""Target construction for late delivery (H1)."""
+"""Target construction for long-delivery risk (H1 amended)."""
 
 from __future__ import annotations
 
@@ -7,6 +7,9 @@ import pandas as pd
 from olist_ml.logging import get_logger
 
 logger = get_logger(__name__)
+
+# Fixed operational SLA used as the positive class (days from prediction_ts).
+LONG_DELIVERY_THRESHOLD_DAYS: float = 14.0
 
 ORDER_TS_COLS = [
     "order_purchase_timestamp",
@@ -27,10 +30,13 @@ def _parse_timestamps(orders: pd.DataFrame) -> pd.DataFrame:
 
 def build_labeled_orders(orders: pd.DataFrame) -> pd.DataFrame:
     """
-    Build prediction timestamp + late_delivery label.
+    Build prediction timestamp + long_delivery label.
 
     prediction_ts = order_approved_at ?? order_purchase_timestamp
-    late_delivery = delivered_customer_date > estimated_delivery_date
+    delivery_days = order_delivered_customer_date - prediction_ts
+    long_delivery = delivery_days > LONG_DELIVERY_THRESHOLD_DAYS
+
+    Also retains promise_miss (delivered after estimated date) as a diagnostic column only.
     """
     df = _parse_timestamps(orders)
     df["prediction_ts"] = df["order_approved_at"].fillna(df["order_purchase_timestamp"])
@@ -41,7 +47,12 @@ def build_labeled_orders(orders: pd.DataFrame) -> pd.DataFrame:
     eligible = delivered & estimated & has_pred
 
     labeled = df.loc[eligible].copy()
-    labeled["late_delivery"] = (
+    labeled["delivery_days"] = (
+        labeled["order_delivered_customer_date"] - labeled["prediction_ts"]
+    ).dt.total_seconds() / 86400.0
+    labeled["long_delivery"] = (labeled["delivery_days"] > LONG_DELIVERY_THRESHOLD_DAYS).astype(int)
+    # Diagnostic / legacy: miss vs customer-facing estimate (weak signal on Olist).
+    labeled["promise_miss"] = (
         labeled["order_delivered_customer_date"] > labeled["order_estimated_delivery_date"]
     ).astype(int)
     labeled["estimated_delivery_horizon_days"] = (
@@ -50,9 +61,12 @@ def build_labeled_orders(orders: pd.DataFrame) -> pd.DataFrame:
 
     dropped = len(df) - len(labeled)
     logger.info(
-        "Labeled orders: %s eligible (dropped %s); late rate=%.3f",
+        "Labeled orders: %s eligible (dropped %s); long_delivery(>%.0fd) rate=%.3f "
+        "(promise_miss rate=%.3f)",
         f"{len(labeled):,}",
         f"{dropped:,}",
-        labeled["late_delivery"].mean() if len(labeled) else 0.0,
+        LONG_DELIVERY_THRESHOLD_DAYS,
+        labeled["long_delivery"].mean() if len(labeled) else 0.0,
+        labeled["promise_miss"].mean() if len(labeled) else 0.0,
     )
     return labeled.reset_index(drop=True)

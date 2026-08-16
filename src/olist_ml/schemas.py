@@ -65,11 +65,12 @@ class PredictRequest(BaseModel):
 
 class PredictResponse(BaseModel):
     order_id: str
-    late_delivery_probability: float = Field(ge=0, le=1)
+    long_delivery_probability: float = Field(ge=0, le=1)
     risk_band: RiskBand
     model_version: str
     prediction_timestamp: datetime
     feature_timestamp: datetime | None = None
+    target: str = "long_delivery_gt_14d"
 
 
 class ModelInfoResponse(BaseModel):
@@ -102,7 +103,8 @@ class TopFeatureContribution(BaseModel):
 class ExplainResponse(BaseModel):
     order_id: str
     model_version: str
-    late_delivery_probability: float = Field(ge=0, le=1)
+    long_delivery_probability: float = Field(ge=0, le=1)
     top_features: list[TopFeatureContribution]
     method: Literal["stub", "shap"] = "stub"
     note: str | None = None
+    target: str = "long_delivery_gt_14d"

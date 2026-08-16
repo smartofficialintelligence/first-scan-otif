@@ -51,13 +51,13 @@ def _bucket_metrics(rows: list[dict[str, Any]], bucket: str) -> dict[str, Any]:
     labeled = [
         r
         for r in subset
-        if r.get("label_late_delivery") is not None and r.get("proba") is not None
+        if r.get("label_long_delivery") is not None and r.get("proba") is not None
     ]
     brier = None
     mae = None
     error_rate = None
     if labeled:
-        y = np.array([int(r["label_late_delivery"]) for r in labeled], dtype=float)
+        y = np.array([int(r["label_long_delivery"]) for r in labeled], dtype=float)
         p = np.array([float(r["proba"]) for r in labeled], dtype=float)
         brier = float(np.mean((p - y) ** 2))
         mae = float(np.mean(np.abs(p - y)))

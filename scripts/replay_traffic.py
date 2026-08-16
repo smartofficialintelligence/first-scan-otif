@@ -105,7 +105,7 @@ def _predict_inprocess(service: PredictionService, request: PredictRequest) -> d
     latency_ms = (time.perf_counter() - t0) * 1000.0
     return {
         "order_id": resp.order_id,
-        "late_delivery_probability": resp.late_delivery_probability,
+        "long_delivery_probability": resp.long_delivery_probability,
         "risk_band": resp.risk_band,
         "model_version": resp.model_version,
         "latency_ms": latency_ms,
@@ -126,7 +126,7 @@ def _predict_http(
         if r.status_code >= 400:
             return {
                 "order_id": request.order_id,
-                "late_delivery_probability": None,
+                "long_delivery_probability": None,
                 "risk_band": None,
                 "model_version": None,
                 "latency_ms": latency_ms,
@@ -136,7 +136,7 @@ def _predict_http(
         body = r.json()
         return {
             "order_id": body.get("order_id", request.order_id),
-            "late_delivery_probability": body.get("late_delivery_probability"),
+            "long_delivery_probability": body.get("long_delivery_probability"),
             "risk_band": body.get("risk_band"),
             "model_version": body.get("model_version"),
             "latency_ms": latency_ms,
@@ -147,7 +147,7 @@ def _predict_http(
         latency_ms = (time.perf_counter() - t0) * 1000.0
         return {
             "order_id": request.order_id,
-            "late_delivery_probability": None,
+            "long_delivery_probability": None,
             "risk_band": None,
             "model_version": None,
             "latency_ms": latency_ms,
@@ -226,8 +226,8 @@ def run_replay(
             request = row_to_request(row)
             traffic_bucket = traffic_bucket_for_order(request.order_id)
             label = None
-            if "late_delivery" in row and pd.notna(row["late_delivery"]):
-                label = int(row["late_delivery"])
+            if "long_delivery" in row and pd.notna(row["long_delivery"]):
+                label = int(row["long_delivery"])
 
             if inprocess:
                 assert champion_svc is not None
@@ -246,14 +246,14 @@ def run_replay(
                 "scenario": scenario,
                 "request_ts": datetime.now(UTC).isoformat(),
                 "model_version": pred.get("model_version"),
-                "late_delivery_probability": pred.get("late_delivery_probability"),
-                "proba": pred.get("late_delivery_probability"),
+                "long_delivery_probability": pred.get("long_delivery_probability"),
+                "proba": pred.get("long_delivery_probability"),
                 "risk_band": pred.get("risk_band"),
                 "latency_ms": pred.get("latency_ms"),
                 "http_status": pred.get("http_status"),
                 "error_class": pred.get("error_class"),
                 "traffic_bucket": traffic_bucket,
-                "label_late_delivery": label,
+                "label_long_delivery": label,
                 "seed": seed,
             }
             fh.write(json.dumps(record, default=str) + "\n")

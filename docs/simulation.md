@@ -72,7 +72,7 @@ Emits: prediction log rows (BQ or GCS JSONL) with model version, latency, status
 
 ```text
 event_id, order_id, snapshot_id, scenario, request_ts, model_version,
-late_delivery_probability, risk_band, latency_ms, http_status,
+long_delivery_probability, risk_band, latency_ms, http_status,
 feature_freshness_ts, feast_lookup_ms, error_class
 ```
 

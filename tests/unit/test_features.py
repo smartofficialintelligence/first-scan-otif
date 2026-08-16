@@ -16,7 +16,7 @@ def test_feature_table_has_contract_columns() -> None:
     tables = load_olist_tables(FIXTURES)
     labeled = build_labeled_orders(tables["orders"])
     feats = build_feature_table(tables, labeled)
-    assert "late_delivery" in feats.columns
+    assert "long_delivery" in feats.columns
     for col in FEATURE_COLUMNS:
         assert col in feats.columns, col
     assert feats["seller_order_count_30d"].notna().all()

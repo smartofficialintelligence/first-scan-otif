@@ -41,11 +41,11 @@ def run_training(settings: Settings, data_dir: Path | None = None) -> ModelMeta:
     test_df = splits.test if len(splits.test) else valid_df
 
     X_train_df = select_feature_frame(train_df)
-    y_train = train_df["late_delivery"].to_numpy()
+    y_train = train_df["long_delivery"].to_numpy()
     X_valid_df = select_feature_frame(valid_df)
-    y_valid = valid_df["late_delivery"].to_numpy()
+    y_valid = valid_df["long_delivery"].to_numpy()
     X_test_df = select_feature_frame(test_df)
-    y_test = test_df["late_delivery"].to_numpy()
+    y_test = test_df["long_delivery"].to_numpy()
 
     pre = make_preprocessor()
     X_tr = pre.fit_transform(X_train_df)
