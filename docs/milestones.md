@@ -109,9 +109,9 @@ ARCHITECTURE/COST/RUNBOOK actuals placeholders, demo script, teardown commands v
 
 ## Deferred — Decision + agentic action layer
 
-**Status:** DEFERRED until the predictive model is accepted as demo-effective.
+**Status:** D1–D2 in progress on `cursor/decision-policy-d1-d2-642f` (model quality gate passed).
 
-Full instruction set (D1–D13, economics, LangGraph/LangSmith, MCP tools, replay, eval gates):  
+Full instruction set (D1–D13):  
 [followup-decision-agentic-layer.md](followup-decision-agentic-layer.md)
 
-**Do not start** until human green-light after model quality review. First slice when unblocked: D1–D2 only (domain + deterministic EV policy).
+**Current slice:** domain schemas, versioned economics config, expected-value policy, `DecisionService`, `prediction_id` on predictions. No LangGraph / ActionExecutor / REST decision routes yet.

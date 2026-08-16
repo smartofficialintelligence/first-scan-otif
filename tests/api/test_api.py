@@ -87,6 +87,8 @@ def test_health_ready_predict(client: TestClient) -> None:
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["order_id"] == "demo"
+    assert "prediction_id" in body
+    assert body["prediction_id"]
     assert 0.0 <= body["long_delivery_probability"] <= 1.0
     assert "model_version" in body
 

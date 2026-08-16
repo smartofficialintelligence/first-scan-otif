@@ -1,0 +1,45 @@
+# Simulation assumptions for expected-value decision policy (H9/H10).
+# These are NOT empirically estimated causal effects.
+policy_version: expected-value-policy-v1
+policy_config_version: econ-sim-v1
+assumptions_disclaimer: >
+  Action costs, prevention rates, and impact reductions are scenario
+  assumptions for portfolio simulation only. They are not causal estimates.
+
+business_loss:
+  fixed_long_delivery_cost: 10.0
+  order_value_loss_rate: 0.10
+  # Severity multipliers deferred (binary long_delivery target).
+
+actions:
+  NO_ACTION:
+    cost: 0.0
+    risk_prevention_probability: 0.0
+    customer_impact_reduction: 0.0
+    eligible: true
+  EXPEDITE:
+    cost: 8.0
+    risk_prevention_probability: 0.60
+    customer_impact_reduction: 0.0
+    eligible: true
+  SELLER_ESCALATION:
+    cost: 4.0
+    risk_prevention_probability: 0.35
+    customer_impact_reduction: 0.0
+    eligible: true
+  MANUAL_REVIEW:
+    cost: 5.0
+    risk_prevention_probability: 0.30
+    customer_impact_reduction: 0.0
+    eligible: true
+  CUSTOMER_NOTIFICATION:
+    cost: 1.0
+    risk_prevention_probability: 0.0
+    customer_impact_reduction: 0.20
+    eligible: true
+
+routing:
+  # D1–D2: flag for agent review only; no LangGraph yet.
+  high_value_order_threshold: 250.0
+  top_actions_ev_margin: 1.0
+  enable_agent_review_flags: true

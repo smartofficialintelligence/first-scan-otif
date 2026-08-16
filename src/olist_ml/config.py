@@ -47,6 +47,9 @@ class Settings(BaseSettings):
 
     feature_freshness_sla_hours: int = Field(default=36)
 
+    # Decision policy (D1–D2): versioned simulation economics
+    policy_economics_path: Path = Path("config/policy_economics.yaml")
+
 
 def get_settings() -> Settings:
     return Settings()

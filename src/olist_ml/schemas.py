@@ -65,6 +65,7 @@ class PredictRequest(BaseModel):
 
 class PredictResponse(BaseModel):
     order_id: str
+    prediction_id: str
     long_delivery_probability: float = Field(ge=0, le=1)
     risk_band: RiskBand
     model_version: str
