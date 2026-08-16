@@ -43,6 +43,10 @@ gcp = [
 mcp = [
     "mcp>=1.0.0",
 ]
+agent = [
+    "langchain-core>=0.3.0",
+    "langgraph>=0.2.0",
+]
 
 [project.scripts]
 olist-train = "olist_ml.training.pipeline:main"

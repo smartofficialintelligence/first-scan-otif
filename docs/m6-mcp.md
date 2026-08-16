@@ -44,6 +44,18 @@ make mcp-serve
 
 Uses `mcp.server.mcpserver.MCPServer` (stdio transport). Entry point: `olist-mcp`.
 
+## Agent review (D8+)
+
+Bounded LangGraph workflow (optional extra `agent`) calls the same decision tools:
+
+```bash
+uv sync --extra agent
+make demo-decision   # B/C/D/E/G scenarios → artifacts/demo_decision_chain.json
+make agent-evals     # local policy-compliance cases (no LangSmith required)
+```
+
+REST: `POST /v1/agent/review` — tool-driven selection + optional human gate (`require_human_approval` / `human_approved`).
+
 ## Tests
 
 ```bash

@@ -2,6 +2,7 @@
 .PHONY: m2-env-check gcp-auth tf-fmt tf-validate tf-plan dbt-deps dbt-compile dbt-build ingest-bq ingest-fixtures-bq
 .PHONY: feast-apply feast-historical feast-parity demo-up demo-down mcp-serve
 .PHONY: train-pipeline airflow-train-local replay-baseline canary-bad drift-check teardown-endpoint
+.PHONY: demo-decision agent-evals decision-eval
 
 export PATH := $(HOME)/.local/bin:/opt/google-cloud-sdk/bin:$(PATH)
 
@@ -47,6 +48,15 @@ demo-down:
 
 mcp-serve:
 	uv run olist-mcp
+
+demo-decision:
+	uv run --extra agent python scripts/demo_decision_chain.py
+
+agent-evals:
+	uv run --extra agent python evals/run_agent_evals.py
+
+decision-eval:
+	uv run python airflow/dags/olist_decision_eval_dag.py
 
 replay-baseline:
 	uv run python scripts/replay_traffic.py --inprocess true --scenario baseline --no-challenger

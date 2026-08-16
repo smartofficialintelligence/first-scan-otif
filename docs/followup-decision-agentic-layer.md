@@ -1,6 +1,6 @@
 # Follow-up: Decision + Agentic Action Layer
 
-**Status:** IN PROGRESS — D1–D6 implemented (EV policy, ActionExecutor, local ledger, replay, REST).  
+**Status:** D1–D13 implemented (local-first). LangSmith cloud optional; economics remain simulation assumptions (H9/H10).  
 **Saved:** 2026-08-16  
 **Model gate:** passed (`long_delivery` >14d; test PR-AUC ~0.53; see `docs/business_assessment.md`).
 
@@ -644,21 +644,21 @@ Treat the agent as an untrusted decision participant. Validate tool args, action
 
 ### 35. Implementation Order
 
-| Milestone | Scope |
-|---|---|
-| D1 | Decision domain schemas + service boundaries |
-| D2 | Deterministic EV policy + economics |
-| D3 | Simulation + ActionExecutor |
-| D4 | Persistence / lineage |
-| D5 | Historical replay (NO_ACTION / threshold / EV) |
-| D6 | REST |
-| D7 | MCP tools |
-| D8 | LangGraph agent review |
-| D9 | LangSmith + agent eval harness |
-| D10 | Human approval node |
-| D11 | Airflow batch evaluation |
-| D12 | Monitoring |
-| D13 | Demo harness |
+| Milestone | Scope | Status |
+|---|---|---|
+| D1 | Decision domain schemas + service boundaries | done |
+| D2 | Deterministic EV policy + economics | done |
+| D3 | Simulation + ActionExecutor | done |
+| D4 | Persistence / lineage | done |
+| D5 | Historical replay (NO_ACTION / threshold / EV) | done |
+| D6 | REST | done |
+| D7 | MCP tools | done |
+| D8 | LangGraph agent review | done (tool-driven; no LLM key required) |
+| D9 | LangSmith + agent eval harness | local JSON evals done; LangSmith cloud optional |
+| D10 | Human approval node | done |
+| D11 | Airflow batch evaluation | local-first stub done |
+| D12 | Monitoring | decision/agent counters on `/v1/metrics` |
+| D13 | Demo harness | `scripts/demo_decision_chain.py` / `make demo-decision` |
 
 Each milestone must leave the system runnable. **Do not start with the LLM agent.**
 

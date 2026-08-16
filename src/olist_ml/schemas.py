@@ -130,3 +130,19 @@ class ActionSimulateRequest(BaseModel):
     basket_value: float = Field(ge=0)
     expected_net_value: float | None = None
     persist_ledger: bool = True
+
+
+class AgentReviewRequest(BaseModel):
+    """Run LangGraph agent review on an existing prediction context."""
+
+    order_id: str
+    prediction_id: str
+    model_version: str
+    long_delivery_probability: float = Field(ge=0, le=1)
+    basket_value: float = Field(ge=0)
+    seller_id: str | None = None
+    observed_long_delivery: bool | None = None
+    run_simulation: bool = False
+    require_human_approval: bool = False
+    # When require_human_approval=True: True approve, False reject, None wait.
+    human_approved: bool | None = None

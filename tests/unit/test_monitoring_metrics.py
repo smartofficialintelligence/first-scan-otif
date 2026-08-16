@@ -31,3 +31,18 @@ def test_global_metrics_reset_isolation() -> None:
     metrics.reset()
     assert metrics.snapshot()["service"]["predict_requests"] == 0
     assert metrics.snapshot()["ml"]["risk_band_counts"]["medium"] == 0
+
+
+def test_decision_and_agent_metrics() -> None:
+    m = MetricsRegistry()
+    m.observe_decision(recommended_action="EXPEDITE")
+    m.observe_agent_review(status="waiting_approval", action="EXPEDITE")
+    m.observe_agent_review(status="completed", action="SELLER_NUDGE", spend=5.0, net=12.0)
+    snap = m.snapshot()["decision"]
+    assert snap["decision_requests"] == 1
+    assert snap["agent_reviews"] == 2
+    assert snap["agent_waiting_approval"] == 1
+    assert snap["agent_completed"] == 1
+    assert snap["intervention_spend_simulated"] == 5.0
+    assert snap["net_value_simulated"] == 12.0
+    assert snap["action_distribution"]["EXPEDITE"] == 2

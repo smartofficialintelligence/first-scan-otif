@@ -39,7 +39,7 @@ actions:
     eligible: true
 
 routing:
-  # D1–D2: flag for agent review only; no LangGraph yet.
+  # Agent-review flags for LangGraph /v1/agent/review (D8/D10).
   high_value_order_threshold: 250.0
   top_actions_ev_margin: 1.0
   enable_agent_review_flags: true
