@@ -34,6 +34,7 @@ gcp = [
   "google-cloud-bigquery>=3.25.0",
   "dbt-bigquery>=1.8.0",
   "google-cloud-storage>=2.18.0",
+  "feast[gcp]>=0.40.0",
 ]
 
 [project.scripts]

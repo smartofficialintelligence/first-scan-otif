@@ -27,7 +27,7 @@ Locked layout for implementation. Not all paths exist until their milestone.
 │   └── api/               # FastAPI + mcp_server
 │
 ├── dbt/
-├── feast/                 # feature repo (feature views, services)
+├── feature_repo/          # Feast definitions (feature views, services)
 ├── airflow/               # DAGs: replay, drift, retrain, label release
 ├── pipelines/             # Vertex pipeline components + entrypoint
 ├── terraform/
@@ -71,5 +71,5 @@ Locked layout for implementation. Not all paths exist until their milestone.
 ## Notes
 
 - Application deploy workflows must **not** always retrain models.
-- `feast/` and `airflow/` are first-class (not hidden inside notebooks).
+- `feature_repo/` and `airflow/` are first-class (not hidden inside notebooks).
 - MLflow is a deployable service config under Terraform + optional `services/mlflow/` if needed later.

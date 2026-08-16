@@ -1,5 +1,6 @@
 .PHONY: sync lint typecheck test train-local serve-local smoke-local fixtures download-olist
 .PHONY: m2-env-check gcp-auth tf-fmt tf-validate tf-plan dbt-deps dbt-compile dbt-build ingest-bq ingest-fixtures-bq
+.PHONY: feast-apply feast-historical feast-parity
 
 export PATH := $(HOME)/.local/bin:/opt/google-cloud-sdk/bin:$(PATH)
 
@@ -72,3 +73,18 @@ ingest-bq:
 
 ingest-fixtures-bq:
 	uv run python scripts/ingest_olist.py --data-dir data/fixtures
+
+# --- Milestone 3 (Feast; online = SQLite demo-off; Redis later for demo-on) ---
+
+feast-apply: m2-env-check
+	@test -n "$$GOOGLE_APPLICATION_CREDENTIALS" || (echo "Run: source <(bash scripts/materialize_gcp_creds.sh)" >&2; exit 1)
+	mkdir -p data/feast
+	uv run python scripts/feast_apply_materialize.py --repo feature_repo
+
+feast-historical: m2-env-check
+	@test -n "$$GOOGLE_APPLICATION_CREDENTIALS" || (echo "Run: source <(bash scripts/materialize_gcp_creds.sh)" >&2; exit 1)
+	uv run python scripts/feast_historical.py
+
+feast-parity: m2-env-check
+	@test -n "$$GOOGLE_APPLICATION_CREDENTIALS" || (echo "Run: source <(bash scripts/materialize_gcp_creds.sh)" >&2; exit 1)
+	uv run python scripts/feast_parity.py

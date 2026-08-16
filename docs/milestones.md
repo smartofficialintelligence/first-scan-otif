@@ -14,7 +14,7 @@ Binding build order. Each milestone ends in a **runnable** path. Do not scaffold
 
 ## Milestone 2 — BigQuery + dbt
 
-**Status:** infra applied on `cursor/milestone-2-bq-dbt-fd7a` (PR #3). Fixture ingest + `dbt build` (29/29). **H7 terraform apply complete** (imported pre-existing `olist_raw` from ingest).
+**Status:** merged to `main` (PR #3). Infra applied; fixture ingest + dbt build; datasets aligned (`staging` / `intermediate` / `ml`).
 
 Raw → BQ → dbt staging/intermediate/marts → training table + tests.
 
@@ -22,7 +22,9 @@ Raw → BQ → dbt staging/intermediate/marts → training table + tests.
 
 ## Milestone 3 — Feast
 
-dbt marts → Feast registry; offline retrieval for training; online seller features when demo-on.
+**Status:** in progress on `cursor/milestone-3-feast-642f`.
+
+dbt marts → Feast registry; offline retrieval for training; online seller features when demo-on (SQLite for demo-off).
 
 **Accept:** entity lookup works; freshness visible; offline/online parity test exists.
 
