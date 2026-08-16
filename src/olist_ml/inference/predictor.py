@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -109,6 +110,7 @@ class PredictionService:
             )
             return PredictResponse(
                 order_id=request.order_id,
+                prediction_id=str(uuid.uuid4()),
                 long_delivery_probability=proba,
                 risk_band=band,  # type: ignore[arg-type]
                 model_version=self._meta.model_version,

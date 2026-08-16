@@ -47,6 +47,11 @@ class Settings(BaseSettings):
 
     feature_freshness_sla_hours: int = Field(default=36)
 
+    # Decision policy (D1–D2): versioned simulation economics
+    policy_economics_path: Path = Path("config/policy_economics.yaml")
+    decision_ledger_path: Path = Path("artifacts/decision_ledger.jsonl")
+    decision_base_seed: int = 42
+
 
 def get_settings() -> Settings:
     return Settings()

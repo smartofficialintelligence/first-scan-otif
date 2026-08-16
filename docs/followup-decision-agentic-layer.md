@@ -1,10 +1,23 @@
 # Follow-up: Decision + Agentic Action Layer
 
-**Status:** DEFERRED — implement only after the predictive model is accepted as demo-effective.  
+**Status:** IN PROGRESS — D1–D6 implemented (EV policy, ActionExecutor, local ledger, replay, REST).  
 **Saved:** 2026-08-16  
-**Trigger to start:** human green-light after model quality review (current candidate: `long_delivery` >14d, test PR-AUC ~0.53).
+**Model gate:** passed (`long_delivery` >14d; test PR-AUC ~0.53; see `docs/business_assessment.md`).
 
-**Do not start D1+ until that gate passes.** This document is the frozen instruction set for the next workstream.
+## Accepted deltas (before D1)
+
+Agreed amendments vs the original instruction set:
+
+1. **Target language:** use `long_delivery_probability` / long-delivery risk (ADR 0005).
+2. **Flat loss v1:** `loss = fixed_cost + basket × rate` — no day-severity multipliers yet.
+3. **`prediction_id`:** thin adapter on `PredictResponse` / `PredictionService.predict_one` (UUID).
+4. **Local ledger first** for D4 (JSONL/SQLite); BigQuery decision tables later.
+5. **CUSTOMER_NOTIFICATION EV:** `P(risk) × loss × impact_reduction − cost` (prevention = 0).
+6. **`basket_value` required** on `DecisionContext`.
+7. **Portfolio cut:** D1–D2 now; D3–D6 next; LangGraph/LangSmith after policy replay proves value.
+8. **H9/H10:** example economics in `config/policy_economics.yaml` are temporary simulation defaults until human approval.
+9. **Policy ignores `risk_band`** — decides from calibrated probability + economics.
+10. **Do not confuse** model-traffic `docs/simulation.md` with intervention simulation (new package later).
 
 ---
 
