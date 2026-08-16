@@ -14,7 +14,7 @@ if [[ -n "${_project}" ]]; then
     echo "  WARN: GCP_PROJECT_ID had surrounding whitespace (trimmed for checks)"
   fi
 else
-  echo "  MISSING: set Cursor secret GCP_PROJECT_ID (expected: production-ml-model)"
+  echo "  MISSING: set Cursor secret GCP_PROJECT_ID (expected: demo GCP project id)"
   ok=1
 fi
 

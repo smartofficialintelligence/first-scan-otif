@@ -17,7 +17,7 @@ Sanity check:
 
 ```bash
 bash scripts/check_gcp_env.sh
-# expect: GCP_PROJECT_ID=production-ml-model and JSON present
+# expect: GCP_PROJECT_ID set (demo project) and JSON present
 # note: materialize script trims accidental whitespace on the project id
 ```
 
