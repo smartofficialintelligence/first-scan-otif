@@ -79,7 +79,7 @@ def test_log_and_register_candidate_file_store(tmp_path: Path, monkeypatch: pyte
     )
     meta_path.write_text(json.dumps(meta.__dict__), encoding="utf-8")
 
-    tracking = f"file:{tmp_path / 'mlruns'}"
+    tracking = f"sqlite:///{tmp_path / 'mlflow.db'}"
     monkeypatch.setenv("MLFLOW_TRACKING_URI", tracking)
 
     run_id = log_and_register_candidate(meta, model_path, meta_path, tracking_uri=tracking)
