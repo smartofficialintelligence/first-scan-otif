@@ -1,6 +1,6 @@
-# Milestone 6 — MCP
+# Milestone 6 / D7 — MCP
 
-Agent tools call the same `PredictionService` as REST — no duplicated inference.
+Agent tools call the same domain services as REST — no duplicated inference or policy logic.
 
 ## Install
 
@@ -9,16 +9,31 @@ uv sync --extra mcp
 # or: uv sync --all-extras
 ```
 
-## Tools
+## Prediction tools
 
 | Tool | Maps to |
 |------|---------|
 | `predict_long_delivery` | `PredictionService.predict_one` |
+| `get_order_risk` | same as `predict_long_delivery` (agent-friendly name) |
 | `get_model_status` | `PredictionService.readiness` |
 | `get_model_metrics` | `PredictionService.model_info` |
-| `explain_long_delivery` | `PredictionService.explain_one` (same stub as `/v1/explain`) |
+| `explain_long_delivery` | `PredictionService.explain_one` |
 
-Predict/explain args mirror `PredictRequest` fields (timestamps as ISO-8601 strings).
+## Decision tools (D7)
+
+| Tool | Maps to |
+|------|---------|
+| `list_available_actions` | policy economics config |
+| `calculate_action_value` | EV scoring for one action |
+| `recommend_policy_action` | predict → `DecisionService` (same as `POST /v1/decision`) |
+| `execute_simulated_action` | `ActionExecutor` (simulation only) |
+| `get_action_outcome` | local decision ledger by `action_id` |
+| `get_decision_history` | local decision ledger by `order_id` |
+| `get_policy_metrics` | current policy version + economics |
+
+Intervention effectiveness values are **simulation assumptions**, not causal estimates.
+
+Predict/recommend args mirror `PredictRequest` fields (timestamps as ISO-8601 strings).
 
 ## Run
 
@@ -32,7 +47,5 @@ Uses `mcp.server.mcpserver.MCPServer` (stdio transport). Entry point: `olist-mcp
 ## Tests
 
 ```bash
-uv run pytest tests/api/test_mcp_tools.py -q
+uv run pytest tests/api/test_mcp_tools.py tests/api/test_mcp_decision_tools.py -q
 ```
-
-Handlers are unit-tested against a fixture-trained `PredictionService`.

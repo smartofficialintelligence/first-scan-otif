@@ -1,7 +1,6 @@
 """Decision layer: deterministic expected-value policy on ML predictions."""
 
 from olist_ml.decisions.economics import load_policy_economics
-from olist_ml.decisions.replay import ReplayRow, replay_policies
 from olist_ml.decisions.schemas import ActionType, DecisionContext, DecisionResult
 from olist_ml.decisions.service import DecisionService
 
@@ -10,7 +9,5 @@ __all__ = [
     "DecisionContext",
     "DecisionResult",
     "DecisionService",
-    "ReplayRow",
     "load_policy_economics",
-    "replay_policies",
 ]

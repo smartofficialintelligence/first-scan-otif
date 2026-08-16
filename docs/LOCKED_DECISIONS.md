@@ -122,7 +122,7 @@ Details: [COST.md](../COST.md), [ADR 0003](adr/0003-demo-cost-switches.md).
 | Decision | Locked value |
 |---|---|
 | REST | `GET /health`, `GET /ready`, `GET /v1/model`, `POST /v1/predict`, `POST /v1/explain` |
-| MCP tools | `predict_long_delivery`, `explain_long_delivery`, `get_model_status`, `get_model_metrics` |
+| MCP tools | `predict_long_delivery`, `explain_long_delivery`, `get_model_status`, `get_model_metrics`, plus D7 decision tools (`recommend_policy_action`, `execute_simulated_action`, …) — see [m6-mcp.md](m6-mcp.md) |
 | Shared path | REST and MCP → `PredictionService` → Feast online (when on) + Vertex Endpoint |
 | Auth (demo) | API key required when `AUTH_MODE=api_key`; open only for local dev |
 | Explain | SHAP on sampled/synchronous path behind `/v1/explain` with latency guardrails (timeout/budget) |
