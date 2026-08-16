@@ -7,7 +7,7 @@ This is not a notebook demo. It is an end-to-end ML platform slice: features, tr
 ## Status
 
 **Milestone 1 complete (local):** train → evaluate → serialize → FastAPI predict, with tests.  
-No GCP / dbt / Feast / MCP / Airflow yet.
+**Milestone 2 scaffolded (PR #3):** dbt + Terraform for project `production-ml-model`. Live apply/load awaits Cloud Agent secret injection + H7. See [docs/m2-gcp-setup.md](docs/m2-gcp-setup.md).
 
 ## Locked architecture (short)
 

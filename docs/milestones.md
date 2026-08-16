@@ -14,7 +14,7 @@ Binding build order. Each milestone ends in a **runnable** path. Do not scaffold
 
 ## Milestone 2 — BigQuery + dbt
 
-**Status:** scaffolded (dbt models + Terraform modules). Live BQ load/`dbt build` blocked until GCP secrets are available in this environment; `terraform apply` still requires H7.
+**Status:** scaffolded on `cursor/milestone-2-bq-dbt-fd7a` (PR #3). Target project `production-ml-model`. Live BQ load/`dbt build` blocked until Cloud Agent boots with secrets `GCP_PROJECT_ID` + `GOOGLE_APPLICATION_CREDENTIALS_JSON` injected; `terraform apply` still requires H7.
 
 Raw → BQ → dbt staging/intermediate/marts → training table + tests.
 

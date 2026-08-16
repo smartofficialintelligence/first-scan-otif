@@ -1,5 +1,7 @@
 .PHONY: sync lint typecheck test train-local serve-local smoke-local fixtures download-olist
-.PHONY: tf-fmt tf-validate dbt-deps dbt-compile ingest-bq
+.PHONY: m2-env-check gcp-auth tf-fmt tf-validate tf-plan dbt-deps dbt-compile dbt-build ingest-bq ingest-fixtures-bq
+
+export PATH := $(HOME)/.local/bin:/opt/google-cloud-sdk/bin:$(PATH)
 
 sync:
 	uv sync --all-extras
@@ -34,6 +36,14 @@ smoke-local:
 
 # --- Milestone 2 (requires GCP secrets; do not terraform apply without H7) ---
 
+m2-env-check:
+	bash scripts/check_gcp_env.sh
+
+gcp-auth: m2-env-check
+	bash -lc 'source <(bash scripts/materialize_gcp_creds.sh) && \
+	  gcloud auth activate-service-account --key-file="$$GOOGLE_APPLICATION_CREDENTIALS" && \
+	  gcloud config set project "$$GCP_PROJECT_ID"'
+
 tf-fmt:
 	terraform -chdir=terraform/environments/dev fmt -recursive
 
@@ -41,11 +51,21 @@ tf-validate:
 	terraform -chdir=terraform/environments/dev init -backend=false
 	terraform -chdir=terraform/environments/dev validate
 
+tf-plan: m2-env-check
+	@test -n "$$GOOGLE_APPLICATION_CREDENTIALS" || (echo "Run: source <(bash scripts/materialize_gcp_creds.sh)" >&2; exit 1)
+	cd terraform/environments/dev && \
+	  cp -n terraform.tfvars.example terraform.tfvars && \
+	  terraform init && \
+	  terraform plan -out=tfplan
+
 dbt-deps:
 	cd dbt && uv run dbt deps || true
 
 dbt-compile:
 	cd dbt && uv run dbt compile --profiles-dir .
+
+dbt-build:
+	cd dbt && uv run dbt build --profiles-dir .
 
 ingest-bq:
 	uv run python scripts/ingest_olist.py --data-dir data/raw
