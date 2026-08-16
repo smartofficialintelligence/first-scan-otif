@@ -19,15 +19,15 @@ Lifecycle terminal state for this milestone: **REGISTERED_CANDIDATE** (human gat
 
 ## Tracking URI
 
-Default (file/GCS-friendly local store):
+Default local backend (SQLite — FileStore is flaky on MLflow 3.x):
 
 ```text
-MLFLOW_TRACKING_URI=file:./artifacts/mlruns
+MLFLOW_TRACKING_URI=sqlite:///./artifacts/mlflow.db
 ```
 
-MLflow 3+ requires `MLFLOW_ALLOW_FILE_STORE=true` for the filesystem backend; `configure_tracking` sets this automatically for `file:` URIs.
+`file:` URIs still work if you set `MLFLOW_ALLOW_FILE_STORE=true`, but prefer SQLite for local demos.
 
-Override with env var for a remote MLflow server or GCS-backed path. Do not put GCP project ids in source — use `GCP_PROJECT_ID`, `GCP_REGION`, `VERTEX_PIPELINE_ROOT`.
+Override with env var for a remote MLflow server. Do not put GCP project ids in source — use `GCP_PROJECT_ID`, `GCP_REGION`, `VERTEX_PIPELINE_ROOT`.
 
 ## Commands
 

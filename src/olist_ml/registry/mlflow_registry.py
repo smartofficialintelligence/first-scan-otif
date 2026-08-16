@@ -16,7 +16,8 @@ from olist_ml.training.package import ModelMeta
 logger = get_logger(__name__)
 
 MODEL_NAME = "olist-late-delivery"
-DEFAULT_TRACKING_URI = "file:./artifacts/mlruns"
+# FileStore is unreliable on MLflow 3.x in this environment; prefer SQLite locally.
+DEFAULT_TRACKING_URI = "sqlite:///./artifacts/mlflow.db"
 LIFECYCLE_TRAINED = "TRAINED"
 LIFECYCLE_EVALUATED = "EVALUATED"
 LIFECYCLE_REGISTERED_CANDIDATE = "REGISTERED_CANDIDATE"
@@ -26,21 +27,33 @@ def default_tracking_uri() -> str:
     return os.environ.get("MLFLOW_TRACKING_URI", DEFAULT_TRACKING_URI)
 
 
-def _ensure_file_store(tracking_uri: str) -> None:
-    """Create local mlruns directory when using a file: tracking URI."""
-    if not tracking_uri.startswith("file:"):
-        return
-    parsed = urlparse(tracking_uri)
-    path = Path(parsed.path) if parsed.path else Path(tracking_uri.removeprefix("file:"))
-    path.mkdir(parents=True, exist_ok=True)
+def _normalize_tracking_uri(tracking_uri: str) -> str:
+    """Normalize local URIs to absolute paths for stable backends."""
+    if tracking_uri.startswith("file:"):
+        os.environ.setdefault("MLFLOW_ALLOW_FILE_STORE", "true")
+        parsed = urlparse(tracking_uri)
+        raw = parsed.path if parsed.path else tracking_uri.removeprefix("file:")
+        path = Path(raw)
+        if not path.is_absolute():
+            path = (Path.cwd() / path).resolve()
+        path.mkdir(parents=True, exist_ok=True)
+        return f"file://{path}"
+    if tracking_uri.startswith("sqlite:"):
+        # sqlite:///./rel.db or sqlite:////abs.db
+        prefix = "sqlite:///"
+        if not tracking_uri.startswith(prefix):
+            return tracking_uri
+        rest = tracking_uri[len(prefix) :]
+        path = Path(rest)
+        if not path.is_absolute():
+            path = (Path.cwd() / path).resolve()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        return f"sqlite:///{path}"
+    return tracking_uri
 
 
 def configure_tracking(tracking_uri: str | None = None) -> str:
-    uri = tracking_uri or default_tracking_uri()
-    if uri.startswith("file:"):
-        # MLflow 3+ puts FileStore behind an opt-in; keep local artifacts/mlruns usable.
-        os.environ.setdefault("MLFLOW_ALLOW_FILE_STORE", "true")
-        _ensure_file_store(uri)
+    uri = _normalize_tracking_uri(tracking_uri or default_tracking_uri())
     mlflow.set_tracking_uri(uri)
     return uri
 
@@ -52,7 +65,10 @@ def start_run(
     tracking_uri: str | None = None,
 ) -> mlflow.ActiveRun:
     configure_tracking(tracking_uri)
-    return mlflow.start_run(run_name=run_name, tags=tags)
+    run = mlflow.start_run(run_name=run_name)
+    if tags:
+        mlflow.set_tags(tags)
+    return run
 
 
 def log_params(params: dict[str, Any]) -> None:
