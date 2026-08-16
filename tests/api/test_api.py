@@ -190,3 +190,26 @@ def test_decision_with_simulate(client: TestClient) -> None:
     assert body["action"]["status"] == "simulated"
     assert "observed_long_delivery" in body["action"]
     assert "simulated_long_delivery" in body["action"]
+
+
+def test_agent_review_endpoint(client: TestClient) -> None:
+    pred = client.post("/v1/predict", json=_predict_payload("agent-api")).json()
+    resp = client.post(
+        "/v1/agent/review",
+        json={
+            "order_id": pred["order_id"],
+            "prediction_id": pred["prediction_id"],
+            "model_version": pred["model_version"],
+            "long_delivery_probability": pred["long_delivery_probability"],
+            "basket_value": 250.0,
+            "run_simulation": False,
+            "require_human_approval": False,
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["status"] == "completed"
+    assert body["selected_action"]
+    assert isinstance(body["tool_trace"], list)
+    metrics = client.get("/v1/metrics").json()
+    assert metrics["decision"]["agent_reviews"] >= 1

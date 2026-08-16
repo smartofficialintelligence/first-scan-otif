@@ -22,6 +22,7 @@ from olist_ml.monitoring.metrics import get_metrics
 from olist_ml.outcomes.ledger import DecisionLedger
 from olist_ml.schemas import (
     ActionSimulateRequest,
+    AgentReviewRequest,
     DecideRequest,
     ExplainRequest,
     ExplainResponse,
@@ -127,6 +128,8 @@ def decide(
         ledger.append_prediction(prediction)
         ledger.append_decision(decision)
 
+    get_metrics().observe_decision(recommended_action=decision.recommended_action.value)
+
     out: dict[str, Any] = {
         "prediction": prediction.model_dump(mode="json"),
         "decision": decision.model_dump(mode="json"),
@@ -177,7 +180,10 @@ def simulate_action(
     try:
         action_type = ActionType(body.action_type)
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=f"Invalid action_type: {body.action_type}") from exc
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid action_type: {body.action_type}",
+        ) from exc
     try:
         result = executor.execute(
             ActionRequest(
@@ -218,3 +224,49 @@ def order_decision_history(
 ) -> dict[str, Any]:
     rows = ledger.for_order(order_id)
     return {"order_id": order_id, "records": rows}
+
+
+@router.post("/v1/agent/review", dependencies=[Depends(verify_api_key)])
+def agent_review(body: AgentReviewRequest) -> dict[str, Any]:
+    """LangGraph bounded agent review (tool-driven; optional human gate)."""
+    try:
+        from olist_ml.agents.graph import run_agent_review
+    except ImportError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Agent extras required. Install with: uv sync --extra agent",
+        ) from exc
+
+    result = run_agent_review(
+        {
+            "order_id": body.order_id,
+            "prediction_id": body.prediction_id,
+            "model_version": body.model_version,
+            "long_delivery_probability": body.long_delivery_probability,
+            "basket_value": body.basket_value,
+            "seller_id": body.seller_id,
+            "observed_long_delivery": body.observed_long_delivery,
+            "run_simulation": body.run_simulation,
+            "require_human_approval": body.require_human_approval,
+            "human_approved": body.human_approved,
+            "tool_trace": [],
+        }
+    )
+    action_result = result.get("action_result") or {}
+    get_metrics().observe_agent_review(
+        status=str(result.get("status") or "unknown"),
+        action=result.get("selected_action"),
+        spend=float(action_result.get("simulated_cost") or 0.0),
+        net=float(action_result.get("simulated_net_value") or 0.0),
+    )
+    return {
+        "status": result.get("status"),
+        "selected_action": result.get("selected_action"),
+        "agent_rationale": result.get("agent_rationale"),
+        "policy_recommendation": result.get("policy_recommendation"),
+        "action_values": result.get("action_values"),
+        "tool_trace": result.get("tool_trace"),
+        "action_result": action_result or None,
+        "decision_id": result.get("decision_id"),
+        "error": result.get("error"),
+    }

@@ -1,0 +1,3 @@
+{"case_id":"high_value_clear","basket_value":300,"long_delivery_probability":0.9,"expected_status":"completed"}
+{"case_id":"low_risk","basket_value":40,"long_delivery_probability":0.05,"expected_action":"NO_ACTION"}
+{"case_id":"human_reject","basket_value":400,"long_delivery_probability":0.85,"require_human_approval":true,"human_approved":false,"expected_status":"rejected"}
