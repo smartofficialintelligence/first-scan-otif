@@ -21,7 +21,7 @@ jobs:
 
       - name: Sync dependencies
         # Prefer extras that do not require GCP secrets; gcp/feast can be added when credentials exist.
-        run: uv sync --extra dev --extra ml --extra mcp
+        run: uv sync --extra dev --extra ml --extra mcp --extra agent
 
       - name: Ruff
         run: uv run ruff check src tests scripts pipelines
