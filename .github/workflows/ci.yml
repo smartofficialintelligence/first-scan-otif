@@ -37,6 +37,8 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/ci-gcp-placeholder.json
         run: |
           echo '{"type":"service_account","project_id":"ci-placeholder","private_key_id":"x","private_key":"-----BEGIN RSA PRIVATE KEY-----\nMIIBogIBAAJBAKplaceholder\n-----END RSA PRIVATE KEY-----\n","client_email":"ci@ci-placeholder.iam.gserviceaccount.com","client_id":"0","token_uri":"https://oauth2.googleapis.com/token"}' > /tmp/ci-gcp-placeholder.json
+          # profiles.yml is gitignored; use the checked-in example for CI parse.
+          cp -f profiles.yml.example profiles.yml
           uv run dbt deps || true
           uv run dbt parse --profiles-dir .
 
