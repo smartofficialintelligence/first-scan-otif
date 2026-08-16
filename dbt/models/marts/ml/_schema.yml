@@ -40,3 +40,15 @@ models:
     columns:
       - name: order_id
         tests: [unique, not_null]
+
+  - name: fct_seller_features
+    description: Seller-grain feature rows for Feast (entity seller_id, event_timestamp).
+    columns:
+      - name: seller_id
+        tests: [not_null]
+      - name: event_timestamp
+        tests: [not_null]
+      - name: seller_order_count_30d
+        tests: [not_null]
+      - name: seller_late_rate_30d
+        tests: [not_null]
