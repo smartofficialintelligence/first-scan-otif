@@ -2,7 +2,7 @@
 
 Public portfolio artifact: production-grade late-delivery risk scoring on the Olist Brazilian E-Commerce dataset, on **GCP**.
 
-This is not a notebook demo. It is an end-to-end ML platform slice: features, training, registry, serving, canary, monitoring, and cost-controlled teardown.
+This is not a notebook demo. It is an end-to-end ML platform slice: features, training, registry, serving, canary, monitoring, cost-controlled teardown, plus a **decision / agent action layer** (EV policy → optional LangGraph review → simulated interventions).
 
 ## Status
 
@@ -19,6 +19,7 @@ This is not a notebook demo. It is an end-to-end ML platform slice: features, tr
 | M9 Canary + replay + rollback | implemented on `cursor/milestones-remaining-642f` |
 | M10 Airflow triggers | implemented on `cursor/milestones-remaining-642f` (local DAGs; no Composer required) |
 | M11 Polish | implemented on `cursor/milestones-remaining-642f` (docs/runbook/cost placeholders) |
+| Decision + agent (D1–D13) | merged to `main` (PRs #9–#12) — EV policy, MCP/REST, LangGraph review, demo harness |
 
 Details: [docs/milestones.md](docs/milestones.md)
 
@@ -39,9 +40,9 @@ Binding decisions: [docs/LOCKED_DECISIONS.md](docs/LOCKED_DECISIONS.md)
 
 ## ML problem
 
-At order approval time, predict `P(order delivered after the estimated delivery date)`.
+At order approval time, predict `P(long_delivery)` — delivery takes **more than 14 days** from approval (ADR 0005). API field: `long_delivery_probability`.
 
-Details: [docs/ml-problem.md](docs/ml-problem.md)
+Details: [docs/ml-problem.md](docs/ml-problem.md) · Business read: [docs/business_assessment.md](docs/business_assessment.md)
 
 ## Quick start (local)
 
@@ -62,6 +63,7 @@ Pipeline + canary (no GCP):
 make train-pipeline
 make canary-bad          # bad challenger → ROLLBACK recommendation
 make airflow-train-local # local Airflow trigger (no Composer)
+make demo-decision       # predict→policy→agent→sim harness (needs agent extra)
 ```
 
 Optional full Olist (when download mirror works or CSVs are placed in `data/raw`):
@@ -85,6 +87,8 @@ Policy: [COST.md](COST.md) · Ops: [RUNBOOK.md](RUNBOOK.md)
 No organic traffic. Deterministic holdout replay drives canary, drift, and rollback demos.
 
 Contract: [docs/simulation.md](docs/simulation.md) · Canary: [docs/m9-canary-replay.md](docs/m9-canary-replay.md)
+
+Intervention “what-if” paths use a separate ActionExecutor with **versioned assumption economics** (not causal ROI). Interviewer walkthrough: [docs/demo-script.md](docs/demo-script.md).
 
 ## Build order
 
