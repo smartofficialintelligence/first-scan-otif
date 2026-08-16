@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, Field
@@ -12,6 +12,9 @@ from pydantic import BaseModel, Field
 from olist_ml.decisions.schemas import ActionEconomics, ActionType, PolicyVersion
 
 DEFAULT_CONFIG_PATH = Path("config/policy_economics.yaml")
+
+EconomicsGateStatus = Literal["pending_approval", "approved", "rejected"]
+GateItemStatus = Literal["pending", "approved", "rejected"]
 
 
 class BusinessLossConfig(BaseModel):
@@ -23,6 +26,27 @@ class RoutingConfig(BaseModel):
     high_value_order_threshold: float = Field(ge=0, default=250.0)
     top_actions_ev_margin: float = Field(ge=0, default=1.0)
     enable_agent_review_flags: bool = True
+    require_human_approval_for_agent_review: bool = True
+    real_external_execution_enabled: bool = False
+
+
+class EconomicsGateConfig(BaseModel):
+    """H9/H10 approval state for simulation economics (not causal claims)."""
+
+    status: EconomicsGateStatus = "pending_approval"
+    h9_business_loss: GateItemStatus = "pending"
+    h10_intervention_effectiveness: GateItemStatus = "pending"
+    approved_by: str | None = None
+    approved_at: str | None = None
+    notes: str = ""
+
+    @property
+    def is_approved(self) -> bool:
+        return (
+            self.status == "approved"
+            and self.h9_business_loss == "approved"
+            and self.h10_intervention_effectiveness == "approved"
+        )
 
 
 class PolicyEconomicsConfig(BaseModel):
@@ -32,6 +56,7 @@ class PolicyEconomicsConfig(BaseModel):
     business_loss: BusinessLossConfig
     actions: dict[ActionType, ActionEconomics]
     routing: RoutingConfig = Field(default_factory=RoutingConfig)
+    economics_gate: EconomicsGateConfig = Field(default_factory=EconomicsGateConfig)
 
     def policy_version_info(self, git_sha: str | None = None) -> PolicyVersion:
         return PolicyVersion(
@@ -73,6 +98,7 @@ def load_policy_economics(path: Path | str | None = None) -> PolicyEconomicsConf
     if not isinstance(raw, dict):
         raise ValueError(f"Invalid policy config (expected mapping): {cfg_path}")
     actions = _parse_actions(raw.get("actions") or {})
+    gate_raw = raw.get("economics_gate") or {}
     return PolicyEconomicsConfig(
         policy_version=str(raw["policy_version"]),
         policy_config_version=str(raw["policy_config_version"]),
@@ -80,6 +106,7 @@ def load_policy_economics(path: Path | str | None = None) -> PolicyEconomicsConf
         business_loss=BusinessLossConfig(**(raw.get("business_loss") or {})),
         actions=actions,
         routing=RoutingConfig(**(raw.get("routing") or {})),
+        economics_gate=EconomicsGateConfig(**gate_raw),
     )
 
 

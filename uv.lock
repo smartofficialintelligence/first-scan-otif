@@ -3218,6 +3218,7 @@ dependencies = [
 agent = [
     { name = "langchain-core" },
     { name = "langgraph" },
+    { name = "langsmith" },
 ]
 dev = [
     { name = "mypy" },
@@ -3253,6 +3254,7 @@ requires-dist = [
     { name = "joblib", specifier = ">=1.4.0" },
     { name = "langchain-core", marker = "extra == 'agent'", specifier = ">=0.3.0" },
     { name = "langgraph", marker = "extra == 'agent'", specifier = ">=0.2.0" },
+    { name = "langsmith", marker = "extra == 'agent'", specifier = ">=0.2.0" },
     { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.0.0" },
     { name = "mlflow", marker = "extra == 'ml'", specifier = ">=2.14.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.13.0" },

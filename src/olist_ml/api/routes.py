@@ -90,6 +90,8 @@ def current_policy(decision_svc: DecisionService = Depends(decision_service_dep)
         "policy_version": cfg.policy_version,
         "policy_config_version": cfg.policy_config_version,
         "assumptions_disclaimer": cfg.assumptions_disclaimer,
+        "economics_gate": cfg.economics_gate.model_dump(),
+        "causal_roi_claim_allowed": cfg.economics_gate.is_approved,
         "actions": {
             k.value: {
                 "cost": v.cost,
@@ -226,6 +228,17 @@ def order_decision_history(
     return {"order_id": order_id, "records": rows}
 
 
+@router.get("/v1/actions/{action_id}", dependencies=[Depends(verify_api_key)])
+def action_lookup(
+    action_id: str,
+    ledger: DecisionLedger = Depends(decision_ledger_dep),
+) -> dict[str, Any]:
+    rows = ledger.for_action(action_id)
+    if not rows:
+        raise HTTPException(status_code=404, detail=f"No ledger records for action_id={action_id}")
+    return {"action_id": action_id, "records": rows}
+
+
 @router.post("/v1/agent/review", dependencies=[Depends(verify_api_key)])
 def agent_review(body: AgentReviewRequest) -> dict[str, Any]:
     """LangGraph bounded agent review (tool-driven; optional human gate)."""
@@ -269,4 +282,5 @@ def agent_review(body: AgentReviewRequest) -> dict[str, Any]:
         "action_result": action_result or None,
         "decision_id": result.get("decision_id"),
         "error": result.get("error"),
+        "langsmith": result.get("langsmith"),
     }

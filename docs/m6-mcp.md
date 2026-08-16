@@ -56,6 +56,8 @@ make agent-evals     # local policy-compliance cases (no LangSmith required)
 
 REST: `POST /v1/agent/review` — tool-driven selection + optional human gate (`require_human_approval` / `human_approved`).
 
+LangSmith (optional): [d9-langsmith.md](d9-langsmith.md). Economics gates: [h9-h10-economics-gate.md](h9-h10-economics-gate.md).
+
 ## Tests
 
 ```bash
