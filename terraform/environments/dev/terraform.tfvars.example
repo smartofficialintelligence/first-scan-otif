@@ -1,11 +1,14 @@
 # Example tfvars — copy to terraform.tfvars locally (gitignored).
 # Review the plan (H7) before `terraform apply`.
-project_id = "production-ml-model"
-region     = "us-central1"
-location   = "US"
+project_id  = "your-gcp-project-id"
+region      = "us-central1"
+location    = "US"
 name_prefix = "olist-ml"
 
-# When enable_serving=true, Cloud Run mounts Secret Manager → LANGSMITH_API_KEY.
-# Create the secret once (raw API key string), then apply — no manual gcloud wiring.
+# LangSmith + Cloud Run (when enable_serving=true):
+# - Secret already in SM named langsmith-api-key → leave langsmith_api_key unset
+# - Or set langsmith_api_key here (gitignored) and Terraform creates/updates the version
+# enable_serving      = true
 # langsmith_secret_id = "langsmith-api-key"
 # langsmith_project   = "olist-ml-agent"
+# langsmith_api_key   = "lsv2_pt_..."

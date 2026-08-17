@@ -27,10 +27,9 @@ variable "service_account_email" {
   description = "Runtime service account for Cloud Run (needs secretmanager.secretAccessor)"
 }
 
-variable "langsmith_secret_id" {
+variable "langsmith_secret_resource_id" {
   type        = string
-  description = "Secret Manager secret id (short name) holding raw LangSmith API key"
-  default     = "langsmith-api-key"
+  description = "Full Secret Manager resource id for LangSmith API key"
 }
 
 variable "langsmith_project" {
@@ -39,13 +38,8 @@ variable "langsmith_project" {
   default     = "olist-ml-agent"
 }
 
-data "google_secret_manager_secret" "langsmith" {
-  project   = var.project_id
-  secret_id = var.langsmith_secret_id
-}
-
 resource "google_secret_manager_secret_iam_member" "cloud_run_langsmith" {
-  secret_id = data.google_secret_manager_secret.langsmith.id
+  secret_id = var.langsmith_secret_resource_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${var.service_account_email}"
 }
@@ -73,7 +67,7 @@ resource "google_cloud_run_v2_service" "api" {
         name = "LANGSMITH_API_KEY"
         value_source {
           secret_key_ref {
-            secret  = data.google_secret_manager_secret.langsmith.id
+            secret  = var.langsmith_secret_resource_id
             version = "latest"
           }
         }
@@ -104,8 +98,4 @@ output "service_name" {
 
 output "uri" {
   value = try(google_cloud_run_v2_service.api.uri, null)
-}
-
-output "langsmith_secret" {
-  value = data.google_secret_manager_secret.langsmith.secret_id
 }

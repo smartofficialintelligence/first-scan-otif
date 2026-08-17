@@ -36,13 +36,15 @@ module "cloud_run" {
   count  = var.enable_serving ? 1 : 0
   source = "../../modules/cloud_run"
 
-  project_id            = var.project_id
-  region                = var.region
-  name                  = "${var.name_prefix}-api"
-  image                 = var.serving_image
-  service_account_email = module.iam.api_runner_email
-  langsmith_secret_id   = var.langsmith_secret_id
-  langsmith_project     = var.langsmith_project
+  project_id                   = var.project_id
+  region                       = var.region
+  name                         = "${var.name_prefix}-api"
+  image                        = var.serving_image
+  service_account_email        = module.iam.api_runner_email
+  langsmith_secret_resource_id = module.langsmith_secret[0].secret_resource_id
+  langsmith_project            = var.langsmith_project
+
+  depends_on = [module.langsmith_secret]
 }
 
 module "vertex_endpoint" {

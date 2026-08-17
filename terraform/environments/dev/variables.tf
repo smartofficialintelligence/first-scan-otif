@@ -44,3 +44,10 @@ variable "langsmith_project" {
   description = "LangSmith project for agent traces"
   default     = "olist-ml-agent"
 }
+
+variable "langsmith_api_key" {
+  type        = string
+  description = "Optional raw LangSmith API key — when set, Terraform writes SM secret version. Omit to use existing secret."
+  sensitive   = true
+  default     = null
+}
