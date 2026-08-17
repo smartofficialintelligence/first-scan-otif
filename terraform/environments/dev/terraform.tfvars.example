@@ -4,3 +4,8 @@ project_id = "production-ml-model"
 region     = "us-central1"
 location   = "US"
 name_prefix = "olist-ml"
+
+# When enable_serving=true, Cloud Run mounts Secret Manager → LANGSMITH_API_KEY.
+# Create the secret once (raw API key string), then apply — no manual gcloud wiring.
+# langsmith_secret_id = "langsmith-api-key"
+# langsmith_project   = "olist-ml-agent"

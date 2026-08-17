@@ -22,12 +22,42 @@ variable "image" {
   description = "Container image URI"
 }
 
+variable "service_account_email" {
+  type        = string
+  description = "Runtime service account for Cloud Run (needs secretmanager.secretAccessor)"
+}
+
+variable "langsmith_secret_id" {
+  type        = string
+  description = "Secret Manager secret id (short name) holding raw LangSmith API key"
+  default     = "langsmith-api-key"
+}
+
+variable "langsmith_project" {
+  type        = string
+  description = "LangSmith / LangChain project name for traces"
+  default     = "olist-ml-agent"
+}
+
+data "google_secret_manager_secret" "langsmith" {
+  project   = var.project_id
+  secret_id = var.langsmith_secret_id
+}
+
+resource "google_secret_manager_secret_iam_member" "cloud_run_langsmith" {
+  secret_id = data.google_secret_manager_secret.langsmith.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${var.service_account_email}"
+}
+
 resource "google_cloud_run_v2_service" "api" {
   name     = var.name
   location = var.region
   project  = var.project_id
 
   template {
+    service_account = var.service_account_email
+
     containers {
       image = var.image
       ports {
@@ -39,6 +69,23 @@ resource "google_cloud_run_v2_service" "api" {
           memory = "512Mi"
         }
       }
+      env {
+        name = "LANGSMITH_API_KEY"
+        value_source {
+          secret_key_ref {
+            secret  = data.google_secret_manager_secret.langsmith.id
+            version = "latest"
+          }
+        }
+      }
+      env {
+        name  = "LANGCHAIN_PROJECT"
+        value = var.langsmith_project
+      }
+      env {
+        name  = "LANGCHAIN_TRACING_V2"
+        value = "true"
+      }
     }
     scaling {
       min_instance_count = 0
@@ -47,6 +94,8 @@ resource "google_cloud_run_v2_service" "api" {
   }
 
   ingress = "INGRESS_TRAFFIC_ALL"
+
+  depends_on = [google_secret_manager_secret_iam_member.cloud_run_langsmith]
 }
 
 output "service_name" {
@@ -55,4 +104,8 @@ output "service_name" {
 
 output "uri" {
   value = try(google_cloud_run_v2_service.api.uri, null)
+}
+
+output "langsmith_secret" {
+  value = data.google_secret_manager_secret.langsmith.secret_id
 }

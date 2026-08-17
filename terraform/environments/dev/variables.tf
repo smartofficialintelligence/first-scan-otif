@@ -32,3 +32,15 @@ variable "serving_image" {
   description = "Container image for Cloud Run when enable_serving=true"
   default     = "us-docker.pkg.dev/cloudrun/container/hello"
 }
+
+variable "langsmith_secret_id" {
+  type        = string
+  description = "Secret Manager secret id (short name) with raw LangSmith API key"
+  default     = "langsmith-api-key"
+}
+
+variable "langsmith_project" {
+  type        = string
+  description = "LangSmith project for agent traces"
+  default     = "olist-ml-agent"
+}

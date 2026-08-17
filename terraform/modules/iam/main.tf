@@ -6,6 +6,11 @@ resource "google_service_account" "dbt_runner" {
   display_name = "Olist ML dbt runner"
 }
 
+resource "google_service_account" "api" {
+  account_id   = "${var.name_prefix}-api"
+  display_name = "Olist ML Cloud Run API"
+}
+
 resource "google_project_iam_member" "bq_job_user" {
   project = var.project_id
   role    = "roles/bigquery.jobUser"
@@ -26,4 +31,8 @@ resource "google_project_iam_member" "storage_object_admin" {
 
 output "dbt_runner_email" {
   value = google_service_account.dbt_runner.email
+}
+
+output "api_runner_email" {
+  value = google_service_account.api.email
 }

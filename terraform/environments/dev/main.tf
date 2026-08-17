@@ -36,10 +36,13 @@ module "cloud_run" {
   count  = var.enable_serving ? 1 : 0
   source = "../../modules/cloud_run"
 
-  project_id = var.project_id
-  region     = var.region
-  name       = "${var.name_prefix}-api"
-  image      = var.serving_image
+  project_id            = var.project_id
+  region                = var.region
+  name                  = "${var.name_prefix}-api"
+  image                 = var.serving_image
+  service_account_email = module.iam.api_runner_email
+  langsmith_secret_id   = var.langsmith_secret_id
+  langsmith_project     = var.langsmith_project
 }
 
 module "vertex_endpoint" {
@@ -62,6 +65,10 @@ output "datasets" {
 
 output "dbt_runner_email" {
   value = module.iam.dbt_runner_email
+}
+
+output "api_runner_email" {
+  value = module.iam.api_runner_email
 }
 
 output "cloud_run_uri" {
