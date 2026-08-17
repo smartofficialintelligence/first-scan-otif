@@ -39,6 +39,9 @@ class EconomicsGateConfig(BaseModel):
     approved_by: str | None = None
     approved_at: str | None = None
     notes: str = ""
+    # Even when H9/H10 simulation defaults are approved, causal ROI stays off
+    # unless an explicit evidence-backed flag is set later.
+    allow_causal_roi_claims: bool = False
 
     @property
     def is_approved(self) -> bool:
@@ -47,6 +50,15 @@ class EconomicsGateConfig(BaseModel):
             and self.h9_business_loss == "approved"
             and self.h10_intervention_effectiveness == "approved"
         )
+
+    @property
+    def causal_roi_claim_allowed(self) -> bool:
+        return self.is_approved and self.allow_causal_roi_claims
+
+    @property
+    def simulation_claims_allowed(self) -> bool:
+        """May discuss simulated EV / replay under versioned assumptions."""
+        return self.is_approved
 
 
 class PolicyEconomicsConfig(BaseModel):

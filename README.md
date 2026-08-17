@@ -19,7 +19,7 @@ This is not a notebook demo. It is an end-to-end ML platform slice: features, tr
 | M9 Canary + replay + rollback | implemented on `cursor/milestones-remaining-642f` |
 | M10 Airflow triggers | implemented on `cursor/milestones-remaining-642f` (local DAGs; no Composer required) |
 | M11 Polish | implemented on `cursor/milestones-remaining-642f` (docs/runbook/cost placeholders) |
-| Decision + agent (D1–D13) | **complete** on `main` — EV policy, MCP/REST, LangGraph review, optional LangSmith, H9–H12 gates |
+| Decision + agent (D1–D13) | **complete** on `main` — simulation H9/H10 approved; causal ROI disallowed |
 
 Details: [docs/milestones.md](docs/milestones.md)
 

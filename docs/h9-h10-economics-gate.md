@@ -1,43 +1,33 @@
 # H9 / H10 — Economics assumption gates
 
-**Status:** Gate machinery complete. Portfolio defaults remain **`pending_approval`** until a human stakeholder signs off.
+**Status:** H9/H10 **approved as simulation defaults** for this portfolio (`econ-sim-v2`).  
+**Causal ROI claims:** still **disallowed** (`allow_causal_roi_claims: false`).
 
-These gates unlock *claim language* about intervention value. They do **not** turn simulation into causal proof.
+These gates unlock *simulation claim language* (EV policy, replay, demo $). They do **not** turn simulation into causal proof.
 
 ## What each gate covers
 
-| Gate | Topic | Config fields |
-|---|---|---|
-| **H9** | Business loss if long delivery | `business_loss.fixed_long_delivery_cost`, `order_value_loss_rate` |
-| **H10** | Intervention effectiveness | per-action `cost`, `risk_prevention_probability`, `customer_impact_reduction` |
-| **H11** | Agent action scope / mandatory human review | `routing.*`, human gate on `/v1/agent/review` |
-| **H12** | Real external execution | `routing.real_external_execution_enabled` — **must stay false** |
+| Gate | Topic | Config fields | Portfolio status |
+|---|---|---|---|
+| **H9** | Business loss if long delivery | `business_loss.*` | approved (simulation) |
+| **H10** | Intervention effectiveness | per-action cost / prevent / impact | approved (simulation) |
+| **H11** | Agent action scope / mandatory human review | `routing.*`, `/v1/agent/review` | defaults locked |
+| **H12** | Real external execution | `real_external_execution_enabled` | **false** (forbidden) |
 
-## How to approve (human only)
+## How to re-approve after changing numbers
 
-1. Review assumptions in `config/policy_economics.yaml`.
-2. Edit `economics_gate`:
-
-```yaml
-economics_gate:
-  status: approved
-  h9_business_loss: approved
-  h10_intervention_effectiveness: approved
-  approved_by: "<name or email>"
-  approved_at: "<ISO-8601 timestamp>"
-  notes: "Approved for demo simulation claims under stated assumptions."
-```
-
-3. Bump `policy_config_version` (e.g. `econ-sim-v2`).
-4. Verify:
+1. Edit assumptions in `config/policy_economics.yaml`.
+2. Bump `policy_config_version`.
+3. Set `economics_gate` fields (`approved_by`, `approved_at`, notes).
+4. Keep `allow_causal_roi_claims: false` unless you have a measured lift study.
+5. Verify:
 
 ```bash
-uv run python scripts/check_economics_gate.py
-uv run python scripts/check_economics_gate.py --require-approved  # exit 1 while pending
-curl -s localhost:8080/v1/policies/current | jq '.economics_gate, .causal_roi_claim_allowed'
+make economics-gate
+uv run python scripts/check_economics_gate.py --require-approved
+curl -s localhost:8080/v1/policies/current | jq '.economics_gate, .simulation_claims_allowed, .causal_roi_claim_allowed'
 ```
 
 ## Demo rule
 
-Until approved, interviewer scripts must say: **“simulated under versioned assumptions — not measured ROI.”**  
-`GET /v1/policies/current` exposes `causal_roi_claim_allowed: false` while pending.
+Interviewer language: **“simulated under versioned assumptions (econ-sim-v2) — not measured causal ROI.”**

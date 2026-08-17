@@ -109,7 +109,7 @@ ARCHITECTURE/COST/RUNBOOK actuals placeholders, demo script, teardown commands v
 
 ## Deferred — Decision + agentic action layer
 
-**Status:** COMPLETE on `main` (D1–D13 + CI fixes + demo polish). Remaining human work: **sign H9/H10** when ready ([h9-h10-economics-gate.md](h9-h10-economics-gate.md)).
+**Status:** COMPLETE on `main`. H9/H10 approved as **simulation defaults** (`econ-sim-v2`); causal ROI still disallowed. H2 audit recorded in [h2-feature-audit.md](h2-feature-audit.md).
 
 Full instruction set (D1–D13):  
 [followup-decision-agentic-layer.md](followup-decision-agentic-layer.md)

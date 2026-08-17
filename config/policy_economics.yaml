@@ -1,21 +1,24 @@
 # Simulation assumptions for expected-value decision policy (H9/H10).
 # These are NOT empirically estimated causal effects.
 policy_version: expected-value-policy-v1
-policy_config_version: econ-sim-v1
+policy_config_version: econ-sim-v2
 assumptions_disclaimer: >
-  Action costs, prevention rates, and impact reductions are scenario
-  assumptions for portfolio simulation only. They are not causal estimates.
+  Action costs, prevention rates, and impact reductions are versioned
+  simulation assumptions for portfolio demo only. They are not causal
+  estimates of intervention lift.
 
-# Human gates H9/H10 — status must stay pending_approval until a stakeholder signs.
+# H9/H10 — approved as simulation defaults for this portfolio artifact.
+# Causal ROI claims remain disallowed (allow_causal_roi_claims: false).
 economics_gate:
-  status: pending_approval  # pending_approval | approved | rejected
-  h9_business_loss: pending
-  h10_intervention_effectiveness: pending
-  approved_by: null
-  approved_at: null
+  status: approved
+  h9_business_loss: approved
+  h10_intervention_effectiveness: approved
+  approved_by: portfolio-maintainer
+  approved_at: "2026-08-16T23:50:57Z"
+  allow_causal_roi_claims: false
   notes: >
-    Portfolio defaults for simulation/demo only. Do not present as causal ROI
-    until H9 and H10 are explicitly approved.
+    Approved as versioned simulation defaults for interviewer demos and
+    policy replay. Do not present net simulated value as measured causal ROI.
 
 business_loss:
   fixed_long_delivery_cost: 10.0

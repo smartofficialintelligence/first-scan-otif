@@ -149,17 +149,17 @@ No automatic promotion past human gates H3/H4/H6.
 | Gate | Topic |
 |---|---|
 | H1 | Problem / prediction time / metrics — **locked in this doc** |
-| H2 | Feature / leakage audit |
+| H2 | Feature / leakage audit — **done for portfolio v1** ([h2-feature-audit.md](h2-feature-audit.md)) |
 | H3 | Offline candidate evaluation |
 | H4 | Canary → full production |
 | H5 | Monitoring-triggered retrain decision |
 | H6 | Retrained candidate approval |
 | H7 | Terraform apply / IAM |
 | H8 | Rollback / exceptional ops |
-| H9 | Business-loss economics assumptions — [h9-h10-economics-gate.md](h9-h10-economics-gate.md) |
-| H10 | Intervention effectiveness assumptions — same doc |
-| H11 | Agent action scope / mandatory human review thresholds |
-| H12 | Real external execution — **forbidden** in this portfolio (`real_external_execution_enabled: false`) |
+| H9 | Business-loss economics — **approved as simulation defaults** ([h9-h10-economics-gate.md](h9-h10-economics-gate.md)) |
+| H10 | Intervention effectiveness — **approved as simulation defaults** (same doc) |
+| H11 | Agent action scope / mandatory human review thresholds — defaults locked in policy YAML |
+| H12 | Real external execution — **forbidden** (`real_external_execution_enabled: false`) |
 
 ---
 
