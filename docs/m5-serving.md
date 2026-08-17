@@ -24,7 +24,7 @@ make demo-down        # kill local API; prints GCP teardown reminders (no delete
 
 ## Terraform (scaffold only)
 
-- `terraform/modules/cloud_run` — `google_cloud_run_v2_service`
+- `terraform/modules/cloud_run` — `google_cloud_run_v2_service` + Secret Manager → `LANGSMITH_API_KEY` (see [d9-langsmith.md](d9-langsmith.md))
 - `terraform/modules/vertex_endpoint` — `google_vertex_ai_endpoint`
 - Wired in `terraform/environments/dev` behind `enable_serving = false` (default)
 
