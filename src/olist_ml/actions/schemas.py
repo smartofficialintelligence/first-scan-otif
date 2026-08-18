@@ -22,7 +22,7 @@ class ActionRequest(BaseModel):
     policy_version: str
     expected_net_value: float | None = None
     agent_run_id: str | None = None
-    observed_long_delivery: bool
+    observed_promise_miss: bool
     basket_value: float = Field(ge=0)
     freight_value: float | None = Field(default=None, ge=0)
     intervention_cost: float | None = Field(default=None, ge=0)
@@ -38,8 +38,8 @@ class ActionResult(BaseModel):
     status: ActionStatus
     simulated_cost: float
     intervention_success: bool | None
-    observed_long_delivery: bool
-    simulated_long_delivery: bool
+    observed_promise_miss: bool
+    simulated_promise_miss: bool
     simulated_impact_loss_reduction: float = 0.0
     simulated_gross_avoided_loss: float = 0.0
     simulated_net_value: float = 0.0

@@ -189,8 +189,6 @@ def calculate_action_value(
     probability: float,
     basket_value: float,
     decision_service: DecisionService | None = None,
-    long_delivery_probability: float | None = None,
-    promise_miss_probability: float | None = None,
 ) -> dict[str, Any]:
     """Score one approved action under simulation assumptions (not causal)."""
     svc = decision_service or get_decision_service()
@@ -201,16 +199,11 @@ def calculate_action_value(
     econ = svc.config.actions.get(action_type)
     if econ is None or not econ.eligible:
         raise ValueError(f"Action not eligible: {action}")
-    proba = probability
-    if long_delivery_probability is not None:
-        proba = long_delivery_probability
-    if promise_miss_probability is not None:
-        proba = promise_miss_probability
     loss = business_loss_if_miss(basket_value, svc.config.business_loss)
     candidate = score_action(
         action=econ,
-        probability=proba,
-        loss_if_long=loss,
+        probability=probability,
+        loss_if_miss=loss,
     )
     return {
         "business_loss_if_miss": loss,
@@ -333,8 +326,7 @@ def execute_simulated_action(
     model_version: str,
     policy_version: str,
     basket_value: float,
-    observed_promise_miss: bool | None = None,
-    observed_long_delivery: bool | None = None,
+    observed_promise_miss: bool,
     expected_net_value: float | None = None,
     freight_value: float | None = None,
     intervention_cost: float | None = None,
@@ -343,11 +335,6 @@ def execute_simulated_action(
     ledger: DecisionLedger | None = None,
 ) -> dict[str, Any]:
     """Run ActionExecutor simulation for an approved action."""
-    observed = (
-        observed_promise_miss if observed_promise_miss is not None else observed_long_delivery
-    )
-    if observed is None:
-        raise ValueError("observed_promise_miss is required")
     try:
         action_type = ActionType(action)
     except ValueError as exc:
@@ -362,7 +349,7 @@ def execute_simulated_action(
             model_version=model_version,
             policy_version=policy_version,
             expected_net_value=expected_net_value,
-            observed_long_delivery=bool(observed),
+            observed_promise_miss=observed_promise_miss,
             basket_value=basket_value,
             freight_value=freight_value,
             intervention_cost=intervention_cost,
@@ -376,8 +363,8 @@ def execute_simulated_action(
                 "order_id": result.order_id,
                 "action_id": result.action_id,
                 "decision_id": result.decision_id,
-                "observed_long_delivery": result.observed_long_delivery,
-                "simulated_long_delivery": result.simulated_long_delivery,
+                "observed_promise_miss": result.observed_promise_miss,
+                "simulated_promise_miss": result.simulated_promise_miss,
                 "simulated_net_value": result.simulated_net_value,
                 "note": "simulated_outcome_only",
             }

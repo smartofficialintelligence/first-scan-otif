@@ -161,11 +161,6 @@ def predict_promise_miss(
     return svc.predict_one(req).model_dump(mode="json")
 
 
-def predict_long_delivery(**kwargs: Any) -> dict[str, Any]:
-    """Deprecated alias of ``predict_promise_miss`` (ADR 0005 name)."""
-    return predict_promise_miss(**kwargs)
-
-
 def get_model_status(service: PredictionService | None = None) -> dict[str, Any]:
     """Return readiness / model_version via PredictionService.readiness."""
     svc = service or get_service()
@@ -240,11 +235,6 @@ def explain_promise_miss(
         )
     )
     return svc.explain_one(req).model_dump(mode="json")
-
-
-def explain_long_delivery(**kwargs: Any) -> dict[str, Any]:
-    """Deprecated alias of ``explain_promise_miss`` (ADR 0005 name)."""
-    return explain_promise_miss(**kwargs)
 
 
 def create_mcp_server():
@@ -353,65 +343,6 @@ def create_mcp_server():
         same_state: float | None = None,
     ) -> dict[str, Any]:
         """Score promise-miss probability at first carrier scan."""
-        return _predict_impl(
-            order_id=order_id,
-            seller_id=seller_id,
-            purchase_timestamp=purchase_timestamp,
-            item_count=item_count,
-            basket_value=basket_value,
-            freight_value=freight_value,
-            estimated_delivery_horizon_days=estimated_delivery_horizon_days,
-            prediction_timestamp=prediction_timestamp,
-            seller_count=seller_count,
-            category_count=category_count,
-            payment_type_primary=payment_type_primary,
-            installment_count=installment_count,
-            customer_state=customer_state,
-            seller_state_primary=seller_state_primary,
-            geo_distance_km=geo_distance_km,
-            seller_order_count_7d=seller_order_count_7d,
-            seller_order_count_30d=seller_order_count_30d,
-            seller_order_count_90d=seller_order_count_90d,
-            seller_late_rate_7d=seller_late_rate_7d,
-            seller_late_rate_30d=seller_late_rate_30d,
-            seller_late_rate_90d=seller_late_rate_90d,
-            handling_days=handling_days,
-            remaining_to_promise_days=remaining_to_promise_days,
-            handling_frac_of_promise=handling_frac_of_promise,
-            limit_miss=limit_miss,
-            same_state=same_state,
-        )
-
-    @server.tool(name="predict_long_delivery")
-    def _predict_long_delivery(
-        order_id: str,
-        seller_id: str,
-        purchase_timestamp: str,
-        item_count: int,
-        basket_value: float,
-        freight_value: float,
-        estimated_delivery_horizon_days: float,
-        prediction_timestamp: str | None = None,
-        seller_count: int = 1,
-        category_count: int = 1,
-        payment_type_primary: str = "unknown",
-        installment_count: int = 1,
-        customer_state: str = "unknown",
-        seller_state_primary: str = "unknown",
-        geo_distance_km: float = 0.0,
-        seller_order_count_7d: float | None = None,
-        seller_order_count_30d: float | None = None,
-        seller_order_count_90d: float | None = None,
-        seller_late_rate_7d: float | None = None,
-        seller_late_rate_30d: float | None = None,
-        seller_late_rate_90d: float | None = None,
-        handling_days: float | None = None,
-        remaining_to_promise_days: float | None = None,
-        handling_frac_of_promise: float | None = None,
-        limit_miss: float | None = None,
-        same_state: float | None = None,
-    ) -> dict[str, Any]:
-        """Deprecated alias of predict_promise_miss (ADR 0005 name)."""
         return _predict_impl(
             order_id=order_id,
             seller_id=seller_id,
@@ -567,65 +498,6 @@ def create_mcp_server():
             same_state=same_state,
         )
 
-    @server.tool(name="explain_long_delivery")
-    def _explain_long_delivery(
-        order_id: str,
-        seller_id: str,
-        purchase_timestamp: str,
-        item_count: int,
-        basket_value: float,
-        freight_value: float,
-        estimated_delivery_horizon_days: float,
-        prediction_timestamp: str | None = None,
-        seller_count: int = 1,
-        category_count: int = 1,
-        payment_type_primary: str = "unknown",
-        installment_count: int = 1,
-        customer_state: str = "unknown",
-        seller_state_primary: str = "unknown",
-        geo_distance_km: float = 0.0,
-        seller_order_count_7d: float | None = None,
-        seller_order_count_30d: float | None = None,
-        seller_order_count_90d: float | None = None,
-        seller_late_rate_7d: float | None = None,
-        seller_late_rate_30d: float | None = None,
-        seller_late_rate_90d: float | None = None,
-        handling_days: float | None = None,
-        remaining_to_promise_days: float | None = None,
-        handling_frac_of_promise: float | None = None,
-        limit_miss: float | None = None,
-        same_state: float | None = None,
-    ) -> dict[str, Any]:
-        """Deprecated alias of explain_promise_miss (ADR 0005 name)."""
-        return _explain_impl(
-            order_id=order_id,
-            seller_id=seller_id,
-            purchase_timestamp=purchase_timestamp,
-            item_count=item_count,
-            basket_value=basket_value,
-            freight_value=freight_value,
-            estimated_delivery_horizon_days=estimated_delivery_horizon_days,
-            prediction_timestamp=prediction_timestamp,
-            seller_count=seller_count,
-            category_count=category_count,
-            payment_type_primary=payment_type_primary,
-            installment_count=installment_count,
-            customer_state=customer_state,
-            seller_state_primary=seller_state_primary,
-            geo_distance_km=geo_distance_km,
-            seller_order_count_7d=seller_order_count_7d,
-            seller_order_count_30d=seller_order_count_30d,
-            seller_order_count_90d=seller_order_count_90d,
-            seller_late_rate_7d=seller_late_rate_7d,
-            seller_late_rate_30d=seller_late_rate_30d,
-            seller_late_rate_90d=seller_late_rate_90d,
-            handling_days=handling_days,
-            remaining_to_promise_days=remaining_to_promise_days,
-            handling_frac_of_promise=handling_frac_of_promise,
-            limit_miss=limit_miss,
-            same_state=same_state,
-        )
-
     @server.tool(name="get_order_risk")
     def _get_order_risk(
         order_id: str,
@@ -693,25 +565,14 @@ def create_mcp_server():
     @server.tool(name="calculate_action_value")
     def _calc_value(
         action: str,
+        promise_miss_probability: float,
         basket_value: float,
-        probability: float | None = None,
-        promise_miss_probability: float | None = None,
-        long_delivery_probability: float | None = None,
     ) -> dict[str, Any]:
         """Score one approved action under simulation assumptions (not causal)."""
-        proba = promise_miss_probability
-        if proba is None:
-            proba = long_delivery_probability
-        if proba is None:
-            proba = probability
-        if proba is None:
-            raise ValueError("promise_miss_probability is required")
         return dtools.calculate_action_value(
             action=action,
-            probability=proba,
+            probability=promise_miss_probability,
             basket_value=basket_value,
-            promise_miss_probability=promise_miss_probability,
-            long_delivery_probability=long_delivery_probability,
         )
 
     @server.tool(name="recommend_policy_action")
@@ -784,8 +645,7 @@ def create_mcp_server():
         model_version: str,
         policy_version: str,
         basket_value: float,
-        observed_promise_miss: bool | None = None,
-        observed_long_delivery: bool | None = None,
+        observed_promise_miss: bool,
         expected_net_value: float | None = None,
         persist_ledger: bool = True,
     ) -> dict[str, Any]:
@@ -798,7 +658,6 @@ def create_mcp_server():
             model_version=model_version,
             policy_version=policy_version,
             observed_promise_miss=observed_promise_miss,
-            observed_long_delivery=observed_long_delivery,
             basket_value=basket_value,
             expected_net_value=expected_net_value,
             persist_ledger=persist_ledger,

@@ -192,8 +192,8 @@ def test_decision_with_simulate(client: TestClient) -> None:
     body = resp.json()
     assert "action" in body
     assert body["action"]["status"] == "simulated"
-    assert "observed_long_delivery" in body["action"]
-    assert "simulated_long_delivery" in body["action"]
+    assert "observed_promise_miss" in body["action"]
+    assert "simulated_promise_miss" in body["action"]
 
     action_id = body["action"]["action_id"]
     lookup = client.get(f"/v1/actions/{action_id}")

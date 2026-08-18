@@ -3,51 +3,9 @@
 from __future__ import annotations
 
 from olist_ml.decisions.economics import NocPolicyConfig, PolicyEconomicsConfig
-from olist_ml.decisions.schemas import (
-    ActionCandidate,
-    ActionType,
-    DecisionContext,
-    PolicyBand,
-)
+from olist_ml.decisions.schemas import ActionCandidate, ActionType, DecisionContext, PolicyBand
 from olist_ml.decisions.upgrade_cost import remaining_leg_upgrade_cost
 from olist_ml.decisions.value import score_action, score_all_actions
-
-
-def select_recommended_action(candidates: list[ActionCandidate]) -> ActionCandidate:
-    """
-    Appendix: argmax(expected_net_value) among candidates with net > 0.
-    Otherwise NO_ACTION. Not used for the live NOC recommendation.
-    """
-    positive = [c for c in candidates if c.expected_net_value > 0]
-    if not positive:
-        for c in candidates:
-            if c.action == ActionType.NO_ACTION:
-                return c
-        return ActionCandidate(
-            action=ActionType.NO_ACTION,
-            expected_intervention_cost=0.0,
-            expected_avoided_loss=0.0,
-            expected_net_value=0.0,
-            formula="NO_ACTION: no positive-EV alternative",
-        )
-    return max(positive, key=lambda c: (c.expected_net_value, c.action.value))
-
-
-def run_expected_value_policy(
-    *,
-    probability: float,
-    basket_value: float,
-    config: PolicyEconomicsConfig,
-    cost_overrides: dict[ActionType, float] | None = None,
-) -> tuple[float, ActionCandidate, list[ActionCandidate]]:
-    loss, candidates = score_all_actions(
-        probability=probability,
-        basket_value=basket_value,
-        config=config,
-        cost_overrides=cost_overrides,
-    )
-    recommended = select_recommended_action(candidates)
-    return loss, recommended, candidates
 
 
 def upgrade_eligible(
@@ -151,7 +109,7 @@ def apply_noc_policy(
         recommended = score_action(
             action=econ,
             probability=context.promise_miss_probability,
-            loss_if_long=loss,
+            loss_if_miss=loss,
             cost_override=upgrade_cost,
         )
 

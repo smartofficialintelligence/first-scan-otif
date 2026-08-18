@@ -82,29 +82,12 @@ def test_predict_promise_miss(trained_service: PredictionService) -> None:
     assert body["order_id"] == "mcp-demo"
     assert 0.0 <= body["promise_miss_probability"] <= 1.0
     assert body["target"] == "promise_miss_at_handoff"
-    alias = mcp_server.predict_long_delivery(service=trained_service, **payload)
-    assert alias["order_id"] == body["order_id"]
-
-
-def test_predict_long_delivery(trained_service: PredictionService) -> None:
-    body = mcp_server.predict_long_delivery(service=trained_service, **_payload())
-    assert body["order_id"] == "mcp-demo"
-    assert 0.0 <= body["promise_miss_probability"] <= 1.0
-    assert "model_version" in body
 
 
 def test_explain_promise_miss(trained_service: PredictionService) -> None:
     body = mcp_server.explain_promise_miss(service=trained_service, **_payload())
     assert body["order_id"] == "mcp-demo"
     assert body["method"] == "stub"
-    assert body["top_features"]
-
-
-def test_explain_long_delivery(trained_service: PredictionService) -> None:
-    body = mcp_server.explain_long_delivery(service=trained_service, **_payload())
-    assert body["order_id"] == "mcp-demo"
-    assert body["method"] == "stub"
-    assert "top_features" in body
     assert isinstance(body["top_features"], list)
     assert body["top_features"]
     assert body["top_features"][0]["contribution"] == 0.0

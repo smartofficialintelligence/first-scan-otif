@@ -235,9 +235,6 @@ def run_replay(
             promise_label = None
             if "promise_miss" in row and pd.notna(row["promise_miss"]):
                 promise_label = int(row["promise_miss"])
-            long_label = None
-            if "long_delivery" in row and pd.notna(row["long_delivery"]):
-                long_label = int(row["long_delivery"])
 
             if inprocess:
                 assert champion_svc is not None
@@ -264,7 +261,6 @@ def run_replay(
                 "error_class": pred.get("error_class"),
                 "traffic_bucket": traffic_bucket,
                 "label_promise_miss": promise_label,
-                "label_long_delivery": long_label,
                 "seed": seed,
             }
             fh.write(json.dumps(record, default=str) + "\n")

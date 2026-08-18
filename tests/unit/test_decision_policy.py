@@ -8,13 +8,9 @@ from pathlib import Path
 import pytest
 
 from olist_ml.decisions.economics import clear_policy_cache, load_policy_economics
-from olist_ml.decisions.policy import (
-    apply_noc_policy,
-    run_expected_value_policy,
-    select_recommended_action,
-)
+from olist_ml.decisions.policy import apply_noc_policy
 from olist_ml.decisions.routing import requires_agent_review
-from olist_ml.decisions.schemas import ActionCandidate, ActionType, DecisionContext
+from olist_ml.decisions.schemas import ActionType, DecisionContext
 from olist_ml.decisions.service import DecisionService
 from olist_ml.decisions.upgrade_cost import remaining_leg_upgrade_cost, seed_from_order_id
 from olist_ml.decisions.value import business_loss_if_miss, score_action
@@ -112,47 +108,10 @@ def test_p2_notice_only(policy_cfg) -> None:
 
 def test_at_risk_notice_uses_impact_formula(policy_cfg) -> None:
     econ = policy_cfg.actions[ActionType.AT_RISK_NOTICE]
-    cand = score_action(action=econ, probability=0.5, loss_if_long=40.0)
+    cand = score_action(action=econ, probability=0.5, loss_if_miss=40.0)
     assert cand.expected_avoided_loss == pytest.approx(4.0)
     assert cand.expected_net_value == pytest.approx(3.0)
     assert "customer_impact_reduction" in cand.formula
-
-
-def test_ev_appendix_still_argmax(policy_cfg) -> None:
-    _, recommended, alts = run_expected_value_policy(
-        probability=0.85,
-        basket_value=200.0,
-        config=policy_cfg,
-    )
-    positive = [c for c in alts if c.expected_net_value > 0]
-    assert recommended.expected_net_value == max(c.expected_net_value for c in positive)
-
-
-def test_select_recommended_prefers_highest_positive() -> None:
-    cands = [
-        ActionCandidate(
-            action=ActionType.REMAINING_LEG_UPGRADE,
-            expected_intervention_cost=8,
-            expected_avoided_loss=10,
-            expected_net_value=2,
-            formula="x",
-        ),
-        ActionCandidate(
-            action=ActionType.AT_RISK_NOTICE,
-            expected_intervention_cost=1,
-            expected_avoided_loss=6,
-            expected_net_value=5,
-            formula="x",
-        ),
-        ActionCandidate(
-            action=ActionType.NO_ACTION,
-            expected_intervention_cost=0,
-            expected_avoided_loss=0,
-            expected_net_value=0,
-            formula="x",
-        ),
-    ]
-    assert select_recommended_action(cands).action == ActionType.AT_RISK_NOTICE
 
 
 def test_agent_review_flag_non_no_action(policy_cfg) -> None:

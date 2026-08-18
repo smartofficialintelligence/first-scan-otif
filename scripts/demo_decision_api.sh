@@ -25,7 +25,7 @@ echo "$PRED" | python -m json.tool
 
 PID=$(echo "$PRED" | python -c 'import json,sys; print(json.load(sys.stdin)["prediction_id"])')
 MVER=$(echo "$PRED" | python -c 'import json,sys; print(json.load(sys.stdin)["model_version"])')
-PROBA=$(echo "$PRED" | python -c 'import json,sys; print(json.load(sys.stdin)["long_delivery_probability"])')
+PROBA=$(echo "$PRED" | python -c 'import json,sys; print(json.load(sys.stdin)["promise_miss_probability"])')
 
 echo "== decision =="
 curl -sf "${BASE}/v1/decision" "${HDR[@]}" -d "{
@@ -44,7 +44,7 @@ curl -sf "${BASE}/v1/agent/review" "${HDR[@]}" -d "{
   \"order_id\":\"walkthrough-1\",
   \"prediction_id\":\"${PID}\",
   \"model_version\":\"${MVER}\",
-  \"long_delivery_probability\": ${PROBA},
+  \"promise_miss_probability\": ${PROBA},
   \"basket_value\": 280,
   \"require_human_approval\": true,
   \"human_approved\": true,
