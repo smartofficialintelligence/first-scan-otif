@@ -11,7 +11,7 @@ ADR 0005 trained `long_delivery = (delivered − approval) > 14d`. That target i
 
 The operational moment that matches a fulfillment NOC is **first carrier scan** (`order_delivered_carrier_date`): the seller is done; remaining-leg exception handling can start. At that scan, clocks that are illegal at approval become legal: handling time, days remaining to the promise, and whether the seller missed `shipping_limit_date`.
 
-A leakage-safe experiment on that label + clocks reached test **PR-AUC 0.308 / ROC 0.826** (n=14,403, 4.69% miss). Queue precision at top 2.5% / 10% of the later test book is the capacity story — not a calendar “10% of days.”
+A leakage-safe experiment on that label + clocks reached test **PR-AUC 0.308 / ROC 0.826** (n=14,403, 4.69% miss). The published local champion (`local-20260818T041243Z`, 8 trials, n_test=14,471) is **PR-AUC 0.296 / ROC 0.816** at a 4.6% test miss rate — see [business_assessment.md](../business_assessment.md). Queue precision at top 2.5% / 10% of the later test book is the capacity story — not a calendar “10% of days.”
 
 ## Decision
 

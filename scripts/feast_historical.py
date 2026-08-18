@@ -25,10 +25,11 @@ def _load_entity_df(project: str, limit: int | None) -> pd.DataFrame:
     sql = f"""
     select
       seller_id,
-      prediction_ts as event_timestamp
+      handoff_ts as event_timestamp
     from `{project}.ml.fct_order_features`
     where seller_id is not null
-    order by prediction_ts
+      and handoff_ts is not null
+    order by handoff_ts
     """
     if limit:
         sql += f"\nlimit {int(limit)}"

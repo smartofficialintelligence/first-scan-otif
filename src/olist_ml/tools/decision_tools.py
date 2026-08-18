@@ -117,6 +117,11 @@ def get_order_risk(
     seller_late_rate_7d: float | None = None,
     seller_late_rate_30d: float | None = None,
     seller_late_rate_90d: float | None = None,
+    handling_days: float | None = None,
+    remaining_to_promise_days: float | None = None,
+    handling_frac_of_promise: float | None = None,
+    limit_miss: float | None = None,
+    same_state: float | None = None,
     service: PredictionService | None = None,
 ) -> dict[str, Any]:
     """Return promise-miss risk via PredictionService."""
@@ -143,6 +148,11 @@ def get_order_risk(
         seller_late_rate_7d=seller_late_rate_7d,
         seller_late_rate_30d=seller_late_rate_30d,
         seller_late_rate_90d=seller_late_rate_90d,
+        handling_days=handling_days,
+        remaining_to_promise_days=remaining_to_promise_days,
+        handling_frac_of_promise=handling_frac_of_promise,
+        limit_miss=limit_miss,
+        same_state=same_state,
     )
     return svc.predict_one(req).model_dump(mode="json")
 
@@ -234,6 +244,8 @@ def recommend_policy_action(
     persist_ledger: bool = True,
     remaining_to_promise_days: float | None = None,
     handling_days: float | None = None,
+    handling_frac_of_promise: float | None = None,
+    limit_miss: float | None = None,
     same_state: float | None = None,
     service: PredictionService | None = None,
     decision_service: DecisionService | None = None,
@@ -262,6 +274,11 @@ def recommend_policy_action(
         seller_late_rate_7d=seller_late_rate_7d,
         seller_late_rate_30d=seller_late_rate_30d,
         seller_late_rate_90d=seller_late_rate_90d,
+        handling_days=handling_days,
+        remaining_to_promise_days=remaining_to_promise_days,
+        handling_frac_of_promise=handling_frac_of_promise,
+        limit_miss=limit_miss,
+        same_state=same_state,
         service=service,
     )
     prediction = PredictResponse.model_validate(pred_body)

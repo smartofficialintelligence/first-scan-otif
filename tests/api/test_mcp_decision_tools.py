@@ -93,11 +93,26 @@ def test_calculate_action_value(trained_stack) -> None:
     assert "expected_net_value" in out["candidate"]
 
 
+def test_recommend_p0_late_notice(trained_stack) -> None:
+    body = decision_tools.recommend_policy_action(
+        service=trained_stack[0],
+        decision_service=trained_stack[1],
+        ledger=trained_stack[3],
+        remaining_to_promise_days=-0.5,
+        handling_days=12.0,
+        **_payload("mcp-p0"),
+    )
+    assert body["decision"]["recommended_action"] == "LATE_NOTICE"
+    assert body["decision"]["policy_band"] == "P0"
+
+
 def test_recommend_and_history(trained_stack) -> None:
     body = decision_tools.recommend_policy_action(
         service=trained_stack[0],
         decision_service=trained_stack[1],
         ledger=trained_stack[3],
+        remaining_to_promise_days=4.0,
+        handling_days=2.0,
         **_payload("mcp-rec"),
     )
     assert "prediction" in body and "decision" in body

@@ -38,7 +38,7 @@ make train-pipeline
 curl -s localhost:8080/health
 curl -s localhost:8080/ready
 curl -s localhost:8080/v1/model
-# POST /v1/predict  |  make mcp-serve → predict_long_delivery (scores promise-miss)
+# POST /v1/predict  |  make mcp-serve → predict_promise_miss (predict_long_delivery is an alias)
 # Response includes model_version + prediction_id + promise_miss_probability
 ```
 

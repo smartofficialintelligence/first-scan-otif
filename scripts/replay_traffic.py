@@ -35,6 +35,7 @@ def _build_holdout_from_fixtures(data_dir: Path, settings: Settings) -> pd.DataF
     features = build_feature_table(tables, labeled)
     splits = temporal_split(
         features,
+        time_col="handoff_ts",
         valid_fraction=settings.valid_fraction,
         test_fraction=settings.test_fraction,
         replay_fraction=settings.replay_fraction,
@@ -87,6 +88,11 @@ def row_to_request(row: pd.Series) -> PredictRequest:
         "geo_distance_km": float(row.get("geo_distance_km", 0.0) or 0.0),
     }
     for key in (
+        "handling_days",
+        "remaining_to_promise_days",
+        "handling_frac_of_promise",
+        "limit_miss",
+        "same_state",
         "seller_order_count_7d",
         "seller_order_count_30d",
         "seller_order_count_90d",
@@ -191,8 +197,9 @@ def run_replay(
     if frame.empty:
         raise SystemExit("Replay holdout is empty")
 
+    time_col = "handoff_ts" if "handoff_ts" in frame.columns else "prediction_ts"
     ordered = frame.sample(frac=1.0, random_state=seed).sort_values(
-        "prediction_ts", kind="mergesort"
+        time_col, kind="mergesort"
     )
     if len(ordered) > max_events:
         ordered = ordered.iloc[:max_events]
@@ -225,9 +232,12 @@ def run_replay(
         for _, row in ordered.iterrows():
             request = row_to_request(row)
             traffic_bucket = traffic_bucket_for_order(request.order_id)
-            label = None
+            promise_label = None
+            if "promise_miss" in row and pd.notna(row["promise_miss"]):
+                promise_label = int(row["promise_miss"])
+            long_label = None
             if "long_delivery" in row and pd.notna(row["long_delivery"]):
-                label = int(row["long_delivery"])
+                long_label = int(row["long_delivery"])
 
             if inprocess:
                 assert champion_svc is not None
@@ -253,7 +263,8 @@ def run_replay(
                 "http_status": pred.get("http_status"),
                 "error_class": pred.get("error_class"),
                 "traffic_bucket": traffic_bucket,
-                "label_long_delivery": label,
+                "label_promise_miss": promise_label,
+                "label_long_delivery": long_label,
                 "seed": seed,
             }
             fh.write(json.dumps(record, default=str) + "\n")

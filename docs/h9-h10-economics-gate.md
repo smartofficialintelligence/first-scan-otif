@@ -1,9 +1,9 @@
 # H9 / H10 — Economics assumption gates
 
-**Status:** H9/H10 **approved as simulation defaults** for this portfolio (`econ-sim-v2`).  
+**Status:** H9/H10 **approved as simulation defaults** for this portfolio (`econ-sim-v3`).  
 **Causal ROI claims:** still **disallowed** (`allow_causal_roi_claims: false`).
 
-These gates unlock *simulation claim language* (EV policy, replay, demo $). They do **not** turn simulation into causal proof.
+These gates unlock *simulation claim language* (NOC policy replay, demo $). They do **not** turn simulation into causal proof. Hero policy is deterministic P0–P3 bands, not EV-argmax.
 
 ## What each gate covers
 
@@ -30,4 +30,4 @@ curl -s localhost:8080/v1/policies/current | jq '.economics_gate, .simulation_cl
 
 ## Demo rule
 
-Interviewer language: **“simulated under versioned assumptions (econ-sim-v2) — not measured causal ROI.”**
+Interviewer language: **“simulated under versioned assumptions (econ-sim-v3) — not measured causal ROI.”**

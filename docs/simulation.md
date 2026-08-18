@@ -12,7 +12,7 @@ Related: [ml-problem.md](ml-problem.md), [LOCKED_DECISIONS.md](LOCKED_DECISIONS.
 
 ## Dataset roles
 
-After ingest + label construction, assign splits by `prediction_ts`:
+After ingest + label construction, assign splits by `handoff_ts` (first carrier scan). `prediction_ts` remains the approval clock on the row.
 
 | Split | Fraction (initial) | Use |
 |---|---|---|
@@ -44,6 +44,10 @@ Each replay message is a FastAPI `POST /v1/predict` body:
   "customer_state": "string",
   "seller_state_primary": "string",
   "geo_distance_km": 0.0,
+  "handling_days": 0.0,
+  "remaining_to_promise_days": 0.0,
+  "handling_frac_of_promise": 0.0,
+  "limit_miss": 0,
   "replay": {
     "scenario": "baseline|drift_seller_late|drift_geo|bad_canary",
     "seed": 42,
@@ -63,7 +67,7 @@ Request-native fields must match the feature contract. Seller historical feature
 | `qps` | `5` | Sustained requests/sec for demo |
 | `duration` / `max_events` | holdout size or cap `2000` | Whichever smaller for cheap demos |
 | `concurrency` | `4` | Async client workers |
-| Order | Sorted by `prediction_timestamp` ascending after seeded tie-break | Preserves time order |
+| Order | Sorted by `handoff_ts` (fallback `prediction_ts`) ascending after seeded tie-break | Preserves scan order |
 
 Script: `scripts/replay_traffic.py`  
 Emits: prediction log rows (BQ or GCS JSONL) with model version, latency, status, features hash, probability.
@@ -72,7 +76,7 @@ Emits: prediction log rows (BQ or GCS JSONL) with model version, latency, status
 
 ```text
 event_id, order_id, snapshot_id, scenario, request_ts, model_version,
-long_delivery_probability, risk_band, latency_ms, http_status,
+promise_miss_probability, risk_band, latency_ms, http_status,
 feature_freshness_ts, feast_lookup_ms, error_class
 ```
 

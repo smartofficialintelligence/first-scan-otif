@@ -127,7 +127,7 @@ Details: [COST.md](../COST.md), [ADR 0003](adr/0003-demo-cost-switches.md).
 | Decision | Locked value |
 |---|---|
 | REST | `GET /health`, `GET /ready`, `GET /v1/model`, `POST /v1/predict`, `POST /v1/explain`, plus decision/agent: `/v1/decision`, `/v1/action/simulate`, `/v1/actions/{action_id}`, `/v1/policies/current`, `/v1/orders/{id}/decision`, `/v1/agent/review`, `/v1/metrics` |
-| MCP tools | `predict_long_delivery` (alias; scores promise-miss), `explain_long_delivery`, `get_model_status`, `get_model_metrics`, plus decision tools (`recommend_policy_action`, `execute_simulated_action`, …) — see [m6-mcp.md](m6-mcp.md) |
+| MCP tools | Primary: `predict_promise_miss`, `explain_promise_miss`. ADR 0005 names `predict_long_delivery` / `explain_long_delivery` remain aliases. Plus `get_model_status`, `get_model_metrics`, decision tools (`recommend_policy_action`, `execute_simulated_action`, …) — see [m6-mcp.md](m6-mcp.md) |
 | Agent review | LangGraph **no LLM**; copies frozen NOC `recommended_action`; optional human gate on upgrade spend; optional LangSmith ([d9-langsmith.md](d9-langsmith.md)); install `uv sync --extra agent` |
 | Shared path | REST and MCP → `PredictionService` → Feast online (when on) + Vertex Endpoint |
 | Auth (demo) | API key required when `AUTH_MODE=api_key`; open only for local dev |

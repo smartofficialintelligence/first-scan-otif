@@ -13,20 +13,24 @@ uv sync --extra mcp
 
 | Tool | Maps to |
 |------|---------|
-| `predict_long_delivery` | `PredictionService.predict_one` |
-| `get_order_risk` | same as `predict_long_delivery` (agent-friendly name) |
+| `predict_promise_miss` | `PredictionService.predict_one` |
+| `predict_long_delivery` | **alias** of `predict_promise_miss` (ADR 0005 name) |
+| `get_order_risk` | same path (agent-friendly name); accepts handoff clocks |
 | `get_model_status` | `PredictionService.readiness` |
 | `get_model_metrics` | `PredictionService.model_info` |
-| `explain_long_delivery` | `PredictionService.explain_one` |
+| `explain_promise_miss` | `PredictionService.explain_one` |
+| `explain_long_delivery` | **alias** of `explain_promise_miss` |
+
+Handoff clocks (`handling_days`, `remaining_to_promise_days`, `handling_frac_of_promise`, `limit_miss`, `same_state`) are optional tool args and flow into `PredictRequest`.
 
 ## Decision tools (D7)
 
 | Tool | Maps to |
 |------|---------|
-| `list_available_actions` | policy economics config |
-| `calculate_action_value` | EV scoring for one action |
-| `recommend_policy_action` | predict → `DecisionService` (same as `POST /v1/decision`) |
-| `execute_simulated_action` | `ActionExecutor` (simulation only) |
+| `list_available_actions` | policy economics config (`noc-handoff-policy-v1`) |
+| `calculate_action_value` | simulation scoring; prefer `promise_miss_probability` (`long_delivery_probability` still accepted) |
+| `recommend_policy_action` | predict → NOC `DecisionService` (same as `POST /v1/decision`) |
+| `execute_simulated_action` | `ActionExecutor` (simulation only); prefer `observed_promise_miss` |
 | `get_action_outcome` | local decision ledger by `action_id` |
 | `get_decision_history` | local decision ledger by `order_id` |
 | `get_policy_metrics` | current policy version + economics |
