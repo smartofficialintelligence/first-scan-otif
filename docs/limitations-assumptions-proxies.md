@@ -44,13 +44,13 @@ Initial placeholder: `fixed_miss_cost = 10`, `order_value_loss_rate = 0.10` (10%
 
 ### Remaining-leg upgrade cost (network spend)
 
-Olist has **no** upgrade tariff. Demo uses a **placeholder draw** so the KPI is a distribution, not a fake point invoice.
+Olist has **no** upgrade tariff. Scale the placeholder off **observed `freight_value`** (what was charged for shipping), then apply a multiplicative draw so spend tracks distance/weight without treating freight as a service type.
 
 Per P1-eligible upgrade attempt:
 
 ```text
 upgrade_cost = clip(
-  upgrade_cost_lognormal_draw,
+  freight_value * upgrade_mult_draw,
   min = upgrade_cost_min,
   max = min(upgrade_cost_cap, upgrade_cost_basket_frac * basket_value)
 )
@@ -60,12 +60,12 @@ Initial placeholder:
 
 | Parameter | Value | Intent |
 |---|---|---|
-| Distribution | Lognormal, median **R$12**, σ_log **0.45** | Most bumps cheap; some long-haul |
-| `upgrade_cost_min` | R$5 | Floor |
-| `upgrade_cost_cap` | R$40 | Don’t pretend air charters |
+| `upgrade_mult_draw` | Lognormal, **median 0.50× freight**, σ_log **0.35** | Bump costs about half of original freight; some cheaper/dearer |
+| `upgrade_cost_min` | R$5 | Floor when freight is tiny |
+| `upgrade_cost_cap` | R$80 | Cap absurd freight outliers |
 | `upgrade_cost_basket_frac` | 0.08 | Never spend >8% of basket on a demo bump |
 
-Seed draws by `order_id` so replay is deterministic.
+Seed draws by `order_id` so replay is deterministic. **`freight_value` is not a paid express SKU**; it is only the scale for the assumed bump.
 
 **Eligibility (also an assumption):** P1 **and** `0 < remaining_to_promise_days ≤ 7` **and** (`geo_distance_km ≥ 100` or not `same_state`). Otherwise no upgrade SKU — comms/trace only.
 
@@ -98,7 +98,7 @@ Executes the **policy-selected** action only. Human approval only if `upgrade_co
 | Date (sim) | Expected reduction in **days-after-promise** among prevented misses (use observed overrun on misses, e.g. median 6d, as the avoided-delay proxy) |
 | Customer (sim) | Expected 1–2★ events avoided × (miss 1–2★ rate − on-time rate), **associational rates applied in sim only** |
 
-Always show **assumption version** next to simulated net. Sensitivity: replay at median upgrade R$8 / R$12 / R$20.
+Always show **assumption version** next to simulated net. Sensitivity: replay at median multiplier **0.35× / 0.50× / 0.75× freight**.
 
 ## What we will not say
 
