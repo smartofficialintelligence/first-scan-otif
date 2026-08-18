@@ -2,7 +2,7 @@
 .PHONY: m2-env-check gcp-auth tf-fmt tf-validate tf-plan dbt-deps dbt-compile dbt-build ingest-bq ingest-fixtures-bq
 .PHONY: feast-apply feast-historical feast-parity demo-up demo-down mcp-serve
 .PHONY: train-pipeline airflow-train-local replay-baseline canary-bad drift-check teardown-endpoint
-.PHONY: demo-decision agent-evals decision-eval demo-decision-api economics-gate
+.PHONY: demo-decision agent-evals decision-eval demo-decision-api economics-gate overrun-experiment
 
 export PATH := $(HOME)/.local/bin:/opt/google-cloud-sdk/bin:$(PATH)
 

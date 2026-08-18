@@ -23,6 +23,12 @@ Test @ 10% capacity: see `artifacts/eval_report.json` (precision typically ~0.55
 
 - Test PR-AUC ≈ 0.096 → 0.197 after feature iteration (still not demo-grade)
 
+## Follow-up (2026-08-18): duration − promise
+
+See [experiments/overrun_duration.md](experiments/overrun_duration.md).
+
+Duration regression minus promised horizon **does not** recover a demo-grade miss ranker (test PR-AUC ~0.20 on `promise_miss`, prec@10% ~17%). It slightly beats a binary miss classifier. Mean delivery is **14.5 days earlier** than the estimate — ETAs are padded, residual is weak at capacity.
+
 Reproduce:
 
 ```bash
