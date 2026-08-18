@@ -16,11 +16,11 @@ raw
       fct_order_features, fct_order_labels, fct_training_snapshot
 ```
 
-Grain of ML marts: one row per `order_id` at `prediction_ts`.
+Grain of ML marts: one row per `order_id` at `handoff_ts` (first carrier scan). `prediction_ts` remains the approval clock for handling / horizon.
 
 ## Point-in-time rule
 
-Historical features use only events with `event_ts < prediction_ts` (strict).  
+Historical features use only events with `event_ts < handoff_ts` (strict).  
 Windows: **7d / 30d / 90d**. Rolling logic must be `closed="left"` equivalent in SQL.
 
 ## Request-native / order features (offline + request path)
@@ -37,6 +37,10 @@ Windows: **7d / 30d / 90d**. Rolling logic must be `closed="left"` equivalent in
 | `payment_type_primary` | Dominant payment type | Low |
 | `installment_count` | From payments | Low |
 | `estimated_delivery_horizon_days` | `order_estimated_delivery_date - prediction_ts` | Low — promise known at purchase |
+| `handling_days` | `handoff_ts - prediction_ts`, clipped ≥ −1 | Low — first scan is the decision time |
+| `remaining_to_promise_days` | `ETA - handoff_ts` | Low |
+| `handling_frac_of_promise` | `handling_days / horizon` | Low |
+| `limit_miss` | `handoff_ts > shipping_limit_date` | Low — seller SLA vs scan |
 | `approval_lag_hours` | `prediction_ts - order_purchase_timestamp` (clipped ≥0) | Low |
 | `freight_to_basket_ratio` | `freight_value / basket_value` | Low |
 | `same_state` | customer_state == seller_state_primary | Low |
@@ -80,7 +84,7 @@ Stale feature → if `now - feature_timestamp > freshness_sla` (default 36h duri
 ## Explicit non-features (blocked)
 
 - Review score / comment
-- Delivery carrier/customer actual timestamps (except as label)
+- Raw `order_delivered_carrier_date` / `order_delivered_customer_date` (clocks may be derived at handoff; customer delivery is label-only)
 - Anything computed with `closed="right"` or inclusive of current order
 - Post-outcome order status
 
@@ -97,7 +101,7 @@ For every feature:
 1. Source table(s)
 2. Timestamp column used
 3. Window + closed semantics
-4. Knowable at `prediction_ts`? (yes/no)
+4. Knowable at `handoff_ts`? (yes/no)
 5. Online or offline only
 6. Owner / docstring in Feast registry
 

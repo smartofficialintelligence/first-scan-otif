@@ -35,9 +35,9 @@ def test_global_metrics_reset_isolation() -> None:
 
 def test_decision_and_agent_metrics() -> None:
     m = MetricsRegistry()
-    m.observe_decision(recommended_action="EXPEDITE")
-    m.observe_agent_review(status="waiting_approval", action="EXPEDITE")
-    m.observe_agent_review(status="completed", action="SELLER_NUDGE", spend=5.0, net=12.0)
+    m.observe_decision(recommended_action="REMAINING_LEG_UPGRADE")
+    m.observe_agent_review(status="waiting_approval", action="REMAINING_LEG_UPGRADE")
+    m.observe_agent_review(status="completed", action="AT_RISK_NOTICE", spend=5.0, net=12.0)
     snap = m.snapshot()["decision"]
     assert snap["decision_requests"] == 1
     assert snap["agent_reviews"] == 2
@@ -45,4 +45,4 @@ def test_decision_and_agent_metrics() -> None:
     assert snap["agent_completed"] == 1
     assert snap["intervention_spend_simulated"] == 5.0
     assert snap["net_value_simulated"] == 12.0
-    assert snap["action_distribution"]["EXPEDITE"] == 2
+    assert snap["action_distribution"]["REMAINING_LEG_UPGRADE"] == 2

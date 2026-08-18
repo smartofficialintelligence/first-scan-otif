@@ -9,6 +9,7 @@ import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder
 
+from olist_ml.features import handoff as handoff_clocks
 from olist_ml.features.contracts import CATEGORICAL_FEATURES, FEATURE_COLUMNS, NUMERIC_FEATURES
 from olist_ml.schemas import PredictRequest
 
@@ -79,13 +80,54 @@ def frame_from_requests(requests: list[PredictRequest]) -> pd.DataFrame:
         if row.get("same_state") is None:
             row["same_state"] = float(cust == sell and cust != "unknown")
 
-        ts = req.prediction_timestamp or req.purchase_timestamp
+        pred_ts = req.prediction_timestamp or req.purchase_timestamp
+        handoff_ts = req.handoff_timestamp or req.order_delivered_carrier_date
+        handling = row.get("handling_days")
+        if handling is None:
+            derived = handoff_clocks.handling_days(pred_ts, handoff_ts)
+            handling = 0.0 if derived is None else derived
+        row["handling_days"] = float(handling)
+
+        remaining = row.get("remaining_to_promise_days")
+        if remaining is None:
+            derived_rem = handoff_clocks.remaining_to_promise_days(
+                handoff_ts, req.order_estimated_delivery_date
+            )
+            if derived_rem is None:
+                remaining = float(row.get("estimated_delivery_horizon_days") or 0.0) - float(
+                    handling
+                )
+            else:
+                remaining = derived_rem
+        row["remaining_to_promise_days"] = float(remaining)
+
+        if row.get("handling_frac_of_promise") is None:
+            row["handling_frac_of_promise"] = handoff_clocks.handling_frac_of_promise(
+                float(handling),
+                float(row.get("estimated_delivery_horizon_days") or 0.0),
+            )
+        if row.get("limit_miss") is None:
+            row["limit_miss"] = handoff_clocks.limit_miss_flag(handoff_ts, req.shipping_limit_date)
+
+        ts = pred_ts
         row["purchase_hour"] = float(ts.hour)
         row["purchase_dow"] = float(ts.weekday())
         row["purchase_month"] = float(ts.month)
         row["is_weekend"] = float(ts.weekday() >= 5)
         rows.append(row)
     return pd.DataFrame(rows)
+
+
+def noc_context_from_request(request: PredictRequest) -> dict[str, float]:
+    """Handoff clocks + geo used by the NOC policy (same derivation as the model matrix)."""
+    frame = frame_from_requests([request])
+    row = frame.iloc[0]
+    return {
+        "remaining_to_promise_days": float(row["remaining_to_promise_days"]),
+        "geo_distance_km": float(row["geo_distance_km"]),
+        "same_state": float(row["same_state"]),
+        "freight_value": float(row["freight_value"]),
+    }
 
 
 def select_feature_frame(df: pd.DataFrame) -> pd.DataFrame:

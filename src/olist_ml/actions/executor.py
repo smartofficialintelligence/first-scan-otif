@@ -9,6 +9,7 @@ from pathlib import Path
 from olist_ml.actions.schemas import ActionRequest, ActionResult
 from olist_ml.decisions.economics import PolicyEconomicsConfig, load_policy_economics
 from olist_ml.decisions.schemas import ActionType
+from olist_ml.decisions.upgrade_cost import remaining_leg_upgrade_cost
 from olist_ml.simulation.intervention import derive_seed, simulate_intervention
 
 
@@ -49,12 +50,22 @@ class ActionExecutor:
                 base_seed=self.base_seed,
             )
 
+        cost_override = request.intervention_cost
+        if cost_override is None and request.action_type == ActionType.REMAINING_LEG_UPGRADE:
+            cost_override = remaining_leg_upgrade_cost(
+                request.order_id,
+                float(request.freight_value or 0.0),
+                request.basket_value,
+                config=self.config.noc_policy.upgrade_cost,
+            )
+
         sim = simulate_intervention(
             action=econ,
             observed_long_delivery=request.observed_long_delivery,
             basket_value=request.basket_value,
             loss_cfg=self.config.business_loss,
             seed=seed,
+            cost_override=cost_override,
         )
 
         return ActionResult(
@@ -91,6 +102,8 @@ class ActionExecutor:
         observed_long_delivery: bool,
         basket_value: float,
         expected_net_value: float | None = None,
+        freight_value: float | None = None,
+        intervention_cost: float | None = None,
         execution_source: str = "deterministic_policy",
     ) -> ActionResult:
         return self.execute(
@@ -104,6 +117,8 @@ class ActionExecutor:
                 expected_net_value=expected_net_value,
                 observed_long_delivery=observed_long_delivery,
                 basket_value=basket_value,
+                freight_value=freight_value,
+                intervention_cost=intervention_cost,
             ),
             execution_source=execution_source,
         )

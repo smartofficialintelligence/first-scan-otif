@@ -7,8 +7,8 @@ import hashlib
 import numpy as np
 
 from olist_ml.decisions.economics import BusinessLossConfig
-from olist_ml.decisions.schemas import ActionEconomics, ActionType
-from olist_ml.decisions.value import business_loss_if_long
+from olist_ml.decisions.schemas import IMPACT_ONLY_ACTIONS, ActionEconomics, ActionType
+from olist_ml.decisions.value import business_loss_if_miss
 
 
 def derive_seed(*parts: str, base_seed: int = 42) -> int:
@@ -25,6 +25,7 @@ def simulate_intervention(
     basket_value: float,
     loss_cfg: BusinessLossConfig,
     seed: int,
+    cost_override: float | None = None,
 ) -> dict[str, float | bool | None]:
     """
     Apply configured Bernoulli prevention / impact reduction.
@@ -32,8 +33,8 @@ def simulate_intervention(
     Never mutates historical truth — returns parallel simulated fields.
     """
     rng = np.random.default_rng(seed)
-    loss = business_loss_if_long(basket_value, loss_cfg)
-    cost = float(action.cost)
+    loss = business_loss_if_miss(basket_value, loss_cfg)
+    cost = float(action.cost if cost_override is None else cost_override)
 
     if action.action == ActionType.NO_ACTION:
         return {
@@ -47,7 +48,7 @@ def simulate_intervention(
         }
 
     # Impact-only: lateness unchanged; reduce realized customer-impact loss.
-    if action.action == ActionType.CUSTOMER_NOTIFICATION or (
+    if action.action in IMPACT_ONLY_ACTIONS or (
         action.risk_prevention_probability <= 0 and action.customer_impact_reduction > 0
     ):
         impact = float(action.customer_impact_reduction)

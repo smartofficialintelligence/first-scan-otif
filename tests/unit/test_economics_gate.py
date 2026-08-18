@@ -14,7 +14,8 @@ def test_economics_gate_simulation_approved_not_causal() -> None:
     assert cfg.economics_gate.simulation_claims_allowed is True
     assert cfg.economics_gate.allow_causal_roi_claims is False
     assert cfg.economics_gate.causal_roi_claim_allowed is False
-    assert cfg.policy_config_version == "econ-sim-v2"
+    assert cfg.policy_config_version == "econ-sim-v3"
+    assert cfg.policy_version == "noc-handoff-policy-v1"
     assert cfg.routing.real_external_execution_enabled is False
 
 

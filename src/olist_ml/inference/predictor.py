@@ -80,6 +80,9 @@ class PredictionService:
             feature_names=self._meta.feature_names,
             trained_at=self._meta.trained_at,
             metrics=self._meta.metrics,
+            target=self._meta.target,
+            p1_score_threshold=self._meta.p1_score_threshold,
+            p2_score_threshold=self._meta.p2_score_threshold,
         )
 
     def predict_one(
@@ -111,11 +114,14 @@ class PredictionService:
             return PredictResponse(
                 order_id=request.order_id,
                 prediction_id=str(uuid.uuid4()),
-                long_delivery_probability=proba,
+                promise_miss_probability=proba,
                 risk_band=band,  # type: ignore[arg-type]
                 model_version=self._meta.model_version,
                 prediction_timestamp=pred_ts,
                 feature_timestamp=datetime.now(UTC),
+                target=self._meta.target,
+                p1_score_threshold=self._meta.p1_score_threshold,
+                p2_score_threshold=self._meta.p2_score_threshold,
             )
         except Exception:
             err = True
@@ -151,10 +157,11 @@ class PredictionService:
             return ExplainResponse(
                 order_id=prediction.order_id,
                 model_version=prediction.model_version,
-                long_delivery_probability=prediction.long_delivery_probability,
+                promise_miss_probability=prediction.promise_miss_probability,
                 top_features=top_features,
                 method="stub",
                 note=EXPLAIN_TIMEOUT_NOTE,
+                target=prediction.target,
             )
         except Exception:
             err = True

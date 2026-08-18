@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from typing import Final
 
+# Training objective at carrier handoff (ADR 0006).
+TARGET_COLUMN: Final[str] = "promise_miss"
+TARGET_NAME: Final[str] = "promise_miss_at_handoff"
+
 # Numeric model matrix columns (order matters for inference).
 NUMERIC_FEATURES: Final[list[str]] = [
     "purchase_hour",
@@ -22,6 +26,10 @@ NUMERIC_FEATURES: Final[list[str]] = [
     "geo_distance_km",
     "same_state",
     "avg_product_weight_g",
+    "handling_days",
+    "remaining_to_promise_days",
+    "handling_frac_of_promise",
+    "limit_miss",
     "seller_order_count_7d",
     "seller_order_count_30d",
     "seller_order_count_90d",
@@ -59,6 +67,8 @@ ONLINE_SELLER_FEATURES: Final[list[str]] = [
     "seller_late_rate_90d",
 ]
 
+# Raw logistics timestamps must not enter the model matrix.
+# Derived handoff clocks (handling_days, remaining_to_promise_days, …) are allowed.
 BLOCKED_SOURCE_COLUMNS: Final[list[str]] = [
     "order_delivered_carrier_date",
     "order_delivered_customer_date",

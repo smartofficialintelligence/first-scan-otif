@@ -10,10 +10,16 @@ class AgentReviewState(TypedDict, total=False):
     order_id: str
     seller_id: str
     basket_value: float
-    long_delivery_probability: float
+    promise_miss_probability: float
+    remaining_to_promise_days: float | None
+    geo_distance_km: float | None
+    same_state: float | None
+    freight_value: float | None
+    p1_score_threshold: float | None
+    p2_score_threshold: float | None
     prediction_id: str
     model_version: str
-    observed_long_delivery: bool | None
+    observed_promise_miss: bool | None
     feature_payload: dict[str, Any]
     require_human_approval: bool
     human_approved: bool | None  # None=pending, True/False when resolved

@@ -40,19 +40,23 @@ See [ARCHITECTURE.md](../ARCHITECTURE.md) and [ADR 0002](adr/0002-feast-mlflow-a
 
 ## 3. ML problem (Human gate H1 — locked defaults)
 
+Hero product is **promise-miss at first carrier scan** ([ADR 0006](adr/0006-handoff-promise-miss-noc.md)). ADR 0005 long-delivery remains diagnostic / PIT rate source only.
+
 | Decision | Locked value |
 |---|---|
 | Entity | Olist order (`order_id`) |
-| Prediction moment | `order_approved_at` (fallback: `order_purchase_timestamp` if approval null) |
-| Target | `long_delivery = (order_delivered_customer_date - prediction_ts) > 14 days` (H1 amended; see [ADR 0005](adr/0005-long-delivery-target.md)) |
-| Output | `P(long_delivery)` calibrated probability + risk band |
-| Exclude | Orders missing delivery date, estimated delivery date, or prediction timestamp; cancelled / non-delivered where target undefined |
-| Unavailable at prediction time | All post-approval logistics timestamps, carrier events, review scores, post-purchase status changes, anything after prediction timestamp |
-| Primary metric | PR-AUC |
-| Secondary metrics | ROC-AUC, Brier, calibration error (ECE), precision/recall at capacity thresholds, segment metrics |
+| Prediction moment | `handoff_ts = order_delivered_carrier_date` (first carrier scan) |
+| Approval clock | `prediction_ts = order_approved_at` (fallback: `order_purchase_timestamp`) — handling/horizon only |
+| Target | `promise_miss = order_delivered_customer_date > order_estimated_delivery_date` |
+| Output | `P(promise_miss)` calibrated probability + risk band; API `promise_miss_probability` |
+| Exclude | Orders missing customer delivery, estimated delivery, prediction timestamp, or carrier scan |
+| Unavailable in X | Raw `order_delivered_carrier_date` / `order_delivered_customer_date`, review scores, anything after handoff. Derived handoff clocks are allowed. |
+| Policy | Deterministic NOC bands P0–P3; agent executes the frozen action only |
+| Primary metric | PR-AUC (appendix). Exec KPIs are $ / customer / dates under simulation assumptions |
+| Secondary metrics | ROC-AUC, Brier, ECE, precision/recall at 2.5/5/7.5/10% score capacity |
 | Production metrics | Latency, error rate, volume, feature freshness/drift, prediction drift, delayed-label quality |
 
-Details: [ml-problem.md](ml-problem.md).
+Details: [ml-problem.md](ml-problem.md). Assumptions: [limitations-assumptions-proxies.md](limitations-assumptions-proxies.md).
 
 ---
 
@@ -78,8 +82,9 @@ Seed workbook is conceptual only (DoorDash domain). Do not port notebook structu
 |---|---|
 | Feature definitions | dbt marts only — no train-only transforms that serving cannot reproduce |
 | Online subset | Seller-level historical features via Feast (see [features.md](features.md)) |
-| Historical windows | `7d`, `30d`, `90d` rolling, `closed` strictly before prediction timestamp |
-| Distance proxy | Haversine customer↔seller from geolocation aggregates known at prediction time |
+| Historical windows | `7d`, `30d`, `90d` rolling, `closed` strictly before **handoff timestamp** |
+| Distance proxy | Haversine customer↔seller from geolocation aggregates known at handoff |
+| Handoff clocks | `handling_days`, `remaining_to_promise_days`, `handling_frac_of_promise`, `limit_miss` (derived; raw carrier ts blocked from X) |
 | Human gate H2 | Required before treating feature set as production-approved |
 
 Full candidate list + leakage flags: [features.md](features.md).
@@ -122,8 +127,8 @@ Details: [COST.md](../COST.md), [ADR 0003](adr/0003-demo-cost-switches.md).
 | Decision | Locked value |
 |---|---|
 | REST | `GET /health`, `GET /ready`, `GET /v1/model`, `POST /v1/predict`, `POST /v1/explain`, plus decision/agent: `/v1/decision`, `/v1/action/simulate`, `/v1/actions/{action_id}`, `/v1/policies/current`, `/v1/orders/{id}/decision`, `/v1/agent/review`, `/v1/metrics` |
-| MCP tools | `predict_long_delivery`, `explain_long_delivery`, `get_model_status`, `get_model_metrics`, plus D7 decision tools (`recommend_policy_action`, `execute_simulated_action`, …) — see [m6-mcp.md](m6-mcp.md) |
-| Agent review | LangGraph tool-driven workflow (`olist_ml.agents`); optional human gate; optional LangSmith ([d9-langsmith.md](d9-langsmith.md)); install `uv sync --extra agent` |
+| MCP tools | `predict_long_delivery` (alias; scores promise-miss), `explain_long_delivery`, `get_model_status`, `get_model_metrics`, plus decision tools (`recommend_policy_action`, `execute_simulated_action`, …) — see [m6-mcp.md](m6-mcp.md) |
+| Agent review | LangGraph **no LLM**; copies frozen NOC `recommended_action`; optional human gate on upgrade spend; optional LangSmith ([d9-langsmith.md](d9-langsmith.md)); install `uv sync --extra agent` |
 | Shared path | REST and MCP → `PredictionService` → Feast online (when on) + Vertex Endpoint |
 | Auth (demo) | API key required when `AUTH_MODE=api_key`; open only for local dev |
 | Explain | SHAP on sampled/synchronous path behind `/v1/explain` with latency guardrails (timeout/budget) |

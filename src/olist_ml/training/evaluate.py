@@ -80,7 +80,7 @@ def bootstrap_metrics(
 def threshold_capacity_table(
     y_true: np.ndarray,
     proba: np.ndarray,
-    capacities: tuple[float, ...] = (0.05, 0.10, 0.20),
+    capacities: tuple[float, ...] = (0.025, 0.05, 0.075, 0.10),
 ) -> pd.DataFrame:
     """Precision/recall when flagging top capacity fraction by risk."""
     n = len(proba)
@@ -135,3 +135,19 @@ def evaluate_predictions(
         "capacity_table": capacity.to_dict(orient="records"),
         "recall_targets": recall_rows,
     }
+
+
+def score_capacity_thresholds(
+    proba: np.ndarray,
+    *,
+    p1_capacity: float = 0.025,
+    p2_capacity: float = 0.10,
+) -> tuple[float, float]:
+    """Persist validation score cutoffs (not live percentiles) for online bands."""
+    if len(proba) == 0:
+        return 1.0, 1.0
+    p1 = float(np.quantile(proba, 1.0 - p1_capacity))
+    p2 = float(np.quantile(proba, 1.0 - p2_capacity))
+    if p1 < p2:
+        p1, p2 = p2, p1
+    return p1, p2

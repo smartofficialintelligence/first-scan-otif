@@ -77,12 +77,16 @@ def test_train_and_deterministic_predict(tmp_path: Path) -> None:
         customer_late_rate_90d=float(row["customer_late_rate_90d"]),
         category_late_rate_30d=float(row["category_late_rate_30d"]),
         category_late_rate_90d=float(row["category_late_rate_90d"]),
+        remaining_to_promise_days=float(row["remaining_to_promise_days"]),
+        handling_days=float(row["handling_days"]),
+        handling_frac_of_promise=float(row["handling_frac_of_promise"]),
+        limit_miss=float(row["limit_miss"]),
         category_order_count_90d=float(row["category_order_count_90d"]),
     )
     a = service.predict_one(req)
     b = service.predict_one(req)
-    assert a.long_delivery_probability == b.long_delivery_probability
-    assert 0.0 <= a.long_delivery_probability <= 1.0
+    assert a.promise_miss_probability == b.promise_miss_probability
+    assert 0.0 <= a.promise_miss_probability <= 1.0
     assert a.model_version == meta.model_version
     assert a.risk_band in {"low", "medium", "high"}
 

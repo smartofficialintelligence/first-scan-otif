@@ -74,21 +74,22 @@ def _payload(order_id: str = "mcp-dec") -> dict:
 
 def test_list_and_policy_metrics(trained_stack) -> None:
     actions = decision_tools.list_available_actions(decision_service=trained_stack[1])
-    assert actions["policy_version"] == "expected-value-policy-v1"
+    assert actions["policy_version"] == "noc-handoff-policy-v1"
     names = {a["action"] for a in actions["actions"]}
-    assert "EXPEDITE" in names
+    assert "REMAINING_LEG_UPGRADE" in names
+    assert "AT_RISK_NOTICE" in names
     assert "NO_ACTION" in names
     assert decision_tools.get_policy_metrics(decision_service=trained_stack[1])["actions"]
 
 
 def test_calculate_action_value(trained_stack) -> None:
     out = decision_tools.calculate_action_value(
-        action="EXPEDITE",
-        long_delivery_probability=0.8,
+        action="REMAINING_LEG_UPGRADE",
+        probability=0.8,
         basket_value=200.0,
         decision_service=trained_stack[1],
     )
-    assert out["candidate"]["action"] == "EXPEDITE"
+    assert out["candidate"]["action"] == "REMAINING_LEG_UPGRADE"
     assert "expected_net_value" in out["candidate"]
 
 
@@ -121,7 +122,7 @@ def test_execute_simulated_action_and_outcome(trained_stack) -> None:
         action=d["recommended_action"],
         model_version=p["model_version"],
         policy_version=d["policy_version"],
-        observed_long_delivery=True,
+        observed_promise_miss=True,
         basket_value=180.0,
         expected_net_value=d["expected_net_value"],
         executor=trained_stack[2],

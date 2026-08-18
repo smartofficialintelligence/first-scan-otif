@@ -24,6 +24,8 @@ class ActionRequest(BaseModel):
     agent_run_id: str | None = None
     observed_long_delivery: bool
     basket_value: float = Field(ge=0)
+    freight_value: float | None = Field(default=None, ge=0)
+    intervention_cost: float | None = Field(default=None, ge=0)
     seed: int | None = None
 
 

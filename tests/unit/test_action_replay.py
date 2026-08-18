@@ -1,4 +1,4 @@
-"""Tests for ActionExecutor, simulation, ledger, and policy replay (D3–D5)."""
+"""Tests for ActionExecutor, simulation, ledger, and policy replay."""
 
 from __future__ import annotations
 
@@ -26,13 +26,14 @@ def cfg():
 
 
 def test_simulation_reproducible(cfg) -> None:
-    econ = cfg.actions[ActionType.EXPEDITE]
+    econ = cfg.actions[ActionType.REMAINING_LEG_UPGRADE]
     a = simulate_intervention(
         action=econ,
         observed_long_delivery=True,
         basket_value=100.0,
         loss_cfg=cfg.business_loss,
         seed=123,
+        cost_override=12.0,
     )
     b = simulate_intervention(
         action=econ,
@@ -40,21 +41,22 @@ def test_simulation_reproducible(cfg) -> None:
         basket_value=100.0,
         loss_cfg=cfg.business_loss,
         seed=123,
+        cost_override=12.0,
     )
     assert a == b
 
 
-def test_expedite_can_flip_long_to_on_time(cfg) -> None:
-    econ = cfg.actions[ActionType.EXPEDITE]
-    # Try several seeds; with p=0.6 we should see at least one success
+def test_upgrade_can_flip_miss_to_on_time(cfg) -> None:
+    econ = cfg.actions[ActionType.REMAINING_LEG_UPGRADE]
     successes = 0
-    for seed in range(50):
+    for seed in range(80):
         out = simulate_intervention(
             action=econ,
             observed_long_delivery=True,
             basket_value=100.0,
             loss_cfg=cfg.business_loss,
             seed=seed,
+            cost_override=10.0,
         )
         if out["intervention_success"]:
             successes += 1
@@ -63,8 +65,8 @@ def test_expedite_can_flip_long_to_on_time(cfg) -> None:
     assert successes > 0
 
 
-def test_notification_keeps_lateness_but_reduces_impact(cfg) -> None:
-    econ = cfg.actions[ActionType.CUSTOMER_NOTIFICATION]
+def test_notice_keeps_lateness_but_reduces_impact(cfg) -> None:
+    econ = cfg.actions[ActionType.AT_RISK_NOTICE]
     out = simulate_intervention(
         action=econ,
         observed_long_delivery=True,
@@ -73,13 +75,12 @@ def test_notification_keeps_lateness_but_reduces_impact(cfg) -> None:
         seed=1,
     )
     assert out["simulated_long_delivery"] is True
-    assert out["simulated_impact_loss_reduction"] == pytest.approx(20.0 * 0.2)  # loss=20
+    assert out["simulated_impact_loss_reduction"] == pytest.approx(20.0 * 0.20)
     assert out["simulated_net_value"] == pytest.approx(4.0 - 1.0)
 
 
 def test_executor_rejects_unknown_action(cfg) -> None:
-    # Force ineligible by cloning NO_ACTION path — use MANUAL with eligible false via mutate
-    cfg.actions[ActionType.MANUAL_REVIEW].eligible = False
+    cfg.actions[ActionType.LATE_NOTICE].eligible = False
     ex = ActionExecutor(config=cfg, base_seed=1)
     with pytest.raises(ValueError, match="not approved"):
         ex.execute(
@@ -87,7 +88,7 @@ def test_executor_rejects_unknown_action(cfg) -> None:
                 order_id="o",
                 prediction_id="p",
                 decision_id="d",
-                action_type=ActionType.MANUAL_REVIEW,
+                action_type=ActionType.LATE_NOTICE,
                 model_version="m",
                 policy_version="v",
                 observed_long_delivery=True,
@@ -107,12 +108,21 @@ def test_ledger_roundtrip(tmp_path: Path, cfg) -> None:
     pred = PredictResponse(
         order_id="o1",
         prediction_id="p1",
-        long_delivery_probability=0.8,
+        promise_miss_probability=0.8,
         risk_band="high",
         model_version="m",
         prediction_timestamp=datetime(2018, 1, 1, tzinfo=UTC),
+        p1_score_threshold=0.4,
+        p2_score_threshold=0.2,
     )
-    decision = svc.decide_from_prediction(pred, basket_value=150.0)
+    decision = svc.decide_from_prediction(
+        pred,
+        basket_value=150.0,
+        remaining_to_promise_days=3.0,
+        geo_distance_km=200.0,
+        same_state=0.0,
+        freight_value=25.0,
+    )
     ledger.append_prediction(pred)
     ledger.append_decision(decision)
     rows = ledger.for_order("o1")
@@ -120,24 +130,23 @@ def test_ledger_roundtrip(tmp_path: Path, cfg) -> None:
     assert {r["record_type"] for r in rows} == {"prediction", "decision"}
 
 
-def test_policy_replay_ranks_ev_vs_no_action(cfg) -> None:
+def test_policy_replay_ranks_noc_vs_no_action(cfg) -> None:
     rows = [
-        ReplayRow("o1", "p1", "m", 0.9, 200.0, True),
-        ReplayRow("o2", "p2", "m", 0.1, 50.0, False),
-        ReplayRow("o3", "p3", "m", 0.8, 180.0, True),
-        ReplayRow("o4", "p4", "m", 0.2, 40.0, False),
-        ReplayRow("o5", "p5", "m", 0.75, 220.0, True),
+        ReplayRow("o1", "p1", "m", 0.9, 200.0, True, remaining_to_promise_days=3.0),
+        ReplayRow("o2", "p2", "m", 0.1, 50.0, False, remaining_to_promise_days=4.0),
+        ReplayRow("o3", "p3", "m", 0.8, 180.0, True, remaining_to_promise_days=3.0),
+        ReplayRow("o4", "p4", "m", 0.2, 40.0, False, remaining_to_promise_days=11.0),
+        ReplayRow("o5", "p5", "m", 0.75, 220.0, True, remaining_to_promise_days=2.0),
     ]
     report = replay_policies(rows, config=cfg, threshold=0.70, base_seed=7)
     assert report["n_orders"] == 5
     na = report["policies"]["no_action"]
-    ev = report["policies"]["expected_value"]
+    noc = report["policies"]["noc"]
     assert na["interventions"] == 0
     assert na["net_simulated_value"] == 0.0
-    assert ev["interventions"] >= 1
-    # EV should not be worse than doing nothing on this toy set in expectation of positives
-    assert "net_simulated_value" in ev
-    assert "roi_simulated" in ev
+    assert noc["interventions"] >= 1
+    assert "net_simulated_value" in noc
+    assert "roi_simulated" in noc
 
 
 def test_derive_seed_stable() -> None:

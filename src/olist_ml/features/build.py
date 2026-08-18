@@ -36,6 +36,10 @@ def _geo_centroids(geolocation: pd.DataFrame) -> pd.DataFrame:
 
 def _order_level_basket(tables: dict[str, pd.DataFrame], labeled: pd.DataFrame) -> pd.DataFrame:
     items = tables["order_items"].copy()
+    if "shipping_limit_date" in items.columns:
+        items["shipping_limit_date"] = pd.to_datetime(
+            items["shipping_limit_date"], utc=True, errors="coerce"
+        )
     products = tables["products"].copy()
     prod_cols = ["product_id", "product_category_name"]
     if "product_weight_g" in products.columns:
@@ -51,6 +55,7 @@ def _order_level_basket(tables: dict[str, pd.DataFrame], labeled: pd.DataFrame) 
         "category_count": ("product_category_name", "nunique"),
         "primary_seller_id": ("seller_id", "first"),
         "primary_category": ("product_category_name", "first"),
+        "shipping_limit_date": ("shipping_limit_date", "min"),
     }
     if "product_weight_g" in items.columns:
         agg["avg_product_weight_g"] = ("product_weight_g", "mean")
@@ -149,7 +154,11 @@ def _pit_window_stats(
     mean_specs: list of (output_col_prefix, source_col) producing `{prefix}_{window}`.
     """
     mean_specs = mean_specs or []
-    work = df[[entity_col, time_col, rate_source, *{src for _, src in mean_specs}]].copy()
+    cols = [entity_col, time_col, rate_source, *{src for _, src in mean_specs}]
+    missing_rate = rate_source not in df.columns
+    if missing_rate:
+        raise ValueError(f"PIT rate_source column missing: {rate_source}")
+    work = df[cols].copy()
     work["_row"] = np.arange(len(work))
     work[time_col] = pd.to_datetime(work[time_col], utc=True)
     work = work.sort_values([entity_col, time_col, "_row"])
@@ -197,10 +206,13 @@ def _pit_window_stats(
 def _attach_history(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()
     out["prediction_ts"] = pd.to_datetime(out["prediction_ts"], utc=True)
+    pit_time = "handoff_ts" if "handoff_ts" in out.columns else "prediction_ts"
+    out[pit_time] = pd.to_datetime(out[pit_time], utc=True)
 
     seller = _pit_window_stats(
         out,
         entity_col="seller_id",
+        time_col=pit_time,
         windows_days={"7d": 7, "30d": 30, "90d": 90},
         count_prefix="seller_order_count",
         rate_prefix="seller_late_rate",
@@ -216,6 +228,7 @@ def _attach_history(df: pd.DataFrame) -> pd.DataFrame:
     customer = _pit_window_stats(
         out,
         entity_col="customer_id",
+        time_col=pit_time,
         windows_days={"30d": 30, "90d": 90},
         count_prefix="customer_order_count",
         rate_prefix="customer_late_rate",
@@ -230,6 +243,7 @@ def _attach_history(df: pd.DataFrame) -> pd.DataFrame:
     category = _pit_window_stats(
         cat_src,
         entity_col="primary_category",
+        time_col=pit_time,
         windows_days={"30d": 30, "90d": 90},
         count_prefix="category_order_count",
         rate_prefix="category_late_rate",
@@ -244,6 +258,27 @@ def _attach_history(df: pd.DataFrame) -> pd.DataFrame:
     return out.drop(columns=["_row"])
 
 
+def _add_handoff_clocks(df: pd.DataFrame) -> pd.DataFrame:
+    """Derive handling / remaining / limit-miss at first carrier scan."""
+    out = df.copy()
+    pred = pd.to_datetime(out["prediction_ts"], utc=True)
+    handoff = pd.to_datetime(out["handoff_ts"], utc=True)
+    eta = pd.to_datetime(out["order_estimated_delivery_date"], utc=True)
+    handling = ((handoff - pred).dt.total_seconds() / 86400.0).clip(lower=-1.0)
+    remaining = (eta - handoff).dt.total_seconds() / 86400.0
+    horizon = out["estimated_delivery_horizon_days"].astype(float)
+    frac = np.where(horizon.abs() > 1e-6, handling / horizon, 0.0)
+    out["handling_days"] = handling.astype(float)
+    out["remaining_to_promise_days"] = remaining.astype(float)
+    out["handling_frac_of_promise"] = pd.Series(frac, index=out.index).astype(float)
+    if "shipping_limit_date" in out.columns:
+        limit = pd.to_datetime(out["shipping_limit_date"], utc=True, errors="coerce")
+        out["limit_miss"] = (handoff > limit).fillna(False).astype(float)
+    else:
+        out["limit_miss"] = 0.0
+    return out
+
+
 def build_feature_table(
     tables: dict[str, pd.DataFrame],
     labeled_orders: pd.DataFrame,
@@ -251,6 +286,7 @@ def build_feature_table(
     """Build one-row-per-order feature table with label."""
     base = _order_level_basket(tables, labeled_orders)
     base = _add_time_parts(base)
+    base = _add_handoff_clocks(base)
     base = _attach_history(base)
 
     base["payment_type_primary"] = (
@@ -284,6 +320,10 @@ def build_feature_table(
         "geo_distance_km",
         "same_state",
         "avg_product_weight_g",
+        "handling_days",
+        "remaining_to_promise_days",
+        "handling_frac_of_promise",
+        "limit_miss",
         "seller_order_count_7d",
         "seller_order_count_30d",
         "seller_order_count_90d",
@@ -304,7 +344,14 @@ def build_feature_table(
     for col in fill0:
         base[col] = base[col].fillna(0).astype(float)
 
-    required = FEATURE_COLUMNS + ["long_delivery", "order_id", "seller_id", "prediction_ts"]
+    required = FEATURE_COLUMNS + [
+        "promise_miss",
+        "long_delivery",
+        "order_id",
+        "seller_id",
+        "prediction_ts",
+        "handoff_ts",
+    ]
     missing = [c for c in required if c not in base.columns]
     if missing:
         raise ValueError(f"Feature build missing columns: {missing}")

@@ -17,6 +17,7 @@ from olist_ml.api.dependencies import (
 )
 from olist_ml.decisions.schemas import ActionType
 from olist_ml.decisions.service import DecisionService
+from olist_ml.features.assembler import noc_context_from_request
 from olist_ml.inference.predictor import PredictionService
 from olist_ml.monitoring.metrics import get_metrics
 from olist_ml.outcomes.ledger import DecisionLedger
@@ -104,6 +105,7 @@ def current_policy(decision_svc: DecisionService = Depends(decision_service_dep)
         },
         "business_loss": cfg.business_loss.model_dump(),
         "routing": cfg.routing.model_dump(),
+        "noc_policy": cfg.noc_policy.model_dump(),
     }
 
 
@@ -119,10 +121,18 @@ def decide(
         raise HTTPException(status_code=503, detail="Model not ready")
     try:
         prediction = pred_svc.predict_one(body)
+        noc = noc_context_from_request(body)
+        meta = pred_svc._meta  # noqa: SLF001
         decision = decision_svc.decide_from_prediction(
             prediction,
             basket_value=body.basket_value,
             seller_id=body.seller_id,
+            remaining_to_promise_days=noc["remaining_to_promise_days"],
+            geo_distance_km=noc["geo_distance_km"],
+            same_state=noc["same_state"],
+            freight_value=noc["freight_value"],
+            p1_score_threshold=None if meta is None else meta.p1_score_threshold,
+            p2_score_threshold=None if meta is None else meta.p2_score_threshold,
         )
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -139,10 +149,10 @@ def decide(
     }
 
     if body.simulate:
-        if body.observed_long_delivery is None:
+        if body.observed_promise_miss is None:
             raise HTTPException(
                 status_code=400,
-                detail="observed_long_delivery is required when simulate=true",
+                detail="observed_promise_miss is required when simulate=true",
             )
         action = executor.execute_decision(
             decision_id=decision.decision_id,
@@ -151,9 +161,11 @@ def decide(
             action_type=decision.recommended_action,
             model_version=prediction.model_version,
             policy_version=decision.policy_version,
-            observed_long_delivery=body.observed_long_delivery,
+            observed_long_delivery=body.observed_promise_miss,
             basket_value=body.basket_value,
             expected_net_value=decision.expected_net_value,
+            freight_value=body.freight_value,
+            intervention_cost=decision.upgrade_cost,
         )
         if body.persist_ledger:
             ledger.append_action(action)
@@ -197,8 +209,9 @@ def simulate_action(
                 model_version=body.model_version,
                 policy_version=body.policy_version,
                 expected_net_value=body.expected_net_value,
-                observed_long_delivery=body.observed_long_delivery,
+                observed_long_delivery=body.observed_promise_miss,
                 basket_value=body.basket_value,
+                freight_value=body.freight_value,
             )
         )
     except Exception as exc:  # noqa: BLE001
@@ -256,10 +269,16 @@ def agent_review(body: AgentReviewRequest) -> dict[str, Any]:
             "order_id": body.order_id,
             "prediction_id": body.prediction_id,
             "model_version": body.model_version,
-            "long_delivery_probability": body.long_delivery_probability,
+            "promise_miss_probability": body.promise_miss_probability,
             "basket_value": body.basket_value,
             "seller_id": body.seller_id,
-            "observed_long_delivery": body.observed_long_delivery,
+            "remaining_to_promise_days": body.remaining_to_promise_days,
+            "geo_distance_km": body.geo_distance_km,
+            "same_state": body.same_state,
+            "freight_value": body.freight_value,
+            "p1_score_threshold": body.p1_score_threshold,
+            "p2_score_threshold": body.p2_score_threshold,
+            "observed_promise_miss": body.observed_promise_miss,
             "run_simulation": body.run_simulation,
             "require_human_approval": body.require_human_approval,
             "human_approved": body.human_approved,

@@ -1,8 +1,8 @@
 # Olist Production ML
 
-Public portfolio artifact: production-grade late-delivery risk scoring on the Olist Brazilian E-Commerce dataset, on **GCP**.
+Public portfolio artifact: **promise-miss / OTIF exception scoring at first carrier scan** on the Olist Brazilian E-Commerce dataset, on **GCP**.
 
-This is not a notebook demo. It is an end-to-end ML platform slice: features, training, registry, serving, canary, monitoring, cost-controlled teardown, plus a **decision / agent action layer** (EV policy → optional LangGraph review → simulated interventions).
+This is not a notebook demo. It is an end-to-end ML platform slice: features, training, registry, serving, canary, monitoring, cost-controlled teardown, plus a **decision / agent action layer** (deterministic NOC policy → LangGraph executes the frozen action → simulated interventions).
 
 ## Status
 
@@ -20,6 +20,7 @@ This is not a notebook demo. It is an end-to-end ML platform slice: features, tr
 | M10 Airflow triggers | implemented on `cursor/milestones-remaining-642f` (local DAGs; no Composer required) |
 | M11 Polish | implemented on `cursor/milestones-remaining-642f` (docs/runbook/cost placeholders) |
 | Decision + agent (D1–D13) | **complete** on `main` — simulation H9/H10 approved; causal ROI disallowed |
+| Handoff NOC policy (ADR 0006) | this branch — promise-miss at carrier scan; agent copies policy |
 
 Details: [docs/milestones.md](docs/milestones.md)
 
@@ -40,9 +41,11 @@ Binding decisions: [docs/LOCKED_DECISIONS.md](docs/LOCKED_DECISIONS.md)
 
 ## ML problem
 
-At order approval time, predict `P(long_delivery)` — delivery takes **more than 14 days** from approval (ADR 0005). API field: `long_delivery_probability`.
+At **first carrier scan**, predict `P(promise_miss)` — customer delivery after the promised ETA ([ADR 0006](docs/adr/0006-handoff-promise-miss-noc.md)). API field: `promise_miss_probability`.
 
-Details: [docs/ml-problem.md](docs/ml-problem.md) · Business read: [docs/business_assessment.md](docs/business_assessment.md)
+Policy bands P0–P3 are deterministic (already-late notice, remaining-leg upgrade proxy, at-risk notice, or no action). The agent does not choose policy. Simulated $ is **not** causal ROI.
+
+Details: [docs/ml-problem.md](docs/ml-problem.md) · Assumptions: [docs/limitations-assumptions-proxies.md](docs/limitations-assumptions-proxies.md) · Business read: [docs/business_assessment.md](docs/business_assessment.md)
 
 ## Quick start (local)
 

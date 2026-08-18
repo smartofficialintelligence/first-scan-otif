@@ -1,4 +1,4 @@
-"""Deterministic agent-review routing flags (no LLM in D1–D2)."""
+"""Deterministic agent-review routing flags (no LLM)."""
 
 from __future__ import annotations
 
@@ -9,30 +9,15 @@ from olist_ml.decisions.schemas import ActionCandidate, ActionType
 def requires_agent_review(
     *,
     recommended: ActionCandidate,
-    alternatives: list[ActionCandidate],
-    basket_value: float,
+    alternatives: list[ActionCandidate] | None = None,
+    basket_value: float | None = None,
     routing: RoutingConfig,
 ) -> bool:
     """
-    Flag ambiguous / high-value cases for later agent review.
+    Flag exception / notice / upgrade cases for agent execution of the frozen policy.
 
-    Does not invoke an agent — only sets DecisionResult.requires_agent_review.
+    Does not choose the action — only sets DecisionResult.requires_agent_review.
     """
     if not routing.enable_agent_review_flags:
         return False
-
-    if recommended.action == ActionType.NO_ACTION:
-        return False
-
-    if basket_value >= routing.high_value_order_threshold:
-        return True
-
-    # Compare recommended vs next-best distinct action by EV.
-    others = [c for c in alternatives if c.action != recommended.action]
-    if not others:
-        return False
-    second = max(others, key=lambda c: c.expected_net_value)
-    if second.expected_net_value <= 0:
-        return False
-    gap = recommended.expected_net_value - second.expected_net_value
-    return gap <= routing.top_actions_ev_margin
+    return recommended.action != ActionType.NO_ACTION

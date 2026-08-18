@@ -1,4 +1,4 @@
-"""Decision / action domain schemas (D1)."""
+"""Decision / action domain schemas (handoff NOC policy)."""
 
 from __future__ import annotations
 
@@ -11,13 +11,14 @@ from pydantic import BaseModel, Field
 
 class ActionType(StrEnum):
     NO_ACTION = "NO_ACTION"
-    EXPEDITE = "EXPEDITE"
-    SELLER_ESCALATION = "SELLER_ESCALATION"
-    CUSTOMER_NOTIFICATION = "CUSTOMER_NOTIFICATION"
-    MANUAL_REVIEW = "MANUAL_REVIEW"
+    LATE_NOTICE = "LATE_NOTICE"
+    AT_RISK_NOTICE = "AT_RISK_NOTICE"
+    REMAINING_LEG_UPGRADE = "REMAINING_LEG_UPGRADE"
 
 
+PolicyBand = Literal["P0", "P1", "P2", "P3"]
 DecisionSource = Literal["deterministic_policy", "agent_review_pending"]
+IMPACT_ONLY_ACTIONS = frozenset({ActionType.LATE_NOTICE, ActionType.AT_RISK_NOTICE})
 
 
 class ActionEconomics(BaseModel):
@@ -44,11 +45,17 @@ class DecisionContext(BaseModel):
     order_id: str
     prediction_id: str
     model_version: str
-    long_delivery_probability: float = Field(ge=0, le=1)
+    promise_miss_probability: float = Field(ge=0, le=1)
     basket_value: float = Field(ge=0)
     seller_id: str | None = None
     prediction_timestamp: datetime | None = None
     feature_version: str | None = None
+    remaining_to_promise_days: float | None = None
+    geo_distance_km: float | None = None
+    same_state: float | None = None
+    freight_value: float | None = None
+    p1_score_threshold: float | None = None
+    p2_score_threshold: float | None = None
 
 
 class PolicyVersion(BaseModel):
@@ -62,20 +69,25 @@ class DecisionResult(BaseModel):
     decision_id: str
     prediction_id: str
     order_id: str
-    long_delivery_probability: float = Field(ge=0, le=1)
+    promise_miss_probability: float = Field(ge=0, le=1)
     model_version: str
     policy_version: str
     policy_config_version: str
     recommended_action: ActionType
+    policy_band: PolicyBand
+    upgrade_eligible: bool = False
+    upgrade_cost: float | None = None
+    remaining_to_promise_days: float | None = None
     expected_intervention_cost: float
     expected_avoided_loss: float
     expected_net_value: float
     alternative_actions: list[ActionCandidate]
     requires_agent_review: bool
+    requires_human_approval: bool = False
     decision_source: DecisionSource
     rationale: str
     decision_timestamp: datetime
     git_sha: str | None = None
     basket_value: float
-    business_loss_if_long: float
+    business_loss_if_miss: float
     assumptions_disclaimer: str

@@ -27,12 +27,22 @@ class PredictRequest(BaseModel):
     seller_state_primary: str = "unknown"
     geo_distance_km: float = Field(default=0.0, ge=0)
 
-    # Request-native extras (knowable at prediction_ts).
+    # Request-native extras (knowable at prediction_ts / handoff).
     approval_lag_hours: float | None = Field(default=None, ge=0)
     same_state: float | None = None
     avg_product_weight_g: float | None = Field(default=None, ge=0)
     freight_to_basket_ratio: float | None = Field(default=None, ge=0)
     primary_category: str = "unknown"
+
+    # Handoff clocks — send derived values or raw timestamps to derive them.
+    handling_days: float | None = None
+    remaining_to_promise_days: float | None = None
+    handling_frac_of_promise: float | None = None
+    limit_miss: float | None = Field(default=None, ge=0, le=1)
+    handoff_timestamp: datetime | None = None
+    order_delivered_carrier_date: datetime | None = None
+    order_estimated_delivery_date: datetime | None = None
+    shipping_limit_date: datetime | None = None
 
     # Optional historical features when Feast online is unavailable (local mode).
     seller_order_count_7d: float | None = None
@@ -66,12 +76,14 @@ class PredictRequest(BaseModel):
 class PredictResponse(BaseModel):
     order_id: str
     prediction_id: str
-    long_delivery_probability: float = Field(ge=0, le=1)
+    promise_miss_probability: float = Field(ge=0, le=1)
     risk_band: RiskBand
     model_version: str
     prediction_timestamp: datetime
     feature_timestamp: datetime | None = None
-    target: str = "long_delivery_gt_14d"
+    target: str = "promise_miss_at_handoff"
+    p1_score_threshold: float | None = None
+    p2_score_threshold: float | None = None
 
 
 class ModelInfoResponse(BaseModel):
@@ -80,6 +92,9 @@ class ModelInfoResponse(BaseModel):
     feature_names: list[str]
     trained_at: str | None = None
     metrics: dict[str, float] | None = None
+    target: str | None = None
+    p1_score_threshold: float | None = None
+    p2_score_threshold: float | None = None
 
 
 class HealthResponse(BaseModel):
@@ -104,18 +119,18 @@ class TopFeatureContribution(BaseModel):
 class ExplainResponse(BaseModel):
     order_id: str
     model_version: str
-    long_delivery_probability: float = Field(ge=0, le=1)
+    promise_miss_probability: float = Field(ge=0, le=1)
     top_features: list[TopFeatureContribution]
     method: Literal["stub", "shap"] = "stub"
     note: str | None = None
-    target: str = "long_delivery_gt_14d"
+    target: str = "promise_miss_at_handoff"
 
 
 class DecideRequest(PredictRequest):
-    """Run prediction then expected-value decision. Optionally simulate action."""
+    """Run prediction then NOC policy. Optionally simulate action."""
 
     simulate: bool = False
-    observed_long_delivery: bool | None = None
+    observed_promise_miss: bool | None = None
     persist_ledger: bool = True
 
 
@@ -126,8 +141,9 @@ class ActionSimulateRequest(BaseModel):
     action_type: str
     model_version: str
     policy_version: str
-    observed_long_delivery: bool
+    observed_promise_miss: bool
     basket_value: float = Field(ge=0)
+    freight_value: float | None = Field(default=None, ge=0)
     expected_net_value: float | None = None
     persist_ledger: bool = True
 
@@ -138,10 +154,16 @@ class AgentReviewRequest(BaseModel):
     order_id: str
     prediction_id: str
     model_version: str
-    long_delivery_probability: float = Field(ge=0, le=1)
+    promise_miss_probability: float = Field(ge=0, le=1)
     basket_value: float = Field(ge=0)
     seller_id: str | None = None
-    observed_long_delivery: bool | None = None
+    remaining_to_promise_days: float | None = None
+    geo_distance_km: float | None = None
+    same_state: float | None = None
+    freight_value: float | None = None
+    p1_score_threshold: float | None = None
+    p2_score_threshold: float | None = None
+    observed_promise_miss: bool | None = None
     run_simulation: bool = False
     require_human_approval: bool = False
     # When require_human_approval=True: True approve, False reject, None wait.

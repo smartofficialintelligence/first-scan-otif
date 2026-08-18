@@ -6,7 +6,7 @@ from typing import Any
 from uuid import uuid4
 
 from olist_ml.agents.state import AgentReviewState
-from olist_ml.decisions.schemas import ActionType
+from olist_ml.decisions.schemas import ActionType, DecisionContext
 from olist_ml.decisions.service import DecisionService
 from olist_ml.tools import decision_tools as dtools
 
@@ -21,7 +21,7 @@ def node_load_context(state: AgentReviewState) -> dict[str, Any]:
         "order_id",
         "prediction_id",
         "model_version",
-        "long_delivery_probability",
+        "promise_miss_probability",
         "basket_value",
     )
     missing = [k for k in required if state.get(k) is None]
@@ -49,28 +49,31 @@ def node_list_actions(state: AgentReviewState) -> dict[str, Any]:
 
 
 def node_score_actions(state: AgentReviewState) -> dict[str, Any]:
-    proba = float(state["long_delivery_probability"])
+    proba = float(state["promise_miss_probability"])
     basket = float(state["basket_value"])
     values = []
     for row in state.get("available_actions") or []:
         scored = dtools.calculate_action_value(
             action=row["action"],
-            long_delivery_probability=proba,
+            probability=proba,
             basket_value=basket,
         )
         values.append(scored["candidate"])
-    # Also capture deterministic policy recommendation for comparison.
     svc = DecisionService()
-    from olist_ml.decisions.schemas import DecisionContext
-
     policy = svc.decide(
         DecisionContext(
             order_id=str(state["order_id"]),
             prediction_id=str(state["prediction_id"]),
             model_version=str(state["model_version"]),
-            long_delivery_probability=proba,
+            promise_miss_probability=proba,
             basket_value=basket,
             seller_id=state.get("seller_id"),
+            remaining_to_promise_days=state.get("remaining_to_promise_days"),
+            geo_distance_km=state.get("geo_distance_km"),
+            same_state=state.get("same_state"),
+            freight_value=state.get("freight_value"),
+            p1_score_threshold=state.get("p1_score_threshold"),
+            p2_score_threshold=state.get("p2_score_threshold"),
         )
     )
     return {
@@ -81,6 +84,10 @@ def node_score_actions(state: AgentReviewState) -> dict[str, Any]:
             "decision_id": policy.decision_id,
             "policy_version": policy.policy_version,
             "requires_agent_review": policy.requires_agent_review,
+            "requires_human_approval": policy.requires_human_approval,
+            "policy_band": policy.policy_band,
+            "upgrade_eligible": policy.upgrade_eligible,
+            "upgrade_cost": policy.upgrade_cost,
         },
         "decision_id": policy.decision_id,
         "policy_version": policy.policy_version,
@@ -89,63 +96,11 @@ def node_score_actions(state: AgentReviewState) -> dict[str, Any]:
 
 
 def node_choose_action(state: AgentReviewState) -> dict[str, Any]:
-    """
-    Bounded agent choice: only approved actions; prefer max EV;
-    if top-two EV within $1, prefer lower cost (cautious agent).
-    """
-    values = list(state.get("action_values") or [])
-    if not values:
-        return {
-            "selected_action": ActionType.NO_ACTION.value,
-            "agent_rationale": "No scored actions; defaulting to NO_ACTION.",
-            "tool_trace": _trace(state, "choose_action:empty"),
-        }
-
-    approved = {a["action"] for a in (state.get("available_actions") or [])}
-    candidates = [v for v in values if v["action"] in approved and v["expected_net_value"] > 0]
-    if not candidates:
-        return {
-            "selected_action": ActionType.NO_ACTION.value,
-            "agent_rationale": "No positive-EV approved action; selecting NO_ACTION.",
-            "tool_trace": _trace(state, "choose_action:no_positive_ev"),
-        }
-
-    candidates.sort(
-        key=lambda v: (v["expected_net_value"], -v["expected_intervention_cost"]),
-        reverse=True,
-    )
-    best = candidates[0]
-    if len(candidates) > 1:
-        second = candidates[1]
-        if best["expected_net_value"] - second["expected_net_value"] <= 1.0:
-            # Prefer cheaper when nearly tied.
-            tied = [best, second]
-            chosen = min(tied, key=lambda v: v["expected_intervention_cost"])
-            rationale = (
-                f"Top actions close in EV ({best['action']}={best['expected_net_value']:.2f} vs "
-                f"{second['action']}={second['expected_net_value']:.2f}); "
-                f"agent selected lower-cost {chosen['action']}."
-            )
-            best = chosen
-        else:
-            rationale = (
-                f"Selected {best['action']} with highest expected_net_value="
-                f"{best['expected_net_value']:.2f} from tool-scored candidates."
-            )
-    else:
-        rationale = (
-            f"Selected sole positive-EV action {best['action']} "
-            f"(EV={best['expected_net_value']:.2f})."
-        )
-
+    """Copy the frozen NOC policy action. The agent does not re-select policy."""
     policy = state.get("policy_recommendation") or {}
-    if policy.get("recommended_action") and policy["recommended_action"] != best["action"]:
-        rationale += (
-            f" Differs from deterministic policy ({policy['recommended_action']}) "
-            "due to near-tie cost preference."
-        )
-
-    if best["action"] not in approved:
+    action = str(policy.get("recommended_action") or ActionType.NO_ACTION.value)
+    approved = {a["action"] for a in (state.get("available_actions") or [])}
+    if approved and action not in approved:
         return {
             "selected_action": ActionType.NO_ACTION.value,
             "agent_rationale": "Rejected invalid action outside approved set.",
@@ -153,17 +108,28 @@ def node_choose_action(state: AgentReviewState) -> dict[str, Any]:
             "error": "invalid_action",
             "tool_trace": _trace(state, "choose_action:invalid"),
         }
-
+    band = policy.get("policy_band")
+    rationale = (
+        f"Executing frozen NOC policy action {action}"
+        + (f" (band={band})" if band else "")
+        + ". Agent does not re-select policy."
+    )
     return {
-        "selected_action": best["action"],
+        "selected_action": action,
         "agent_rationale": rationale,
-        "tool_trace": _trace(state, f"choose_action:{best['action']}"),
+        "tool_trace": _trace(state, f"choose_action:{action}"),
     }
 
 
 def node_human_gate(state: AgentReviewState) -> dict[str, Any]:
-    """D10: require explicit approval for high-value / high-cost selections when flagged."""
-    if not state.get("require_human_approval"):
+    """Require explicit approval for spend-risk upgrades, or when the caller flags it."""
+    selected = state.get("selected_action") or ActionType.NO_ACTION.value
+    if selected == ActionType.NO_ACTION.value:
+        return {"tool_trace": _trace(state, "human_gate:skipped"), "human_approved": True}
+
+    policy = state.get("policy_recommendation") or {}
+    need = bool(state.get("require_human_approval")) or bool(policy.get("requires_human_approval"))
+    if not need:
         return {"tool_trace": _trace(state, "human_gate:skipped"), "human_approved": True}
 
     approved = state.get("human_approved")
@@ -178,7 +144,6 @@ def node_human_gate(state: AgentReviewState) -> dict[str, Any]:
             ),
             "tool_trace": _trace(state, "human_gate:rejected"),
         }
-    # Pending — graph interrupt path sets status waiting_approval
     return {
         "status": "waiting_approval",
         "tool_trace": _trace(state, "human_gate:waiting"),
@@ -194,23 +159,26 @@ def node_execute(state: AgentReviewState) -> dict[str, Any]:
             "status": "completed",
             "tool_trace": _trace(state, "execute:skipped"),
         }
-    if state.get("observed_long_delivery") is None:
+    if state.get("observed_promise_miss") is None:
         return {
             "status": "failed",
-            "error": "observed_long_delivery required when run_simulation=true",
+            "error": "observed_promise_miss required when run_simulation=true",
             "tool_trace": _trace(state, "execute:missing_label"),
         }
 
     action = state.get("selected_action") or ActionType.NO_ACTION.value
+    policy = state.get("policy_recommendation") or {}
     result = dtools.execute_simulated_action(
         order_id=str(state["order_id"]),
         prediction_id=str(state["prediction_id"]),
         decision_id=str(state.get("decision_id") or uuid4()),
         action=action,
         model_version=str(state["model_version"]),
-        policy_version=str(state.get("policy_version") or "expected-value-policy-v1"),
-        observed_long_delivery=bool(state["observed_long_delivery"]),
+        policy_version=str(state.get("policy_version") or "noc-handoff-policy-v1"),
+        observed_promise_miss=bool(state["observed_promise_miss"]),
         basket_value=float(state["basket_value"]),
+        freight_value=state.get("freight_value"),
+        intervention_cost=policy.get("upgrade_cost"),
         persist_ledger=True,
     )
     return {

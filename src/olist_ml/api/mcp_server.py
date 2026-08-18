@@ -159,18 +159,17 @@ def create_mcp_server():
     try:
         from mcp.server.mcpserver import MCPServer
     except ImportError as exc:  # pragma: no cover
-        raise ImportError(
-            "mcp package required. Install with: uv sync --extra mcp"
-        ) from exc
+        raise ImportError("mcp package required. Install with: uv sync --extra mcp") from exc
 
     from olist_ml.tools import decision_tools as dtools
 
     server = MCPServer(
         name="olist-ml",
         instructions=(
-            "Olist long-delivery risk scoring and expected-value decision tools. "
+            "Olist promise-miss risk scoring and NOC decision tools at carrier handoff. "
             "Use PredictionService / DecisionService / ActionExecutor paths only; "
-            "intervention effects are simulation assumptions, not causal estimates."
+            "the agent executes the frozen policy action. Intervention effects are "
+            "simulation assumptions, not causal estimates."
         ),
     )
 
@@ -345,7 +344,7 @@ def create_mcp_server():
         """Compute expected value for one approved action (simulation assumptions)."""
         return dtools.calculate_action_value(
             action=action,
-            long_delivery_probability=long_delivery_probability,
+            probability=long_delivery_probability,
             basket_value=basket_value,
         )
 
@@ -374,7 +373,7 @@ def create_mcp_server():
         seller_late_rate_90d: float | None = None,
         persist_ledger: bool = True,
     ) -> dict[str, Any]:
-        """Predict then recommend an action via the deterministic EV policy."""
+        """Predict then recommend an action via the deterministic NOC policy."""
         return dtools.recommend_policy_action(
             order_id=order_id,
             seller_id=seller_id,

@@ -1,11 +1,12 @@
-# Simulation assumptions for expected-value decision policy (H9/H10).
+# Simulation assumptions for the carrier-handoff NOC policy (ADR 0006).
 # These are NOT empirically estimated causal effects.
-policy_version: expected-value-policy-v1
-policy_config_version: econ-sim-v2
+policy_version: noc-handoff-policy-v1
+policy_config_version: econ-sim-v3
 assumptions_disclaimer: >
   Action costs, prevention rates, and impact reductions are versioned
   simulation assumptions for portfolio demo only. They are not causal
-  estimates of intervention lift.
+  estimates of intervention lift. Remaining-leg upgrade cost is a
+  freight-scaled placeholder, not an observed carrier tariff.
 
 # H9/H10 — approved as simulation defaults for this portfolio artifact.
 # Causal ROI claims remain disallowed (allow_causal_roi_claims: false).
@@ -21,9 +22,24 @@ economics_gate:
     policy replay. Do not present net simulated value as measured causal ROI.
 
 business_loss:
-  fixed_long_delivery_cost: 10.0
+  fixed_miss_cost: 10.0
   order_value_loss_rate: 0.10
-  # Severity multipliers deferred (binary long_delivery target).
+
+noc_policy:
+  p1_capacity: 0.025
+  p2_capacity: 0.10
+  default_p1_score_threshold: 0.35
+  default_p2_score_threshold: 0.20
+  upgrade_remaining_max_days: 7.0
+  upgrade_min_geo_km: 100.0
+  human_approval_upgrade_cost_min: 20.0
+  upgrade_cost:
+    median_freight_multiplier: 0.50
+    sigma_log: 0.35
+    min_cost: 5.0
+    max_cost: 80.0
+    max_basket_frac: 0.08
+    sensitivity_multipliers: [0.35, 0.50, 0.75]
 
 actions:
   NO_ACTION:
@@ -31,33 +47,28 @@ actions:
     risk_prevention_probability: 0.0
     customer_impact_reduction: 0.0
     eligible: true
-  EXPEDITE:
-    cost: 8.0
-    risk_prevention_probability: 0.60
-    customer_impact_reduction: 0.0
+  LATE_NOTICE:
+    cost: 1.0
+    risk_prevention_probability: 0.0
+    customer_impact_reduction: 0.15
     eligible: true
-  SELLER_ESCALATION:
-    cost: 4.0
-    risk_prevention_probability: 0.35
-    customer_impact_reduction: 0.0
-    eligible: true
-  MANUAL_REVIEW:
-    cost: 5.0
-    risk_prevention_probability: 0.30
-    customer_impact_reduction: 0.0
-    eligible: true
-  CUSTOMER_NOTIFICATION:
+  AT_RISK_NOTICE:
     cost: 1.0
     risk_prevention_probability: 0.0
     customer_impact_reduction: 0.20
     eligible: true
+  REMAINING_LEG_UPGRADE:
+    # Placeholder; live cost is freight-scaled per order (see noc_policy.upgrade_cost).
+    cost: 0.0
+    risk_prevention_probability: 0.35
+    customer_impact_reduction: 0.0
+    eligible: true
 
 routing:
-  # Agent-review flags for LangGraph /v1/agent/review (D8/D10). H11 scopes these.
+  # Agent-review flags for LangGraph /v1/agent/review. Invoke for any non-NO_ACTION band.
   high_value_order_threshold: 250.0
   top_actions_ev_margin: 1.0
   enable_agent_review_flags: true
-  # H11 — high-value / near-tie / high-cost selections require human approval in agent path.
   require_human_approval_for_agent_review: true
   # H12 — real external execution remains out of scope for this portfolio.
   real_external_execution_enabled: false

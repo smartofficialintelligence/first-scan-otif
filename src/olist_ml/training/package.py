@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, fields
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -27,6 +27,11 @@ class ModelMeta:
     n_train: int | None = None
     n_valid: int | None = None
     n_test: int | None = None
+    target: str = "promise_miss_at_handoff"
+    p1_score_threshold: float | None = None
+    p2_score_threshold: float | None = None
+    p1_capacity: float = 0.025
+    p2_capacity: float = 0.10
 
 
 def save_artifact(
@@ -46,7 +51,8 @@ def save_artifact(
 def load_artifact(model_path: Path, meta_path: Path) -> tuple[Any, ModelMeta]:
     pipeline = joblib.load(model_path)
     raw = json.loads(meta_path.read_text(encoding="utf-8"))
-    meta = ModelMeta(**raw)
+    allowed = {f.name for f in fields(ModelMeta)}
+    meta = ModelMeta(**{k: v for k, v in raw.items() if k in allowed})
     return pipeline, meta
 
 
