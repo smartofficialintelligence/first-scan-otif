@@ -101,7 +101,7 @@ Public Olist CSVs
         ▼
   Feast registry
   ├── offline: training retrieval
-  └── online: seller features (Redis when demo-on; SQLite / request fields when off)
+  └── online: seller features (SQLite in this demo; Redis is what we'd use in a multi-replica prod lookup)
         │
         ▼
   Train (local pipeline or Vertex)
@@ -152,7 +152,7 @@ Intentionally **not** “everything is Vertex” and **not** Databricks.
 | Cloud | GCP | Real IAM, Terraform, teardown; transferable platform seams | Databricks Free Edition is cheaper and hides seams; see [docs/adr/0001-gcp-not-databricks.md](docs/adr/0001-gcp-not-databricks.md) |
 | Warehouse | BigQuery | Native dbt, cheap at Olist scale | Spark/Databricks lakehouse |
 | Transforms | dbt Core | Tested, reviewed SQL; serving must reproduce the same definitions | Train-only pandas feature scripts as source of truth |
-| Feature store | Feast (BQ offline, Redis online for demos) | Offline/online contract + freshness; SQLite for demo-off | Vertex Feature Store as the primary store (less portable) |
+| Feature store | Feast (BQ offline, **SQLite online**) | Same Feast contract and freshness SLA. SQLite is **$0** and enough for a single process / this demo. A real multi-replica prod system would use Redis (or similar KV) so every Cloud Run instance shares one online store. Memorystore was not stood up here because it is always-on cost. | Vertex Feature Store as the primary store (less portable); Memorystore Redis for this demo |
 | Training jobs | Vertex Pipelines **or** `pipelines/local_pipeline.py` | Same step graph: validate → tune → train → calibrate → evaluate → register | Notebook cells as the production path |
 | Experiments / registry | MLflow | Version, tags, candidate lifecycle | Vertex Experiments / Model Registry as the system of record |
 | Model host | Joblib locally; Vertex Endpoint when cloud serving is on | Managed traffic split when you pay for it | Always-on endpoint |
@@ -416,7 +416,7 @@ Canonical data at rest when cloud is off: GCS (and/or gitignored `data/raw`). Pr
 
 **Local (default interview path):** fixtures → tests → train → uvicorn → MCP → decision/agent harness → replay → release labels → delayed-label canary → drift scenario → approve retrain → new candidate. No bill.
 
-**Needs credentials + an apply someone reviewed:** live BigQuery/dbt, Feast Redis, Vertex endpoint, Composer, Cloud Monitoring dashboard, Cloud Run in the project.
+**Needs credentials + an apply someone reviewed:** live BigQuery/dbt, Vertex endpoint, Composer, Cloud Monitoring dashboard, Cloud Run. Feast online stays SQLite unless you explicitly add Redis.
 
 Terraform **validate** runs in CI. Terraform **apply** does not.
 

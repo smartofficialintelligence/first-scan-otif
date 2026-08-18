@@ -27,7 +27,7 @@ Rationale: portfolio demonstrates transferable open ML platform seams on real cl
 |---|---|
 | Warehouse | BigQuery |
 | Feature engineering | dbt Core + dbt-bigquery |
-| Feature registry + offline/online serving | Feast (offline: BigQuery; online: Memorystore Redis, demo-only) |
+| Feature registry + offline/online serving | Feast (offline: BigQuery; **online: SQLite** for this demo). Redis/Memorystore is the production-shaped shared KV we'd use for multi-replica serving — not enabled here (always-on cost). |
 | Cross-system orchestration, schedules, drift/retrain triggers | Airflow (ephemeral/local for day-to-day; Composer only for live demos) |
 | ML training workflow | Vertex AI Pipelines |
 | Experiments + model registry | MLflow (Cloud Run + GCS artifact store; optional Cloud SQL if needed) |

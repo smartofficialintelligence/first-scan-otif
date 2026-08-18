@@ -29,7 +29,7 @@ Details: [docs/milestones.md](docs/milestones.md)
 | Layer | Choice |
 |---|---|
 | Warehouse / transforms | BigQuery + dbt |
-| Feature store | Feast (BQ offline, Redis online for demos) |
+| Feature store | Feast (BQ offline, SQLite online in this demo; Redis would be the prod shared store) |
 | Orchestration | Airflow |
 | Training | Vertex AI Pipelines (XGBoost + Optuna) |
 | Experiments / registry | MLflow |

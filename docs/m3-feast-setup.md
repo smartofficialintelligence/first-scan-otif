@@ -6,11 +6,11 @@
 - `feature_repo/` Feast definitions: entity `seller`, view `seller_liveness_v1`, service `seller_online_v1`
   (named `feature_repo` so it does not shadow the `feast` Python package)
 - Offline store: BigQuery (`ml.fct_seller_features`)
-- Online store: **SQLite** under `data/feast/` (demo-off / zero Redis cost)
+- Online store: **SQLite** under `data/feast/` (this demo). A production multi-replica API would typically use Redis so every instance shares one online store. We stayed on SQLite to avoid Memorystore idle cost.
 - Scripts: apply+materialize, historical retrieval, offline/online parity
 - Python adapter: `olist_ml.features.feast_client.FeastSellerClient` (lookup + freshness/stale)
 
-Memorystore Redis remains **demo-on only** (later Terraform). Do not leave Redis up idle.
+Do not stand up Memorystore Redis for this artifact unless you are explicitly demoing a shared online store — then tear it down the same day.
 
 ## Prerequisites
 
