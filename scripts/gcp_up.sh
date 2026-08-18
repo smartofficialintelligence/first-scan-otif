@@ -38,6 +38,7 @@ gcloud services enable \
   monitoring.googleapis.com \
   iamcredentials.googleapis.com \
   cloudresourcemanager.googleapis.com \
+  containerregistry.googleapis.com \
   --project="$PROJECT" --quiet
 
 echo "==> terraform: Artifact Registry (keep across on/off)"
@@ -54,14 +55,22 @@ TAG="$(date -u +%Y%m%dT%H%M%SZ)"
 IMAGE="${IMAGE_BASE}/api:${TAG}"
 echo "==> image $IMAGE"
 
-echo "==> docker build + push"
+echo "==> build + push image"
 gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
-DOCKER=(docker)
-if ! docker info >/dev/null 2>&1; then
-  DOCKER=(sudo docker)
+built=0
+if docker info >/dev/null 2>&1; then
+  if env DOCKER_BUILDKIT=0 docker build --target serving -t "$IMAGE" "$ROOT" \
+    && docker push "$IMAGE"; then
+    built=1
+  fi
+elif sudo env DOCKER_BUILDKIT=0 docker build --target serving -t "$IMAGE" "$ROOT" \
+  && sudo docker push "$IMAGE"; then
+  built=1
 fi
-"${DOCKER[@]}" build --target serving -t "$IMAGE" "$ROOT"
-"${DOCKER[@]}" push "$IMAGE"
+if [[ "$built" -eq 0 ]]; then
+  echo "==> local Docker failed; using Cloud Build"
+  gcloud builds submit --tag "$IMAGE" --project="$PROJECT" --timeout=1800 --quiet "$ROOT"
+fi
 
 echo "==> terraform: Cloud Run + Monitoring"
 terraform -chdir="$TFDIR" apply -input=false -auto-approve \

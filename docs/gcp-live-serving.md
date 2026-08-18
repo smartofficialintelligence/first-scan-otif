@@ -25,6 +25,8 @@ make gcp-down      # destroy Cloud Run + dashboard; keep Artifact Registry + BQ 
 
 The serving image is a multi-stage Docker build (`Dockerfile` target `serving`) with `artifacts/model.joblib` + `model_meta.json` baked in. The API scores that joblib in-process. Platform auth is Cloud Run IAM (`roles/run.invoker` for the operator SA). The app itself uses `AUTH_MODE=off`.
 
+Local Docker is used when it works. If overlay/BuildKit fails (nested VMs), `gcp-up` falls back to **Cloud Build** so the same command still produces an Artifact Registry image.
+
 ## What stays off
 
 - Redis / Memorystore (Feast online remains SQLite for this demo)

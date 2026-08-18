@@ -38,6 +38,14 @@ resource "google_artifact_registry_repository_iam_member" "cloudrun_agent" {
   member     = "serviceAccount:service-${data.google_project.current.number}@serverless-robot-prod.iam.gserviceaccount.com"
 }
 
+resource "google_artifact_registry_repository_iam_member" "cloudbuild" {
+  project    = var.project_id
+  location   = var.region
+  repository = google_artifact_registry_repository.images.repository_id
+  role       = "roles/artifactregistry.writer"
+  member     = "serviceAccount:${data.google_project.current.number}@cloudbuild.gserviceaccount.com"
+}
+
 resource "google_artifact_registry_repository_iam_member" "compute_default" {
   project    = var.project_id
   location   = var.region
