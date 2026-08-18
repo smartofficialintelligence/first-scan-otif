@@ -15,9 +15,9 @@ This is not a notebook demo. It is an end-to-end ML platform slice: features, tr
 | M5 Managed inference | implemented on `cursor/milestones-remaining-642f` (local REST + TF scaffolds) |
 | M6 MCP | implemented on `cursor/milestones-remaining-642f` |
 | M7 CI/CD + Terraform hardening | implemented on `cursor/milestones-remaining-642f` |
-| M8 Monitoring | implemented on `cursor/milestones-remaining-642f` (logs + drift stub) |
-| M9 Canary + replay + rollback | implemented on `cursor/milestones-remaining-642f` |
-| M10 Airflow triggers | implemented on `cursor/milestones-remaining-642f` (local DAGs; no Composer required) |
+| M8 Monitoring | feature PSI, delayed labels, exported metrics, TF dashboard module (off by default) |
+| M9 Canary + replay + rollback | 90/10 + delayed-label canary; named drift scenarios |
+| M10 Airflow triggers | replay, labels, delayed eval, drift, H5-gated retrain (local DAGs; no Composer required) |
 | M11 Polish | implemented on `cursor/milestones-remaining-642f` (docs/runbook/cost placeholders) |
 | Decision + agent (D1–D13) | **complete** on `main` — simulation H9/H10 approved; causal ROI disallowed |
 | Handoff NOC policy (ADR 0006) | merged to `main` (PR #19); interviewer packet + CI follow-up on this branch |
@@ -64,8 +64,9 @@ Pipeline + canary (no GCP):
 
 ```bash
 make train-pipeline
-make canary-bad          # bad challenger → ROLLBACK recommendation
-make airflow-train-local # local Airflow trigger (no Composer)
+make canary-bad          # delayed-label gates → ROLLBACK recommendation
+make approve-h5 && make retrain-trigger  # H5-gated candidate (needs drift alarm if reason=drift)
+make airflow-train-local # unconstrained M4 demo (no Composer, no H5)
 make demo-decision       # predict→policy→agent→sim harness (needs agent extra)
 ```
 

@@ -48,24 +48,27 @@ Talking point: ranking quality is appendix. Lead with OTIF / exception queue / r
 
 ```bash
 make replay-baseline
-# Inspect artifacts/prediction_logs.jsonl — traffic_bucket + model_version
+make release-labels
+make evaluate-delayed
+# Inspect artifacts/prediction_logs.jsonl — traffic_bucket + model_version + label_released
 ```
 
 ## Demo 5 — Rollback
 
 ```bash
 make canary-bad
-# create_bad_challenger → replay → canary_decide
+# create_bad_challenger → replay → release_labels → canary_decide
 # Expect ROLLBACK → 100% champion recommendation (never auto-promote)
 ```
 
 ## Demo 6 — Drift / retrain
 
 ```bash
-make drift-check
+make drift-geo
 cat artifacts/drift_alarm.json
-# H5 → make airflow-train-local / train-pipeline → new candidate
-# H6 required before promote
+make approve-h5
+make retrain-trigger
+# H6 required before promote. make airflow-train-local is the unconstrained M4 demo only.
 ```
 
 ## Demo 7 — Decision + agent layer (local)

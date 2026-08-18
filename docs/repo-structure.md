@@ -23,7 +23,7 @@ Locked layout for implementation. Not all paths exist until their milestone.
 │   ├── features/          # contracts, assembler; Feast adapters
 │   ├── training/          # tune, train, calibrate, evaluate, package, promote
 │   ├── inference/         # predictor, preprocessing (shared with API)
-│   ├── monitoring/
+│   ├── monitoring/        # PSI, drift, delayed labels, H5, metrics export
 │   └── api/               # FastAPI + mcp_server
 │
 ├── dbt/

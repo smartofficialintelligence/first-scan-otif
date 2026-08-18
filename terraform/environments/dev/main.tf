@@ -52,6 +52,15 @@ module "vertex_endpoint" {
   endpoint_id  = "${var.name_prefix}-endpoint"
 }
 
+module "monitoring" {
+  count  = var.enable_monitoring ? 1 : 0
+  source = "../../modules/monitoring"
+
+  project_id        = var.project_id
+  name_prefix       = var.name_prefix
+  cloud_run_service = var.enable_serving ? module.cloud_run[0].service_name : "${var.name_prefix}-api"
+}
+
 output "raw_bucket" {
   value = module.storage.raw_bucket_name
 }
@@ -70,4 +79,8 @@ output "cloud_run_uri" {
 
 output "vertex_endpoint_id" {
   value = var.enable_serving ? module.vertex_endpoint[0].endpoint_id : null
+}
+
+output "monitoring_dashboard_id" {
+  value = var.enable_monitoring ? module.monitoring[0].dashboard_id : null
 }

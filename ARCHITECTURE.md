@@ -153,7 +153,7 @@ Always-on managed resources are **demo-scoped**. See [COST.md](COST.md) and `mak
 | Feast repo | `feature_repo/` |
 | Canary replay / bad challenger / decide | `scripts/replay_traffic.py`, `scripts/create_bad_challenger.py`, `scripts/canary_decide.py` |
 | Traffic attribution | `src/olist_ml/canary/` |
-| Airflow DAGs (local-first) | `airflow/dags/olist_train_dag.py`, `airflow/dags/olist_drift_dag.py` |
+| Airflow DAGs (local-first) | `airflow/dags/` replay, labels, delayed eval, drift, H5 retrain, train, decision-eval |
 | MCP | `src/olist_ml/api/mcp_server.py` |
 | Demo up/down | `scripts/demo_up.sh`, `scripts/demo_down.sh` |
 | Milestone notes | `docs/m3-feast-setup.md` … `docs/m10-airflow.md` |

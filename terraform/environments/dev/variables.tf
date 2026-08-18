@@ -32,3 +32,9 @@ variable "serving_image" {
   description = "Container image for Cloud Run when enable_serving=true"
   default     = "us-docker.pkg.dev/cloudrun/container/hello"
 }
+
+variable "enable_monitoring" {
+  type        = bool
+  description = "When true, instantiate the Cloud Monitoring dashboard module (default false; H7 apply)."
+  default     = false
+}

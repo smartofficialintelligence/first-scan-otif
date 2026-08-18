@@ -71,29 +71,34 @@ PR CI (lint/type/test/dbt compile/tf validate/docker). Deploy workflows. H7 for 
 
 ## Milestone 8 — Monitoring
 
-**Status:** implemented on `cursor/milestones-remaining-642f` (prediction logs + drift alarm stub; dashboards optional later).
+**Status:** implemented (feature PSI + delayed-label eval + exported metrics + Terraform dashboard module gated off).
 
-Service + ML telemetry (latency, errors, drift, prediction mix, delayed-label quality).
+Service + ML telemetry (latency, errors, **per-feature PSI**, prediction mix, **delayed-label** PR-AUC).
 
-**Accept:** dashboards or exported metrics show both service and ML signals; drift ≠ quality documented.
+**Accept:** dashboards **or** exported metrics show both service and ML signals; drift ≠ quality documented.
+
+- Local export: `make export-monitoring` → `artifacts/monitoring_dashboard.json`
+- GCP: `terraform/modules/monitoring` with `enable_monitoring=false` until H7
+
+See [monitoring.md](monitoring.md).
 
 ## Milestone 9 — Canary + replay + rollback
 
-**Status:** implemented on `cursor/milestones-remaining-642f`.
+**Status:** implemented (90/10 attribution, named drift scenarios, delayed-label canary).
 
-Implements [simulation.md](simulation.md): baseline canary, bad challenger rollback, prediction logs.
+Implements [simulation.md](simulation.md): baseline canary, bad challenger rollback, prediction logs with freshness / Feast lookup / delayed-label fields.
 
-**Accept:** 90/10 version attribution; bad canary rolls back to 100% champion.
+**Accept:** 90/10 version attribution; bad canary rolls back to 100% champion after **released** labels.
 
 See [m9-canary-replay.md](m9-canary-replay.md).
 
 ## Milestone 10 — Airflow triggers
 
-**Status:** implemented on `cursor/milestones-remaining-642f`.
+**Status:** implemented (replay, label release, delayed eval, drift, H5-gated retrain).
 
 Schedule + drift/performance → candidate training pipeline; still requires H5/H6.
 
-**Accept:** trigger produces candidate; no auto-promote.
+**Accept:** `retrain_trigger` produces a candidate only after H5 (and an alarm when `reason=drift`); no auto-promote.
 
 See [m10-airflow.md](m10-airflow.md).
 
