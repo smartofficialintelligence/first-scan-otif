@@ -100,7 +100,8 @@ def test_health_ready_predict(client: TestClient) -> None:
     assert body["order_id"] == "demo"
     assert "prediction_id" in body
     assert body["prediction_id"]
-    assert 0.0 <= body["long_delivery_probability"] <= 1.0
+    assert 0.0 <= body["promise_miss_probability"] <= 1.0
+    assert body["target"] == "promise_miss_at_handoff"
     assert "model_version" in body
 
 
@@ -164,7 +165,7 @@ def test_decision_and_policy_endpoints(client: TestClient) -> None:
     policy = client.get("/v1/policies/current")
     assert policy.status_code == 200
     body = policy.json()
-    assert body["policy_version"] == "expected-value-policy-v1"
+    assert body["policy_version"] == "noc-handoff-policy-v1"
     assert body["economics_gate"]["status"] == "approved"
     assert body["simulation_claims_allowed"] is True
     assert body["causal_roi_claim_allowed"] is False
@@ -185,7 +186,7 @@ def test_decision_and_policy_endpoints(client: TestClient) -> None:
 def test_decision_with_simulate(client: TestClient) -> None:
     resp = client.post(
         "/v1/decision",
-        json={**_predict_payload("d2"), "simulate": True, "observed_long_delivery": True},
+        json={**_predict_payload("d2"), "simulate": True, "observed_promise_miss": True},
     )
     assert resp.status_code == 200, resp.text
     body = resp.json()
@@ -210,7 +211,11 @@ def test_agent_review_endpoint(client: TestClient) -> None:
             "order_id": pred["order_id"],
             "prediction_id": pred["prediction_id"],
             "model_version": pred["model_version"],
-            "long_delivery_probability": pred["long_delivery_probability"],
+            "promise_miss_probability": pred["promise_miss_probability"],
+            "remaining_to_promise_days": 4.0,
+            "geo_distance_km": 200.0,
+            "same_state": 0.0,
+            "freight_value": 20.0,
             "basket_value": 250.0,
             "run_simulation": False,
             "require_human_approval": False,

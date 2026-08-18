@@ -13,9 +13,9 @@ from olist_ml.data.splits import temporal_split
 from olist_ml.data.targets import build_labeled_orders
 from olist_ml.features.assembler import make_preprocessor, select_feature_frame
 from olist_ml.features.build import build_feature_table
-from olist_ml.features.contracts import FEATURE_COLUMNS
+from olist_ml.features.contracts import FEATURE_COLUMNS, TARGET_COLUMN, TARGET_NAME
 from olist_ml.logging import get_logger, setup_logging
-from olist_ml.training.evaluate import evaluate_predictions
+from olist_ml.training.evaluate import evaluate_predictions, score_capacity_thresholds
 from olist_ml.training.package import ModelMeta, new_model_version, save_artifact
 from olist_ml.training.train import train_model_bundle
 from olist_ml.training.tune import tune_xgboost
@@ -32,6 +32,7 @@ def run_training(settings: Settings, data_dir: Path | None = None) -> ModelMeta:
 
     splits = temporal_split(
         features,
+        time_col="handoff_ts",
         valid_fraction=settings.valid_fraction,
         test_fraction=settings.test_fraction,
         replay_fraction=settings.replay_fraction,
@@ -41,11 +42,11 @@ def run_training(settings: Settings, data_dir: Path | None = None) -> ModelMeta:
     test_df = splits.test if len(splits.test) else valid_df
 
     X_train_df = select_feature_frame(train_df)
-    y_train = train_df["long_delivery"].to_numpy()
+    y_train = train_df[TARGET_COLUMN].to_numpy()
     X_valid_df = select_feature_frame(valid_df)
-    y_valid = valid_df["long_delivery"].to_numpy()
+    y_valid = valid_df[TARGET_COLUMN].to_numpy()
     X_test_df = select_feature_frame(test_df)
-    y_test = test_df["long_delivery"].to_numpy()
+    y_test = test_df[TARGET_COLUMN].to_numpy()
 
     pre = make_preprocessor()
     X_tr = pre.fit_transform(X_train_df)
@@ -68,11 +69,14 @@ def run_training(settings: Settings, data_dir: Path | None = None) -> ModelMeta:
         y_valid=y_valid,
     )
 
-    valid_report = evaluate_predictions(
-        y_valid, bundle.predict_proba(X_valid_df)[:, 1], seed=settings.random_seed
-    )
-    test_report = evaluate_predictions(
-        y_test, bundle.predict_proba(X_test_df)[:, 1], seed=settings.random_seed
+    valid_proba = bundle.predict_proba(X_valid_df)[:, 1]
+    test_proba = bundle.predict_proba(X_test_df)[:, 1]
+    valid_report = evaluate_predictions(y_valid, valid_proba, seed=settings.random_seed)
+    test_report = evaluate_predictions(y_test, test_proba, seed=settings.random_seed)
+    p1_capacity = 0.025
+    p2_capacity = 0.10
+    p1_score_threshold, p2_score_threshold = score_capacity_thresholds(
+        valid_proba, p1_capacity=p1_capacity, p2_capacity=p2_capacity
     )
 
     version = new_model_version("local")
@@ -85,10 +89,17 @@ def run_training(settings: Settings, data_dir: Path | None = None) -> ModelMeta:
             **{f"valid_{k}": v for k, v in valid_report["metrics"].items()},
             **{f"test_{k}": v for k, v in test_report["metrics"].items()},
             "best_cv_pr_auc": float(study.best_value),
+            "p1_score_threshold": p1_score_threshold,
+            "p2_score_threshold": p2_score_threshold,
         },
         n_train=len(train_df),
         n_valid=len(valid_df),
         n_test=len(test_df),
+        target=TARGET_NAME,
+        p1_score_threshold=p1_score_threshold,
+        p2_score_threshold=p2_score_threshold,
+        p1_capacity=p1_capacity,
+        p2_capacity=p2_capacity,
     )
 
     settings.artifact_dir.mkdir(parents=True, exist_ok=True)
@@ -118,7 +129,7 @@ def run_training(settings: Settings, data_dir: Path | None = None) -> ModelMeta:
 
 
 def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(description="Train local Olist late-delivery model")
+    parser = argparse.ArgumentParser(description="Train local Olist promise-miss (handoff) model")
     parser.add_argument("--data-dir", type=Path, default=None)
     parser.add_argument("--trials", type=int, default=None)
     args = parser.parse_args(argv)

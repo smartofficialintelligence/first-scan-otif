@@ -4,6 +4,7 @@ select
   s.order_id,
   s.seller_id,
   s.prediction_ts,
+  s.handoff_ts,
   cast(s.purchase_hour as float64) as purchase_hour,
   cast(s.purchase_dow as float64) as purchase_dow,
   cast(s.purchase_month as float64) as purchase_month,
@@ -15,6 +16,10 @@ select
   cast(s.category_count as float64) as category_count,
   cast(coalesce(s.installment_count, 1) as float64) as installment_count,
   cast(s.estimated_delivery_horizon_days as float64) as estimated_delivery_horizon_days,
+  cast(coalesce(s.handling_days, 0) as float64) as handling_days,
+  cast(coalesce(s.remaining_to_promise_days, 0) as float64) as remaining_to_promise_days,
+  cast(coalesce(s.handling_frac_of_promise, 0) as float64) as handling_frac_of_promise,
+  cast(coalesce(s.limit_miss, 0) as float64) as limit_miss,
   cast(coalesce(s.geo_distance_km, 0) as float64) as geo_distance_km,
   lower(coalesce(s.payment_type_primary, 'unknown')) as payment_type_primary,
   coalesce(s.customer_state, 'unknown') as customer_state,
@@ -25,6 +30,7 @@ select
   coalesce(h.seller_late_rate_7d, 0.0) as seller_late_rate_7d,
   coalesce(h.seller_late_rate_30d, 0.0) as seller_late_rate_30d,
   coalesce(h.seller_late_rate_90d, 0.0) as seller_late_rate_90d,
+  l.promise_miss,
   l.long_delivery
 from {{ ref('int_order_summary') }} s
 inner join {{ ref('fct_order_labels') }} l using (order_id)

@@ -1,6 +1,6 @@
 # ADR 0005: Retarget to long-delivery risk
 
-- Status: Accepted
+- Status: Accepted (**superseded as the hero product by [ADR 0006](0006-handoff-promise-miss-noc.md)**)
 - Date: 2026-08-16
 - Deciders: portfolio demo owner (Cloud Agent implementation with human merge)
 

@@ -1,4 +1,4 @@
-"""Target construction for long-delivery risk (H1 amended)."""
+"""Target construction for promise-miss at carrier handoff (ADR 0006)."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from olist_ml.logging import get_logger
 
 logger = get_logger(__name__)
 
-# Fixed operational SLA used as the positive class (days from prediction_ts).
+# Diagnostic duration SLA (not the training objective).
 LONG_DELIVERY_THRESHOLD_DAYS: float = 14.0
 
 ORDER_TS_COLS = [
@@ -30,28 +30,30 @@ def _parse_timestamps(orders: pd.DataFrame) -> pd.DataFrame:
 
 def build_labeled_orders(orders: pd.DataFrame) -> pd.DataFrame:
     """
-    Build prediction timestamp + long_delivery label.
+    Build handoff timestamp + promise_miss label.
 
-    prediction_ts = order_approved_at ?? order_purchase_timestamp
-    delivery_days = order_delivered_customer_date - prediction_ts
-    long_delivery = delivery_days > LONG_DELIVERY_THRESHOLD_DAYS
+    prediction_ts = order_approved_at ?? order_purchase_timestamp  (approval clock)
+    handoff_ts    = order_delivered_carrier_date                   (decision moment)
+    promise_miss  = order_delivered_customer_date > order_estimated_delivery_date
 
-    Also retains promise_miss (delivered after estimated date) as a diagnostic column only.
+    Customer delivery is label-only. long_delivery (>14d from approval) is retained
+    as a diagnostic / PIT history rate source, not the training target.
     """
     df = _parse_timestamps(orders)
     df["prediction_ts"] = df["order_approved_at"].fillna(df["order_purchase_timestamp"])
+    df["handoff_ts"] = df["order_delivered_carrier_date"]
 
     delivered = df["order_delivered_customer_date"].notna()
     estimated = df["order_estimated_delivery_date"].notna()
     has_pred = df["prediction_ts"].notna()
-    eligible = delivered & estimated & has_pred
+    has_handoff = df["handoff_ts"].notna()
+    eligible = delivered & estimated & has_pred & has_handoff
 
     labeled = df.loc[eligible].copy()
     labeled["delivery_days"] = (
         labeled["order_delivered_customer_date"] - labeled["prediction_ts"]
     ).dt.total_seconds() / 86400.0
     labeled["long_delivery"] = (labeled["delivery_days"] > LONG_DELIVERY_THRESHOLD_DAYS).astype(int)
-    # Diagnostic / legacy: miss vs customer-facing estimate (weak signal on Olist).
     labeled["promise_miss"] = (
         labeled["order_delivered_customer_date"] > labeled["order_estimated_delivery_date"]
     ).astype(int)
@@ -61,12 +63,12 @@ def build_labeled_orders(orders: pd.DataFrame) -> pd.DataFrame:
 
     dropped = len(df) - len(labeled)
     logger.info(
-        "Labeled orders: %s eligible (dropped %s); long_delivery(>%.0fd) rate=%.3f "
-        "(promise_miss rate=%.3f)",
+        "Labeled orders: %s eligible (dropped %s); promise_miss rate=%.3f "
+        "(long_delivery>%.0fd rate=%.3f)",
         f"{len(labeled):,}",
         f"{dropped:,}",
+        labeled["promise_miss"].mean() if len(labeled) else 0.0,
         LONG_DELIVERY_THRESHOLD_DAYS,
         labeled["long_delivery"].mean() if len(labeled) else 0.0,
-        labeled["promise_miss"].mean() if len(labeled) else 0.0,
     )
     return labeled.reset_index(drop=True)

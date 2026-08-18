@@ -1,4 +1,4 @@
-"""Offline policy replay comparing NO_ACTION / threshold / expected-value (D5)."""
+"""Offline policy replay comparing NO_ACTION / threshold / NOC bands."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from olist_ml.decisions.economics import PolicyEconomicsConfig, load_policy_econ
 from olist_ml.decisions.schemas import ActionType, DecisionContext
 from olist_ml.decisions.service import DecisionService
 
-PolicyName = Literal["no_action", "threshold", "expected_value"]
+PolicyName = Literal["no_action", "threshold", "noc"]
 
 
 @dataclass
@@ -20,13 +20,19 @@ class ReplayRow:
     order_id: str
     prediction_id: str
     model_version: str
-    long_delivery_probability: float
+    promise_miss_probability: float
     basket_value: float
-    observed_long_delivery: bool
+    observed_promise_miss: bool
+    remaining_to_promise_days: float | None = 5.0
+    geo_distance_km: float | None = 150.0
+    same_state: float | None = 0.0
+    freight_value: float | None = 15.0
+    p1_score_threshold: float | None = None
+    p2_score_threshold: float | None = None
 
 
 def _threshold_action(probability: float, threshold: float = 0.70) -> ActionType:
-    return ActionType.EXPEDITE if probability > threshold else ActionType.NO_ACTION
+    return ActionType.AT_RISK_NOTICE if probability > threshold else ActionType.NO_ACTION
 
 
 def replay_policies(
@@ -54,7 +60,7 @@ def replay_policies(
         "policies": {},
     }
 
-    for policy in ("no_action", "threshold", "expected_value"):
+    for policy in ("no_action", "threshold", "noc"):
         interventions = 0
         spend = 0.0
         gross_avoided = 0.0
@@ -66,14 +72,16 @@ def replay_policies(
         flagged_long = 0
 
         for row in rows:
-            observed_long += int(row.observed_long_delivery)
+            observed_long += int(row.observed_promise_miss)
+            upgrade_cost = None
+            freight = row.freight_value
             if policy == "no_action":
                 action = ActionType.NO_ACTION
                 decision_id = f"replay-na-{row.order_id}"
                 policy_version = "no-action-v1"
                 expected_net = 0.0
             elif policy == "threshold":
-                action = _threshold_action(row.long_delivery_probability, threshold)
+                action = _threshold_action(row.promise_miss_probability, threshold)
                 decision_id = f"replay-th-{row.order_id}"
                 policy_version = f"threshold-{threshold:.2f}-v1"
                 expected_net = None
@@ -83,14 +91,21 @@ def replay_policies(
                         order_id=row.order_id,
                         prediction_id=row.prediction_id,
                         model_version=row.model_version,
-                        long_delivery_probability=row.long_delivery_probability,
+                        promise_miss_probability=row.promise_miss_probability,
                         basket_value=row.basket_value,
+                        remaining_to_promise_days=row.remaining_to_promise_days,
+                        geo_distance_km=row.geo_distance_km,
+                        same_state=row.same_state,
+                        freight_value=row.freight_value,
+                        p1_score_threshold=row.p1_score_threshold,
+                        p2_score_threshold=row.p2_score_threshold,
                     )
                 )
                 action = decision.recommended_action
                 decision_id = decision.decision_id
                 policy_version = decision.policy_version
                 expected_net = decision.expected_net_value
+                upgrade_cost = decision.upgrade_cost
 
             result = executor.execute_decision(
                 decision_id=decision_id,
@@ -99,30 +114,32 @@ def replay_policies(
                 action_type=action,
                 model_version=row.model_version,
                 policy_version=policy_version,
-                observed_long_delivery=row.observed_long_delivery,
+                observed_long_delivery=row.observed_promise_miss,
                 basket_value=row.basket_value,
                 expected_net_value=expected_net,
+                freight_value=freight,
+                intervention_cost=upgrade_cost,
                 execution_source="replay",
             )
             action_counts[action.value] = action_counts.get(action.value, 0) + 1
             if action != ActionType.NO_ACTION:
                 interventions += 1
-                if row.observed_long_delivery:
+                if row.observed_promise_miss:
                     true_pos_interventions += 1
             spend += result.simulated_cost
             gross_avoided += result.simulated_gross_avoided_loss
             net_value += result.simulated_net_value
             simulated_long += int(result.simulated_long_delivery)
-            flagged_long += int(row.observed_long_delivery and action != ActionType.NO_ACTION)
+            flagged_long += int(row.observed_promise_miss and action != ActionType.NO_ACTION)
 
         prevented = observed_long - simulated_long
         summaries["policies"][policy] = {
             "interventions": interventions,
             "intervention_rate": interventions / max(len(rows), 1),
             "intervention_spend": spend,
-            "observed_long_deliveries": observed_long,
-            "simulated_long_deliveries": simulated_long,
-            "simulated_long_deliveries_prevented": prevented,
+            "observed_promise_misses": observed_long,
+            "simulated_promise_misses": simulated_long,
+            "simulated_misses_prevented": prevented,
             "gross_avoided_loss_simulated": gross_avoided,
             "net_simulated_value": net_value,
             "roi_simulated": (net_value / spend) if spend > 0 else None,
@@ -133,7 +150,7 @@ def replay_policies(
             "precision_of_interventions": (
                 true_pos_interventions / interventions if interventions else None
             ),
-            "recall_of_long_among_interventions": (
+            "recall_of_miss_among_interventions": (
                 flagged_long / observed_long if observed_long else None
             ),
             "action_distribution": action_counts,
@@ -145,8 +162,8 @@ def replay_policies(
 def replay_from_frame(
     frame: pd.DataFrame,
     *,
-    probability_col: str = "long_delivery_probability",
-    label_col: str = "long_delivery",
+    probability_col: str = "promise_miss_probability",
+    label_col: str = "promise_miss",
     basket_col: str = "basket_value",
     order_col: str = "order_id",
     model_version: str = "replay",
@@ -155,14 +172,22 @@ def replay_from_frame(
     rows: list[ReplayRow] = []
     for i, r in frame.iterrows():
         oid = str(r[order_col])
+        rem = r["remaining_to_promise_days"] if "remaining_to_promise_days" in r.index else None
+        geo = r["geo_distance_km"] if "geo_distance_km" in r.index else None
+        same = r["same_state"] if "same_state" in r.index else None
+        freight = r["freight_value"] if "freight_value" in r.index else None
         rows.append(
             ReplayRow(
                 order_id=oid,
                 prediction_id=f"pred-replay-{oid}-{i}",
                 model_version=model_version,
-                long_delivery_probability=float(r[probability_col]),
+                promise_miss_probability=float(r[probability_col]),
                 basket_value=float(r[basket_col]),
-                observed_long_delivery=bool(int(r[label_col])),
+                observed_promise_miss=bool(int(r[label_col])),
+                remaining_to_promise_days=float(rem) if rem is not None and pd.notna(rem) else 5.0,
+                geo_distance_km=float(geo) if geo is not None and pd.notna(geo) else 150.0,
+                same_state=float(same) if same is not None and pd.notna(same) else 0.0,
+                freight_value=float(freight) if freight is not None and pd.notna(freight) else 15.0,
             )
         )
     return replay_policies(rows, **kwargs)

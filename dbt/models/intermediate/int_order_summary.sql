@@ -8,7 +8,8 @@ with items as (
     sum(i.freight_value) as freight_value,
     count(distinct i.seller_id) as seller_count,
     count(distinct p.product_category_name) as category_count,
-    array_agg(i.seller_id order by i.order_item_id limit 1)[offset(0)] as primary_seller_id
+    array_agg(i.seller_id order by i.order_item_id limit 1)[offset(0)] as primary_seller_id,
+    min(i.shipping_limit_date) as shipping_limit_date
   from {{ ref('stg_order_items') }} i
   left join {{ ref('stg_products') }} p using (product_id)
   group by 1
@@ -37,12 +38,32 @@ select
   o.customer_id,
   o.order_status,
   o.prediction_ts,
+  o.order_delivered_carrier_date as handoff_ts,
   o.order_purchase_timestamp,
   o.order_approved_at,
   o.order_delivered_customer_date,
   o.order_estimated_delivery_date,
+  i.shipping_limit_date,
   timestamp_diff(o.order_estimated_delivery_date, o.prediction_ts, hour) / 24.0
     as estimated_delivery_horizon_days,
+  greatest(
+    timestamp_diff(o.order_delivered_carrier_date, o.prediction_ts, hour) / 24.0,
+    -1.0
+  ) as handling_days,
+  timestamp_diff(o.order_estimated_delivery_date, o.order_delivered_carrier_date, hour) / 24.0
+    as remaining_to_promise_days,
+  case
+    when timestamp_diff(o.order_estimated_delivery_date, o.prediction_ts, hour) = 0 then 0.0
+    else (
+      greatest(timestamp_diff(o.order_delivered_carrier_date, o.prediction_ts, hour) / 24.0, -1.0)
+      / (timestamp_diff(o.order_estimated_delivery_date, o.prediction_ts, hour) / 24.0)
+    )
+  end as handling_frac_of_promise,
+  case
+    when i.shipping_limit_date is null then 0
+    when o.order_delivered_carrier_date > i.shipping_limit_date then 1
+    else 0
+  end as limit_miss,
   i.item_count,
   i.basket_value,
   i.freight_value,

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate tiny Olist-shaped fixtures for offline tests."""
+"""Generate tiny Olist-shaped fixtures for offline tests (handoff NOC)."""
 
 from __future__ import annotations
 
@@ -13,7 +13,6 @@ ROOT = Path(__file__).resolve().parents[1] / "data" / "fixtures"
 
 def main() -> None:
     ROOT.mkdir(parents=True, exist_ok=True)
-    # 40 orders across time for temporal splits + both classes
     rows = []
     items = []
     payments = []
@@ -24,12 +23,42 @@ def main() -> None:
         sid = f"s{i % 5:03d}"
         purchase_dt = start + timedelta(days=i)
         approved_dt = purchase_dt + timedelta(hours=1)
-        # ~30% long delivery (>14 days from approval)
-        long = i % 3 == 0
-        delivered_dt = approved_dt + timedelta(days=(18 if long else 5), hours=4)
-        estimated_dt = (approved_dt + timedelta(days=12)).replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
+        bucket = i % 10
+        if bucket == 0:
+            # P0: first scan after the promise
+            estimated_dt = (approved_dt + timedelta(days=2)).replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
+            carrier_dt = approved_dt + timedelta(days=3)
+            delivered_dt = carrier_dt + timedelta(days=4)
+            shipping_limit = approved_dt + timedelta(days=1)
+        elif bucket in (1, 2):
+            # Upgrade window: remaining ~3–5 days
+            estimated_dt = (approved_dt + timedelta(days=8)).replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
+            carrier_dt = approved_dt + timedelta(days=4)
+            miss = i % 3 == 0
+            delivered_dt = estimated_dt + timedelta(days=3 if miss else -2)
+            shipping_limit = approved_dt + timedelta(days=5)
+        elif bucket in (3, 4, 5):
+            # Longer remaining (~11 days)
+            estimated_dt = (approved_dt + timedelta(days=12)).replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
+            carrier_dt = approved_dt + timedelta(hours=12)
+            miss = i % 3 == 0
+            delivered_dt = estimated_dt + timedelta(days=2 if miss else -4)
+            shipping_limit = estimated_dt
+        else:
+            # Mid remaining (~6 days)
+            estimated_dt = (approved_dt + timedelta(days=10)).replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
+            carrier_dt = approved_dt + timedelta(days=4)
+            miss = i % 4 == 0
+            delivered_dt = estimated_dt + timedelta(days=1 if miss else -3)
+            shipping_limit = approved_dt + timedelta(days=3 if i % 2 else 10)
         rows.append(
             {
                 "order_id": oid,
@@ -37,9 +66,7 @@ def main() -> None:
                 "order_status": "delivered",
                 "order_purchase_timestamp": purchase_dt.isoformat(timespec="seconds"),
                 "order_approved_at": approved_dt.isoformat(timespec="seconds"),
-                "order_delivered_carrier_date": (approved_dt + timedelta(hours=7)).isoformat(
-                    timespec="seconds"
-                ),
+                "order_delivered_carrier_date": carrier_dt.isoformat(timespec="seconds"),
                 "order_delivered_customer_date": delivered_dt.isoformat(timespec="seconds"),
                 "order_estimated_delivery_date": estimated_dt.isoformat(timespec="seconds"),
             }
@@ -50,9 +77,9 @@ def main() -> None:
                 "order_item_id": 1,
                 "product_id": f"p{i % 6:03d}",
                 "seller_id": sid,
-                "shipping_limit_date": estimated_dt.isoformat(timespec="seconds"),
+                "shipping_limit_date": shipping_limit.isoformat(timespec="seconds"),
                 "price": 50 + i,
-                "freight_value": 10 + (i % 5),
+                "freight_value": 10 + (i % 5) * 8,
             }
         )
         payments.append(
@@ -106,9 +133,24 @@ def main() -> None:
     products.to_csv(ROOT / "olist_products_dataset.csv", index=False)
 
     geo_rows = []
-    for z, lat, lng in [(1000 + i, -23.5 - i * 0.01, -46.6 - i * 0.01) for i in range(8)] + [
-        (2000 + i, -22.9 - i * 0.01, -47.0 - i * 0.01) for i in range(5)
-    ]:
+    customer_coords = [
+        (1000, -23.55, -46.63),
+        (1001, -22.90, -43.17),
+        (1002, -19.92, -43.94),
+        (1003, -23.50, -46.60),
+        (1004, -30.03, -51.23),
+        (1005, -25.43, -49.27),
+        (1006, -12.97, -38.50),
+        (1007, -8.05, -34.90),
+    ]
+    seller_coords = [
+        (2000, -23.18, -46.90),
+        (2001, -22.90, -43.20),
+        (2002, -19.90, -43.90),
+        (2003, -25.40, -49.25),
+        (2004, -30.03, -51.20),
+    ]
+    for z, lat, lng in customer_coords + seller_coords:
         geo_rows.append(
             {
                 "geolocation_zip_code_prefix": z,

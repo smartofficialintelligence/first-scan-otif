@@ -18,8 +18,30 @@ GateItemStatus = Literal["pending", "approved", "rejected"]
 
 
 class BusinessLossConfig(BaseModel):
-    fixed_long_delivery_cost: float = Field(ge=0, default=10.0)
+    fixed_miss_cost: float = Field(ge=0, default=10.0)
     order_value_loss_rate: float = Field(ge=0, default=0.10)
+
+
+class UpgradeCostConfig(BaseModel):
+    median_freight_multiplier: float = Field(gt=0, default=0.50)
+    sigma_log: float = Field(gt=0, default=0.35)
+    min_cost: float = Field(ge=0, default=5.0)
+    max_cost: float = Field(ge=0, default=80.0)
+    max_basket_frac: float = Field(ge=0, default=0.08)
+    sensitivity_multipliers: list[float] = Field(default_factory=lambda: [0.35, 0.50, 0.75])
+
+
+class NocPolicyConfig(BaseModel):
+    """Deterministic P0–P3 bands at carrier handoff (not EV-argmax)."""
+
+    p1_capacity: float = Field(gt=0, le=1, default=0.025)
+    p2_capacity: float = Field(gt=0, le=1, default=0.10)
+    default_p1_score_threshold: float = Field(ge=0, le=1, default=0.35)
+    default_p2_score_threshold: float = Field(ge=0, le=1, default=0.20)
+    upgrade_remaining_max_days: float = Field(gt=0, default=7.0)
+    upgrade_min_geo_km: float = Field(ge=0, default=100.0)
+    human_approval_upgrade_cost_min: float = Field(ge=0, default=20.0)
+    upgrade_cost: UpgradeCostConfig = Field(default_factory=UpgradeCostConfig)
 
 
 class RoutingConfig(BaseModel):
@@ -68,6 +90,7 @@ class PolicyEconomicsConfig(BaseModel):
     business_loss: BusinessLossConfig
     actions: dict[ActionType, ActionEconomics]
     routing: RoutingConfig = Field(default_factory=RoutingConfig)
+    noc_policy: NocPolicyConfig = Field(default_factory=NocPolicyConfig)
     economics_gate: EconomicsGateConfig = Field(default_factory=EconomicsGateConfig)
 
     def policy_version_info(self, git_sha: str | None = None) -> PolicyVersion:
@@ -118,6 +141,7 @@ def load_policy_economics(path: Path | str | None = None) -> PolicyEconomicsConf
         business_loss=BusinessLossConfig(**(raw.get("business_loss") or {})),
         actions=actions,
         routing=RoutingConfig(**(raw.get("routing") or {})),
+        noc_policy=NocPolicyConfig(**(raw.get("noc_policy") or {})),
         economics_gate=EconomicsGateConfig(**gate_raw),
     )
 

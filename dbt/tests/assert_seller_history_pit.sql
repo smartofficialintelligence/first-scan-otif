@@ -12,7 +12,7 @@ earlier as (
   from feats a
   join feats b
     on a.seller_id = b.seller_id
-   and b.prediction_ts < a.prediction_ts
+   and b.handoff_ts < a.handoff_ts
   group by 1
 )
 

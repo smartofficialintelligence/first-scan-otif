@@ -21,9 +21,7 @@ def configure_tracing() -> dict[str, Any]:
     status = {
         "enabled": False,
         "project": (
-            os.getenv("LANGCHAIN_PROJECT")
-            or os.getenv("LANGSMITH_PROJECT")
-            or "olist-ml-agent"
+            os.getenv("LANGCHAIN_PROJECT") or os.getenv("LANGSMITH_PROJECT") or "olist-ml-agent"
         ),
         "reason": "disabled",
     }

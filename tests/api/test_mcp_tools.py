@@ -79,7 +79,7 @@ def test_get_model_metrics(trained_service: PredictionService) -> None:
 def test_predict_long_delivery(trained_service: PredictionService) -> None:
     body = mcp_server.predict_long_delivery(service=trained_service, **_payload())
     assert body["order_id"] == "mcp-demo"
-    assert 0.0 <= body["long_delivery_probability"] <= 1.0
+    assert 0.0 <= body["promise_miss_probability"] <= 1.0
     assert "model_version" in body
 
 

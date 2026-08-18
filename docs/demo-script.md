@@ -2,8 +2,9 @@
 
 Locked sequence for interview / portfolio recording. Prefer local commands first; GCP steps need H7 and secrets.
 
-**Target language:** `long_delivery` (>14d from approval) → `long_delivery_probability` (ADR 0005).  
-Do **not** claim causal ROI from intervention simulation — economics are approved **simulation** assumptions (H9/H10; `allow_causal_roi_claims: false`).
+**Product language:** promise-miss at **first carrier scan** → `promise_miss_probability` ([ADR 0006](adr/0006-handoff-promise-miss-noc.md)).  
+Policy is deterministic **P0–P3** (notice / remaining-leg upgrade proxy / no action). The LangGraph agent **copies** that action — it does not re-choose policy.  
+Do **not** claim causal ROI from intervention simulation — economics are approved **simulation** assumptions (H9/H10; `allow_causal_roi_claims: false`). See [limitations-assumptions-proxies.md](limitations-assumptions-proxies.md).
 
 ## Prep (day of)
 
@@ -20,12 +21,15 @@ make ingest-fixtures-bq && make dbt-build
 make feast-apply && make feast-historical
 ```
 
+Talking point: clocks at scan (`handling_days`, `remaining_to_promise_days`, `limit_miss`) plus approval-time basket/geo/seller history. Raw customer delivery never in X.
+
 ## Demo 2 — Train
 
 ```bash
 make train-pipeline
 # or: make airflow-train-local
 # Show artifacts/mlruns + REGISTERED_CANDIDATE (not champion)
+# ModelMeta persists p1_score_threshold / p2_score_threshold from validation scores
 ```
 
 ## Demo 3 — Serve
@@ -34,11 +38,11 @@ make train-pipeline
 curl -s localhost:8080/health
 curl -s localhost:8080/ready
 curl -s localhost:8080/v1/model
-# POST /v1/predict  |  make mcp-serve → predict_long_delivery
-# Response includes model_version + prediction_id + long_delivery_probability
+# POST /v1/predict  |  make mcp-serve → predict_long_delivery (scores promise-miss)
+# Response includes model_version + prediction_id + promise_miss_probability
 ```
 
-Talking point: test PR-AUC ~0.53, precision@10% ~65% (~3.2× lift vs 20% base rate) — see [business_assessment.md](business_assessment.md).
+Talking point: ranking quality is appendix. Lead with OTIF / exception queue / remaining-leg window.
 
 ## Demo 4 — Canary
 
@@ -66,7 +70,7 @@ cat artifacts/drift_alarm.json
 
 ## Demo 7 — Decision + agent layer (local)
 
-Prediction → deterministic EV policy → optional LangGraph agent review → simulated action → ledger.
+Prediction → deterministic NOC bands → LangGraph executes the frozen action → simulated action → ledger.
 
 ```bash
 # Offline harness (no API server; no LLM key):
@@ -86,20 +90,23 @@ With API up (`make serve-local` / `make demo-up`):
 # Predict
 curl -s -X POST localhost:8080/v1/predict -H 'Content-Type: application/json' -d @- <<'EOF'
 {"order_id":"demo-1","seller_id":"s1","purchase_timestamp":"2018-06-01T12:00:00Z",
- "item_count":2,"basket_value":180,"freight_value":20,"estimated_delivery_horizon_days":14}
+ "item_count":2,"basket_value":180,"freight_value":20,"estimated_delivery_horizon_days":14,
+ "remaining_to_promise_days":4,"geo_distance_km":250,"customer_state":"sp","seller_state_primary":"rj"}
 EOF
 
-# Deterministic policy (same DecisionService as MCP recommend_policy_action)
+# Deterministic NOC policy (same DecisionService as MCP recommend_policy_action)
 curl -s -X POST localhost:8080/v1/decision -H 'Content-Type: application/json' -d @- <<'EOF'
 {"order_id":"demo-1","seller_id":"s1","purchase_timestamp":"2018-06-01T12:00:00Z",
  "item_count":2,"basket_value":180,"freight_value":20,"estimated_delivery_horizon_days":14,
+ "remaining_to_promise_days":4,"geo_distance_km":250,"customer_state":"sp","seller_state_primary":"rj",
  "simulate":false}
 EOF
 
-# Agent review + human gate (approve)
+# Agent review (copies policy; human gate if upgrade_cost ≥ 20 or caller flags it)
 curl -s -X POST localhost:8080/v1/agent/review -H 'Content-Type: application/json' -d @- <<'EOF'
 {"order_id":"demo-1","prediction_id":"<from predict>","model_version":"<from predict>",
- "long_delivery_probability":0.81,"basket_value":300,
+ "promise_miss_probability":0.81,"basket_value":300,"remaining_to_promise_days":4,
+ "geo_distance_km":250,"same_state":0,"freight_value":20,
  "require_human_approval":true,"human_approved":true,"run_simulation":false}
 EOF
 
@@ -108,11 +115,12 @@ curl -s localhost:8080/v1/policies/current
 ```
 
 **Say out loud:**
-1. Model ranks long-delivery risk; policy chooses actions by expected value under **versioned simulation assumptions**.
-2. Agent may only pick approved actions; near-ties prefer lower cost; high-value can require human approval.
-3. ActionExecutor is simulation-only — not live seller/customer side effects.
-4. H9/H10 simulation defaults are approved (`econ-sim-v2`); still do **not** claim causal ROI (`make economics-gate`).
-5. Optional LangSmith: set `LANGSMITH_API_KEY` — see [d9-langsmith.md](d9-langsmith.md).
+1. Scan happens; model ranks promise-miss risk; **policy** maps remaining days + score band to one action.
+2. Remaining-leg upgrade is a **freight-scaled demo proxy**, only when the remaining window and geography allow it. Otherwise notice.
+3. Agent runs that frozen action (draft / tools / ledger). It does not re-argmax EV.
+4. ActionExecutor is simulation-only — H12, no live carrier/customer side effects.
+5. H9/H10 simulation defaults are approved (`econ-sim-v3`); still do **not** claim causal ROI (`make economics-gate`).
+6. Optional LangSmith: set `LANGSMITH_API_KEY` — see [d9-langsmith.md](d9-langsmith.md).
 
 MCP path (same services): `make mcp-serve` → `recommend_policy_action` / `execute_simulated_action`.
 

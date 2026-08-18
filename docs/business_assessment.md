@@ -1,7 +1,10 @@
 # Business assessment — long-delivery model
 
-**Model:** `local-20260816T082828Z`  
-**Target:** `long_delivery` = delivery takes **> 14 days** from approval  
+> **Hero product is now promise-miss at carrier handoff ([ADR 0006](adr/0006-handoff-promise-miss-noc.md)).**  
+> The tables below are the **ADR 0005 long-delivery** ranking appendix (approval-time duration). Do not lead an interview with them. Exec KPIs for the NOC demo are $ / customer / dates under versioned simulation assumptions — see [limitations-assumptions-proxies.md](limitations-assumptions-proxies.md).
+
+**Model:** `local-20260816T082828Z` (long_delivery champion; superseded as hero)  
+**Target (historical):** `long_delivery` = delivery takes **> 14 days** from approval  
 **Machine-readable:** `artifacts/business_assessment.json` (gitignored; regenerate via script below)
 
 ## Ranking quality (test)

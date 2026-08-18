@@ -16,7 +16,8 @@ from olist_ml.api.dependencies import (
 )
 from olist_ml.decisions.schemas import ActionType
 from olist_ml.decisions.service import DecisionService
-from olist_ml.decisions.value import business_loss_if_long, score_action
+from olist_ml.decisions.value import business_loss_if_miss, score_action
+from olist_ml.features.assembler import noc_context_from_request
 from olist_ml.inference.predictor import PredictionService
 from olist_ml.logging import setup_logging
 from olist_ml.outcomes.ledger import DecisionLedger
@@ -118,7 +119,7 @@ def get_order_risk(
     seller_late_rate_90d: float | None = None,
     service: PredictionService | None = None,
 ) -> dict[str, Any]:
-    """Return long-delivery risk via PredictionService."""
+    """Return promise-miss risk via PredictionService."""
     svc = service or get_prediction_service()
     req = _predict_request(
         order_id=order_id,
@@ -175,9 +176,11 @@ def list_available_actions(
 
 def calculate_action_value(
     action: str,
-    long_delivery_probability: float,
+    probability: float,
     basket_value: float,
     decision_service: DecisionService | None = None,
+    long_delivery_probability: float | None = None,
+    promise_miss_probability: float | None = None,
 ) -> dict[str, Any]:
     """Score one approved action under simulation assumptions (not causal)."""
     svc = decision_service or get_decision_service()
@@ -188,14 +191,19 @@ def calculate_action_value(
     econ = svc.config.actions.get(action_type)
     if econ is None or not econ.eligible:
         raise ValueError(f"Action not eligible: {action}")
-    loss = business_loss_if_long(basket_value, svc.config.business_loss)
+    proba = probability
+    if long_delivery_probability is not None:
+        proba = long_delivery_probability
+    if promise_miss_probability is not None:
+        proba = promise_miss_probability
+    loss = business_loss_if_miss(basket_value, svc.config.business_loss)
     candidate = score_action(
         action=econ,
-        probability=long_delivery_probability,
+        probability=proba,
         loss_if_long=loss,
     )
     return {
-        "business_loss_if_long": loss,
+        "business_loss_if_miss": loss,
         "assumptions_disclaimer": svc.config.assumptions_disclaimer,
         "candidate": candidate.model_dump(mode="json"),
     }
@@ -224,11 +232,14 @@ def recommend_policy_action(
     seller_late_rate_30d: float | None = None,
     seller_late_rate_90d: float | None = None,
     persist_ledger: bool = True,
+    remaining_to_promise_days: float | None = None,
+    handling_days: float | None = None,
+    same_state: float | None = None,
     service: PredictionService | None = None,
     decision_service: DecisionService | None = None,
     ledger: DecisionLedger | None = None,
 ) -> dict[str, Any]:
-    """Predict then run deterministic EV policy (same services as REST /v1/decision)."""
+    """Predict then run deterministic NOC policy (same services as REST /v1/decision)."""
     pred_body = get_order_risk(
         order_id=order_id,
         seller_id=seller_id,
@@ -255,10 +266,37 @@ def recommend_policy_action(
     )
     prediction = PredictResponse.model_validate(pred_body)
     dsvc = decision_service or get_decision_service()
+    req = _predict_request(
+        order_id=order_id,
+        seller_id=seller_id,
+        purchase_timestamp=purchase_timestamp,
+        prediction_timestamp=prediction_timestamp,
+        item_count=item_count,
+        basket_value=basket_value,
+        freight_value=freight_value,
+        estimated_delivery_horizon_days=estimated_delivery_horizon_days,
+        seller_count=seller_count,
+        category_count=category_count,
+        payment_type_primary=payment_type_primary,
+        installment_count=installment_count,
+        customer_state=customer_state,
+        seller_state_primary=seller_state_primary,
+        geo_distance_km=geo_distance_km,
+        remaining_to_promise_days=remaining_to_promise_days,
+        handling_days=handling_days,
+        same_state=same_state,
+    )
+    noc = noc_context_from_request(req)
     decision = dsvc.decide_from_prediction(
         prediction,
         basket_value=basket_value,
         seller_id=seller_id,
+        remaining_to_promise_days=noc["remaining_to_promise_days"],
+        geo_distance_km=noc["geo_distance_km"],
+        same_state=noc["same_state"],
+        freight_value=noc["freight_value"],
+        p1_score_threshold=prediction.p1_score_threshold,
+        p2_score_threshold=prediction.p2_score_threshold,
     )
     if persist_ledger:
         led = ledger or get_ledger()
@@ -277,14 +315,22 @@ def execute_simulated_action(
     action: str,
     model_version: str,
     policy_version: str,
-    observed_long_delivery: bool,
     basket_value: float,
+    observed_promise_miss: bool | None = None,
+    observed_long_delivery: bool | None = None,
     expected_net_value: float | None = None,
+    freight_value: float | None = None,
+    intervention_cost: float | None = None,
     persist_ledger: bool = True,
     executor: ActionExecutor | None = None,
     ledger: DecisionLedger | None = None,
 ) -> dict[str, Any]:
     """Run ActionExecutor simulation for an approved action."""
+    observed = (
+        observed_promise_miss if observed_promise_miss is not None else observed_long_delivery
+    )
+    if observed is None:
+        raise ValueError("observed_promise_miss is required")
     try:
         action_type = ActionType(action)
     except ValueError as exc:
@@ -299,8 +345,10 @@ def execute_simulated_action(
             model_version=model_version,
             policy_version=policy_version,
             expected_net_value=expected_net_value,
-            observed_long_delivery=observed_long_delivery,
+            observed_long_delivery=bool(observed),
             basket_value=basket_value,
+            freight_value=freight_value,
+            intervention_cost=intervention_cost,
         )
     )
     if persist_ledger:

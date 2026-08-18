@@ -1,8 +1,7 @@
 # Follow-up: Decision + Agentic Action Layer
 
-**Status:** COMPLETE. D1–D13 shipped; H9/H10 approved as simulation defaults (`econ-sim-v2`); `allow_causal_roi_claims` remains false.  
-**Saved:** 2026-08-16  
-**Model gate:** passed (`long_delivery` >14d; test PR-AUC ~0.53; see `docs/business_assessment.md`).
+**Status:** D1–D13 shipped on EV-argmax policy; **superseded as the live policy by ADR 0006 NOC bands** (`noc-handoff-policy-v1`, `econ-sim-v3`). Agent now copies `policy_recommendation.recommended_action`. Causal ROI remains disallowed.  
+**Saved:** 2026-08-16 (historical spec). Do not implement EV-argmax as the hero path.
 
 ## Accepted deltas (before D1)
 

@@ -13,11 +13,13 @@ from olist_ml.decisions.replay import replay_from_frame
 
 
 def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(description="Compare NO_ACTION / threshold / EV policies")
-    parser.add_argument("--input", type=Path, required=True, help="CSV/parquet with scores + labels")
+    parser = argparse.ArgumentParser(description="Compare NO_ACTION / threshold / NOC policies")
+    parser.add_argument(
+        "--input", type=Path, required=True, help="CSV/parquet with scores + labels"
+    )
     parser.add_argument("--output", type=Path, default=Path("artifacts/policy_replay_report.json"))
-    parser.add_argument("--probability-col", default="long_delivery_probability")
-    parser.add_argument("--label-col", default="long_delivery")
+    parser.add_argument("--probability-col", default="promise_miss_probability")
+    parser.add_argument("--label-col", default="promise_miss")
     parser.add_argument("--basket-col", default="basket_value")
     parser.add_argument("--threshold", type=float, default=0.70)
     parser.add_argument("--config", type=Path, default=Path("config/policy_economics.yaml"))
