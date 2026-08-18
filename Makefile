@@ -2,7 +2,7 @@
 .PHONY: m2-env-check gcp-auth tf-fmt tf-validate tf-plan dbt-deps dbt-compile dbt-build ingest-bq ingest-fixtures-bq
 .PHONY: feast-apply feast-historical feast-parity demo-up demo-down mcp-serve
 .PHONY: train-pipeline airflow-train-local replay-baseline canary-bad drift-check teardown-endpoint
-.PHONY: demo-decision agent-evals decision-eval demo-decision-api economics-gate overrun-experiment miss-history-experiment short-promise-experiment
+.PHONY: demo-decision agent-evals decision-eval demo-decision-api economics-gate overrun-experiment miss-history-experiment short-promise-experiment early-delta-experiment
 
 export PATH := $(HOME)/.local/bin:/opt/google-cloud-sdk/bin:$(PATH)
 
@@ -72,6 +72,9 @@ miss-history-experiment:
 
 short-promise-experiment:
 	uv run python scripts/experiment_short_promise_miss.py
+
+early-delta-experiment:
+	uv run python scripts/experiment_early_delta.py
 
 replay-baseline:
 	uv run python scripts/replay_traffic.py --inprocess true --scenario baseline --no-challenger
