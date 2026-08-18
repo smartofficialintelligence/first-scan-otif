@@ -10,8 +10,9 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: [0, 1]
-              quote: false
+              arguments:
+                values: [0, 1]
+                quote: false
       - name: handoff_ts
         tests: [not_null]
       - name: prediction_ts
@@ -32,8 +33,9 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: [0, 1]
-              quote: false
+              arguments:
+                values: [0, 1]
+                quote: false
       - name: seller_order_count_30d
         tests: [not_null]
       - name: seller_late_rate_30d
