@@ -36,8 +36,8 @@ Details: [docs/milestones.md](docs/milestones.md)
 | Model serving | Vertex AI Endpoint |
 | App APIs | FastAPI on Cloud Run (REST + MCP) |
 
-Full diagram: [ARCHITECTURE.md](ARCHITECTURE.md)  
-Binding decisions: [docs/LOCKED_DECISIONS.md](docs/LOCKED_DECISIONS.md)
+Full walkthrough (function, stack, tradeoffs, operate-the-model): [ARCHITECTURE.md](ARCHITECTURE.md)  
+Binding tables: [docs/LOCKED_DECISIONS.md](docs/LOCKED_DECISIONS.md)
 
 ## ML problem
 

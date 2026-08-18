@@ -1,10 +1,12 @@
 # Demo script
 
-Locked sequence for interview / portfolio recording. Prefer local commands first; GCP steps need H7 and secrets.
+Locked sequence for interview / portfolio recording. Prefer local commands first; GCP apply needs a reviewed plan and secrets.
+
+System walkthrough (read before the live demo): [ARCHITECTURE.md](../ARCHITECTURE.md).
 
 **Product language:** promise-miss at **first carrier scan** → `promise_miss_probability` ([ADR 0006](adr/0006-handoff-promise-miss-noc.md)).  
 Policy is deterministic **P0–P3** (notice / remaining-leg upgrade proxy / no action). The LangGraph agent **copies** that action — it does not re-choose policy.  
-Do **not** claim causal ROI from intervention simulation — economics are approved **simulation** assumptions (H9/H10; `allow_causal_roi_claims: false`). See [limitations-assumptions-proxies.md](limitations-assumptions-proxies.md).
+Do **not** claim causal ROI from intervention simulation — economics are versioned **simulation** assumptions (`allow_causal_roi_claims: false`). See [limitations-assumptions-proxies.md](limitations-assumptions-proxies.md).
 
 ## Prep (day of)
 
