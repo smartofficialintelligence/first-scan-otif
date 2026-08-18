@@ -3,7 +3,7 @@
 .PHONY: feast-apply feast-historical feast-parity demo-up demo-down mcp-serve
 .PHONY: train-pipeline airflow-train-local replay-baseline canary-bad drift-check teardown-endpoint
 .PHONY: demo-decision agent-evals decision-eval demo-decision-api economics-gate overrun-experiment miss-history-experiment short-promise-experiment early-delta-experiment
-.PHONY: release-labels evaluate-delayed approve-h5 retrain-trigger export-monitoring metrics-smoke
+.PHONY: gcp-up gcp-down gcp-smoke gcp-evidence
 .PHONY: drift-geo drift-seller-late replay-canary
 
 export PATH := $(HOME)/.local/bin:/opt/google-cloud-sdk/bin:$(PATH)
@@ -126,6 +126,18 @@ airflow-train-local:
 
 teardown-endpoint:
 	uv run python scripts/teardown_endpoint.py
+
+gcp-up:
+	bash scripts/gcp_up.sh
+
+gcp-down:
+	bash scripts/gcp_down.sh
+
+gcp-smoke:
+	bash scripts/gcp_smoke.sh
+
+gcp-evidence:
+	bash scripts/gcp_evidence.sh
 
 # --- Milestone 2 (requires GCP secrets; do not terraform apply without H7) ---
 

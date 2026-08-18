@@ -226,6 +226,7 @@ def run_replay(
     use_challenger: bool = True,
     snapshot_id: str = "local-fixtures",
     label_delay: timedelta = DEFAULT_LABEL_DELAY,
+    bearer_token: str | None = None,
 ) -> Path:
     """
     Replay holdout events.
@@ -268,7 +269,10 @@ def run_replay(
                 logger.warning("Challenger failed to load; serving champion for all buckets")
                 challenger_svc = None
     else:
-        client = httpx.Client(timeout=30.0)
+        headers = {}
+        if bearer_token:
+            headers["Authorization"] = f"Bearer {bearer_token}"
+        client = httpx.Client(timeout=60.0, headers=headers or None)
 
     n = 0
     with log_path.open("w", encoding="utf-8") as fh:
@@ -373,6 +377,12 @@ def main(argv: list[str] | None = None) -> None:
         action="store_true",
         help="Serve champion artifact for all buckets (attribution still 90/10)",
     )
+    parser.add_argument(
+        "--bearer-token",
+        type=str,
+        default=None,
+        help="Bearer token for HTTP replay (Cloud Run identity token)",
+    )
     args = parser.parse_args(argv)
     run_replay(
         holdout_path=args.holdout,
@@ -389,6 +399,7 @@ def main(argv: list[str] | None = None) -> None:
         challenger_meta=None if args.no_challenger else args.challenger_meta,
         use_challenger=not args.no_challenger,
         snapshot_id=args.snapshot_id,
+        bearer_token=args.bearer_token,
     )
 
 

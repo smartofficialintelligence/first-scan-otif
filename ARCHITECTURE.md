@@ -235,7 +235,7 @@ Client
 
 **Explain:** SHAP on a sampled/synchronous path with a latency budget. Not on the hot path for every canary event.
 
-**Local:** `make serve-local` (uvicorn :8080). **Cloud:** Cloud Run in front of the same app; optional Vertex Endpoint behind `PredictionService` when serving modules are applied. Terraform serving modules default **off**.
+**Local:** `make serve-local` (uvicorn :8080). **Cloud:** `make gcp-up` deploys the same app on Cloud Run with the champion joblib baked into the image. Vertex Endpoint is a separate flag (`enable_vertex_endpoint`, default **off**) and is not part of the turn-key path.
 
 ---
 
@@ -402,11 +402,15 @@ Planning budget ~$75; first working cloud demo aimed ≤ $30; idle after teardow
 **What actually burns money if left on:** Vertex Endpoint, Memorystore Redis, Cloud Composer. BigQuery storage at Olist scale is noise. Queries cost only when jobs run.
 
 ```text
-make demo-up      local API today; GCP pieces gated on apply
-make demo-down    stop local API; remind to undeploy endpoint / Redis / Composer
+make demo-up      local API
+make demo-down    stop local API
+make gcp-up       live Cloud Run + Monitoring (no Redis, no Vertex)
+make gcp-down     destroy Cloud Run + dashboard; keep Artifact Registry + warehouse
 ```
 
-Canonical data at rest when cloud is off: GCS (and/or gitignored `data/raw`). Prefer deleting demo BigQuery datasets on the way down; restore is load + dbt.
+Canonical data at rest when cloud serving is off: GCS (and/or gitignored `data/raw`) plus Artifact Registry images. Prefer deleting demo BigQuery datasets only if you want warehouse storage gone too; `gcp-down` does **not** delete BQ.
+
+Live serving proof: [docs/gcp-live-serving.md](docs/gcp-live-serving.md), [docs/evidence/gcp-serving-run.md](docs/evidence/gcp-serving-run.md).
 
 [COST.md](COST.md) still has **placeholder actuals** until a paid demo is billed. Do not invent numbers.
 

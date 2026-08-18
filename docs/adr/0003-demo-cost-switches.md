@@ -21,3 +21,7 @@ Managed ML demos fail budgets when endpoints, Redis, and Composer stay up. BigQu
 - Demo restore time is nonzero (load + dbt + Feast materialize).  
 - Interview demos must be scheduled (warm-up scripted in RUNBOOK).  
 - COST.md actuals required after first paid run.
+
+## Amendment (2026-08-18)
+
+Live serving on/off is **`make gcp-up` / `make gcp-down`**: Cloud Run + Monitoring only. Redis / Memorystore is **not** created. Vertex Endpoint stays behind `enable_vertex_endpoint=false`. `demo-up` / `demo-down` remain the **local** API switch.

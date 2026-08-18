@@ -36,6 +36,8 @@ make train-pipeline
 
 ## Demo 3 — Serve
 
+Local:
+
 ```bash
 curl -s localhost:8080/health
 curl -s localhost:8080/ready
@@ -44,7 +46,13 @@ curl -s localhost:8080/v1/model
 # Response includes model_version + prediction_id + promise_miss_probability
 ```
 
-Talking point: ranking quality is appendix. Lead with OTIF / exception queue / remaining-leg window.
+Live Cloud Run (optional proof; tear down the same day):
+
+```bash
+make gcp-up && make gcp-smoke && make gcp-evidence && make gcp-down
+```
+
+Talking point: ranking quality is appendix. Lead with OTIF / exception queue / remaining-leg window. The live path is Cloud Run + baked champion, not Redis and not a Vertex Endpoint.
 
 ## Demo 4 — Canary
 
@@ -133,7 +141,8 @@ MCP path (same services): `make mcp-serve` → `recommend_policy_action` / `exec
 
 ```bash
 make demo-down
-make teardown-endpoint   # dry-run unless --apply with live Vertex
+make gcp-down              # if you ran gcp-up
+make teardown-endpoint     # dry-run unless --apply with live Vertex
 # Fill COST.md actuals table after paid demo
 ```
 

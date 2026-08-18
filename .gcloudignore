@@ -1,0 +1,23 @@
+.git
+.venv
+__pycache__
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+.env
+sa-key.json
+data/raw/
+data/feast/
+terraform/**/.terraform/
+terraform/**/*.tfstate*
+terraform/**/tfplan*
+*.pem
+.coverage
+htmlcov
+docs/evidence/
+
+# Include champion weights for the serving image (ignored by git).
+!artifacts/
+artifacts/*
+!artifacts/model.joblib
+!artifacts/model_meta.json

@@ -1,5 +1,5 @@
 # Cloud Monitoring dashboard for serving + ML signals.
-# Instantiated only when enable_monitoring=true (H7 apply). Local demos use
+# Instantiated only when enable_monitoring=true. Local demos use
 # artifacts/monitoring_dashboard.json instead.
 
 variable "project_id" {
@@ -104,8 +104,8 @@ resource "google_monitoring_dashboard" "olist" {
           height = 4
           widget = {
             title = "ML signals (local export + this dashboard)"
-            text  = {
-              content = "Service: volume, error rate, p95 latency.\nML: feature PSI, high-band mix, stale features, delayed-label PR-AUC.\nDrift alarms do not auto-retrain (H5). Quality uses released labels only.\nLocal: make export-monitoring → artifacts/monitoring_dashboard.json"
+            text = {
+              content = "Service: volume, error rate, p95 latency.\nML: feature PSI, high-band mix, stale features, delayed-label PR-AUC.\nDrift alarms do not auto-retrain. Quality uses released labels only.\nLocal: make export-monitoring → artifacts/monitoring_dashboard.json"
               format  = "MARKDOWN"
             }
           }

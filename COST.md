@@ -29,27 +29,27 @@ Status: locked policy. Update **actuals** after first live demo run.
 
 ## On / off switches
 
-### `make demo-up` (on)
+### `make demo-up` / `demo-down` (local API)
 
-Intended sequence:
+Local uvicorn only. Does not create Cloud Run.
 
-1. Ensure GCS canonical raw (upload if missing)
-2. Create BQ datasets; load raw; `dbt build`
-3. Feast apply + offline materialize; start Memorystore; online materialize
-4. Ensure MLflow tracking reachable
-5. Deploy champion (and optional challenger) to Vertex Endpoint
-6. Deploy FastAPI Cloud Run (`min_instances=0` unless demo needs warm start)
-7. Optionally start Composer **only if** orchestration demo is in scope
-8. Smoke: `/health`, one `/v1/predict`
+### `make gcp-up` (live serving on)
 
-### `make demo-down` (off)
+Intended sequence (no Redis, no Vertex Endpoint, no Composer):
 
-1. Undeploy Vertex Endpoint (or scale to zero / delete)
-2. Delete Memorystore Redis
-3. Delete or stop Composer environment if created
-4. Undeploy Cloud Run services **or** force `min_instances=0` and confirm no traffic
-5. Delete BQ datasets used for demo (optional but preferred for ~$0)
-6. Leave GCS + Artifact Registry + Terraform state intact for fast restore
+1. Enable Cloud Run / Artifact Registry / Monitoring APIs
+2. Apply Artifact Registry (kept across on/off)
+3. Build `--target serving` with the champion joblib and push
+4. Apply Cloud Run (`min_instance_count = 0`, max 2) + Cloud Monitoring dashboard
+5. Wait for `/ready` with an identity token
+
+### `make gcp-down` (live serving off)
+
+1. Terraform apply with `enable_cloud_run=false` and `enable_monitoring=false`
+2. Cloud Run service and dashboard are **destroyed**
+3. Leave Artifact Registry + GCS + BigQuery + IAM intact for the next `gcp-up`
+
+Idle target after `gcp-down`: **near $0/day** for serving (registry storage is cents).
 
 ### `make data-purge` / `make data-restore`
 

@@ -30,8 +30,21 @@ make mcp-serve         # MCP tools over PredictionService
 make demo-up           # sync, ensure artifact, start local uvicorn (artifacts/api.pid)
 make smoke-local
 make demo-down         # stop local API; print GCP teardown reminders (no deletes)
-make teardown-endpoint # Vertex undeploy dry-run (use --apply only with creds + H7 context)
+make teardown-endpoint # Vertex undeploy dry-run (use --apply only with creds)
 ```
+
+## Live GCP serving (Cloud Run)
+
+Turn-key on/off for a real Cloud Run + Monitoring slice. **Does not** create Redis, Vertex Endpoint, or Composer.
+
+```text
+make gcp-up            # registry (kept) + champion image + Cloud Run + dashboard
+make gcp-smoke         # REST + MCP + 50-event HTTP replay through Cloud Run
+make gcp-evidence      # docs/evidence/gcp-serving-run.md
+make gcp-down          # destroy Cloud Run + dashboard; keep registry + warehouse
+```
+
+Details: [docs/gcp-live-serving.md](docs/gcp-live-serving.md). After `gcp-down`, serving is off and can be turned on again with `gcp-up`.
 
 ## Feast
 
@@ -78,6 +91,7 @@ Docs: [docs/m10-airflow.md](docs/m10-airflow.md)
 
 ```text
 make demo-down             # local API down
+make gcp-down              # if you ran gcp-up: Cloud Run + dashboard off
 make teardown-endpoint     # Vertex dry-run / --apply when live
 # Optional later: data-purge / Composer delete — never leave Composer/Redis/Endpoint overnight
 ```

@@ -99,7 +99,7 @@ make retrain-trigger
 ## Dashboards (M8)
 
 - **Local:** `make export-monitoring` → `artifacts/monitoring_dashboard.json` (service + ML + last drift/delayed snapshots).
-- **GCP:** Terraform module `terraform/modules/monitoring` behind `enable_monitoring` (default **false**, same as serving). Dashboard tiles: Cloud Run volume / p95 latency / instance time + a text panel for PSI / delayed-label / H5. Apply still requires **H7**.
+- **GCP:** `make gcp-up` applies `terraform/modules/monitoring` with Cloud Run. Tiles: request count, p95 latency, billable instance time, plus a text panel for PSI / delayed-label quality. Destroyed by `make gcp-down`.
 
 ## Unit fixtures
 

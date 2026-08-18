@@ -31,7 +31,7 @@ Rationale: portfolio demonstrates transferable open ML platform seams on real cl
 | Cross-system orchestration, schedules, drift/retrain triggers | Airflow (ephemeral/local for day-to-day; Composer only for live demos) |
 | ML training workflow | Vertex AI Pipelines |
 | Experiments + model registry | MLflow (Cloud Run + GCS artifact store; optional Cloud SQL if needed) |
-| Online model inference | Vertex AI Endpoint (champion/challenger traffic split) |
+| Online model inference | Vertex AI Endpoint (optional managed host). **This demo's live path:** Cloud Run scoring a baked joblib (`make gcp-up`). Vertex endpoint flag stays off. |
 | Consumer interfaces | FastAPI on Cloud Run — REST + MCP over one `PredictionService` |
 
 See [ARCHITECTURE.md](../ARCHITECTURE.md) and [ADR 0002](adr/0002-feast-mlflow-airflow-vertex.md).

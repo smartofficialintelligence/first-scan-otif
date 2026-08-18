@@ -55,4 +55,4 @@ jobs:
           terraform validate
 
       - name: Docker build
-        run: docker build .
+        run: docker build --target base .
