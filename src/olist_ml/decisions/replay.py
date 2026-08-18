@@ -65,14 +65,14 @@ def replay_policies(
         spend = 0.0
         gross_avoided = 0.0
         net_value = 0.0
-        simulated_long = 0
-        observed_long = 0
+        simulated_misses = 0
+        observed_misses = 0
         action_counts: dict[str, int] = {}
         true_pos_interventions = 0
-        flagged_long = 0
+        flagged_misses = 0
 
         for row in rows:
-            observed_long += int(row.observed_promise_miss)
+            observed_misses += int(row.observed_promise_miss)
             upgrade_cost = None
             freight = row.freight_value
             if policy == "no_action":
@@ -114,7 +114,7 @@ def replay_policies(
                 action_type=action,
                 model_version=row.model_version,
                 policy_version=policy_version,
-                observed_long_delivery=row.observed_promise_miss,
+                observed_promise_miss=row.observed_promise_miss,
                 basket_value=row.basket_value,
                 expected_net_value=expected_net,
                 freight_value=freight,
@@ -129,16 +129,16 @@ def replay_policies(
             spend += result.simulated_cost
             gross_avoided += result.simulated_gross_avoided_loss
             net_value += result.simulated_net_value
-            simulated_long += int(result.simulated_long_delivery)
-            flagged_long += int(row.observed_promise_miss and action != ActionType.NO_ACTION)
+            simulated_misses += int(result.simulated_promise_miss)
+            flagged_misses += int(row.observed_promise_miss and action != ActionType.NO_ACTION)
 
-        prevented = observed_long - simulated_long
+        prevented = observed_misses - simulated_misses
         summaries["policies"][policy] = {
             "interventions": interventions,
             "intervention_rate": interventions / max(len(rows), 1),
             "intervention_spend": spend,
-            "observed_promise_misses": observed_long,
-            "simulated_promise_misses": simulated_long,
+            "observed_promise_misses": observed_misses,
+            "simulated_promise_misses": simulated_misses,
             "simulated_misses_prevented": prevented,
             "gross_avoided_loss_simulated": gross_avoided,
             "net_simulated_value": net_value,
@@ -151,7 +151,7 @@ def replay_policies(
                 true_pos_interventions / interventions if interventions else None
             ),
             "recall_of_miss_among_interventions": (
-                flagged_long / observed_long if observed_long else None
+                flagged_misses / observed_misses if observed_misses else None
             ),
             "action_distribution": action_counts,
         }

@@ -29,7 +29,7 @@ def test_simulation_reproducible(cfg) -> None:
     econ = cfg.actions[ActionType.REMAINING_LEG_UPGRADE]
     a = simulate_intervention(
         action=econ,
-        observed_long_delivery=True,
+        observed_promise_miss=True,
         basket_value=100.0,
         loss_cfg=cfg.business_loss,
         seed=123,
@@ -37,7 +37,7 @@ def test_simulation_reproducible(cfg) -> None:
     )
     b = simulate_intervention(
         action=econ,
-        observed_long_delivery=True,
+        observed_promise_miss=True,
         basket_value=100.0,
         loss_cfg=cfg.business_loss,
         seed=123,
@@ -52,7 +52,7 @@ def test_upgrade_can_flip_miss_to_on_time(cfg) -> None:
     for seed in range(80):
         out = simulate_intervention(
             action=econ,
-            observed_long_delivery=True,
+            observed_promise_miss=True,
             basket_value=100.0,
             loss_cfg=cfg.business_loss,
             seed=seed,
@@ -60,7 +60,7 @@ def test_upgrade_can_flip_miss_to_on_time(cfg) -> None:
         )
         if out["intervention_success"]:
             successes += 1
-            assert out["simulated_long_delivery"] is False
+            assert out["simulated_promise_miss"] is False
             assert out["simulated_gross_avoided_loss"] > 0
     assert successes > 0
 
@@ -69,12 +69,12 @@ def test_notice_keeps_lateness_but_reduces_impact(cfg) -> None:
     econ = cfg.actions[ActionType.AT_RISK_NOTICE]
     out = simulate_intervention(
         action=econ,
-        observed_long_delivery=True,
+        observed_promise_miss=True,
         basket_value=100.0,
         loss_cfg=cfg.business_loss,
         seed=1,
     )
-    assert out["simulated_long_delivery"] is True
+    assert out["simulated_promise_miss"] is True
     assert out["simulated_impact_loss_reduction"] == pytest.approx(20.0 * 0.20)
     assert out["simulated_net_value"] == pytest.approx(4.0 - 1.0)
 
@@ -91,7 +91,7 @@ def test_executor_rejects_unknown_action(cfg) -> None:
                 action_type=ActionType.LATE_NOTICE,
                 model_version="m",
                 policy_version="v",
-                observed_long_delivery=True,
+                observed_promise_miss=True,
                 basket_value=10.0,
             )
         )

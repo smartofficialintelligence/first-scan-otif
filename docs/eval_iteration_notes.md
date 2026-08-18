@@ -1,10 +1,27 @@
 # Feature / model iteration notes
 
+## 2026-08-18 — promise-miss at handoff (ADR 0006)
+
+Hero target is again **promise-miss**, scored at first carrier scan. Handoff clocks (`handling_days`, `remaining_to_promise_days`, `handling_frac_of_promise`, `limit_miss`) are legal at that moment.
+
+**Full Olist** (`local-20260818T041243Z`, 8 Optuna trials, split on `handoff_ts`):
+
+| Split | n | Miss rate | PR-AUC | ROC-AUC |
+|---|---:|---:|---:|---:|
+| Valid | 14,471 | 12.3% | 0.478 | 0.838 |
+| Test | 14,471 | 4.6% | **0.296** | 0.816 |
+
+Persisted policy thresholds from **validation** scores: P1 **0.5625** (top 2.5%), P2 **0.3155** (top 10%). Test @ 2.5% / 10% capacity: precision 41.6% / 22.2% (lifts 9.0× / 4.8× vs 4.6% base). Interviewer tables: [business_assessment.md](business_assessment.md).
+
+Approval-time promise-miss was ~0.10–0.20 PR-AUC. Duration `long_delivery` (below) is the diagnostic / PIT-rate appendix, not the hero.
+
+---
+
 Date: 2026-08-16  
 Branch: `cursor/feature-model-iteration-642f`  
 Model: `local-20260816T082828Z`
 
-## Problem change (ADR 0005)
+## Problem change (ADR 0005) — superseded as hero
 
 Original promise-miss target was too weak for a prod demo (~8% positive; test PR-AUC ~0.10–0.20).
 

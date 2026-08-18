@@ -61,7 +61,7 @@ class ActionExecutor:
 
         sim = simulate_intervention(
             action=econ,
-            observed_long_delivery=request.observed_long_delivery,
+            observed_promise_miss=request.observed_promise_miss,
             basket_value=request.basket_value,
             loss_cfg=self.config.business_loss,
             seed=seed,
@@ -77,8 +77,8 @@ class ActionExecutor:
             status="simulated",
             simulated_cost=float(sim["simulated_cost"]),
             intervention_success=sim["intervention_success"],  # type: ignore[arg-type]
-            observed_long_delivery=request.observed_long_delivery,
-            simulated_long_delivery=bool(sim["simulated_long_delivery"]),
+            observed_promise_miss=request.observed_promise_miss,
+            simulated_promise_miss=bool(sim["simulated_promise_miss"]),
             simulated_impact_loss_reduction=float(sim["simulated_impact_loss_reduction"]),
             simulated_gross_avoided_loss=float(sim["simulated_gross_avoided_loss"]),
             simulated_net_value=float(sim["simulated_net_value"]),
@@ -99,7 +99,7 @@ class ActionExecutor:
         action_type: ActionType,
         model_version: str,
         policy_version: str,
-        observed_long_delivery: bool,
+        observed_promise_miss: bool,
         basket_value: float,
         expected_net_value: float | None = None,
         freight_value: float | None = None,
@@ -115,7 +115,7 @@ class ActionExecutor:
                 model_version=model_version,
                 policy_version=policy_version,
                 expected_net_value=expected_net_value,
-                observed_long_delivery=observed_long_delivery,
+                observed_promise_miss=observed_promise_miss,
                 basket_value=basket_value,
                 freight_value=freight_value,
                 intervention_cost=intervention_cost,

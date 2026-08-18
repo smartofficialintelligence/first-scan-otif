@@ -1,76 +1,91 @@
-# Business assessment — long-delivery model
+# Business assessment — promise-miss at carrier handoff
 
-> **Hero product is now promise-miss at carrier handoff ([ADR 0006](adr/0006-handoff-promise-miss-noc.md)).**  
-> The tables below are the **ADR 0005 long-delivery** ranking appendix (approval-time duration). Do not lead an interview with them. Exec KPIs for the NOC demo are $ / customer / dates under versioned simulation assumptions — see [limitations-assumptions-proxies.md](limitations-assumptions-proxies.md).
+**Hero product:** first-scan NOC queue ([ADR 0006](adr/0006-handoff-promise-miss-noc.md)).  
+**Model:** `local-20260818T041243Z` (8 Optuna trials on full public Olist).  
+**Target:** `promise_miss` = customer delivery after `order_estimated_delivery_date`.  
+**Decision time:** `handoff_ts = order_delivered_carrier_date`. Splits and PIT history use that clock.  
+**Machine-readable:** `artifacts/eval_report.json` / `artifacts/model_meta.json` (gitignored).
 
-**Model:** `local-20260816T082828Z` (long_delivery champion; superseded as hero)  
-**Target (historical):** `long_delivery` = delivery takes **> 14 days** from approval  
-**Machine-readable:** `artifacts/business_assessment.json` (gitignored; regenerate via script below)
+Exec KPIs for the demo are **$ / customer / dates under versioned simulation assumptions** — not PR-AUC. See [limitations-assumptions-proxies.md](limitations-assumptions-proxies.md). `allow_causal_roi_claims: false`.
 
-## Ranking quality (test)
+## Ranking quality (test, n=14,471)
 
-| Metric | Value |
-|---|---:|
-| PR-AUC | 0.531 |
-| ROC-AUC | 0.796 |
+| Metric | Value | Bootstrap 95% CI |
+|---|---:|---|
+| PR-AUC | **0.296** | 0.264 – 0.329 |
+| ROC-AUC | **0.816** | 0.799 – 0.833 |
+| Brier | 0.038 | 0.035 – 0.041 |
 
-## Base rate
+Valid (threshold-setting) PR-AUC **0.478** / ROC-AUC **0.838**.
 
-| Split | n | Positives | Base rate |
+This is **not** the ADR 0005 long-delivery ranker (test PR-AUC ~0.53 on a 20%+ duration label). Promise-miss is rarer and operationally the right OTIF question. Handoff clocks lift it well above the approval-time promise-miss baseline (~0.10–0.20).
+
+## Base rate (temporal shift)
+
+| Split | n | Misses | Base rate |
 |---|---:|---:|---:|
-| Train | 57,887 | 19,729 | **34.1%** |
-| Valid | 14,471 | 4,779 | **33.0%** |
-| Test | 14,471 | 2,956 | **20.4%** |
-| All labeled | 96,476 | 28,261 | **29.3%** |
+| Train | 57,886 | 4,502 | **7.8%** |
+| Valid | 14,471 | 1,773 | **12.3%** |
+| Test | 14,471 | 669 | **4.6%** |
+| Replay | 9,647 | 882 | **9.1%** |
+| All labeled | 96,475 | 7,826 | **8.1%** |
 
-Test base rate is lower than train/valid (temporal regime shift). Compare precision to the **test** base rate.
+Test miss rate is lower than train/valid. Compare precision to the **test** base rate. Persisted policy thresholds come from **validation scores**, so the later test book is a harder, lower-score regime (P1 queue will be smaller than 2.5% of later volume).
 
-## Top-risk segment (test, capacity = 10%)
+## Queue / capacity (test)
 
-Flag top **1,447 / 14,471** orders by predicted risk.
+Flag by predicted risk. Policy bands use **validation** score cutoffs, not these test-set percentiles.
 
-| Metric | Value |
-|---|---:|
-| Precision @ 10% | **64.7%** |
-| Recall @ 10% | **31.7%** |
-| Lift vs test base rate | **3.17×** (64.7% / 20.4%) |
-| Random 10% precision (ref) | ~20.8% |
-| Mean P(risk) in flagged | 0.67 |
-| Mean basket (flagged) | ~$190 (test overall ~$143) |
+| Capacity | n flagged | Precision | Recall | Lift vs 4.6% base |
+|---:|---:|---:|---:|---:|
+| 2.5% (P1-sized) | 361 | **41.6%** | 22.4% | **9.0×** |
+| 5% | 723 | 30.7% | 33.2% | 6.6× |
+| 7.5% | 1,085 | 25.1% | 40.7% | 5.4× |
+| 10% (P2-sized) | 1,447 | **22.2%** | 48.0% | **4.8×** |
 
-**Read:** among the highest-risk tenth of orders, about **2 in 3** are actually long deliveries, and that slice captures about **1 in 3** of all long deliveries — with **~3×** enrichment vs intervening at random.
+**Read:** among the highest-risk fortieth of later orders, about **2 in 5** actually miss the promise (~9× a random draw). The top tenth captures about **half** of test misses at ~5× enrichment.
+
+### Persisted policy thresholds (from validation scores)
+
+| Band | Capacity on valid | Score threshold | Valid precision |
+|---|---:|---:|---:|
+| P1 | top 2.5% | **0.5625** | 75.9% |
+| P2 | top 10% | **0.3155** | 50.7% |
+
+P0 (`remaining ≤ 0` → `LATE_NOTICE`) is a clock rule, not a ranker. P1 upgrade eligibility still requires `0 < remaining ≤ 7` and (`geo ≥ 100km` or not same state).
 
 ## Value / cost of intervention (simulated)
 
-These use the **example assumptions** from the deferred decision plan. They are **not** measured causal effects.
+These use **econ-sim-v3** placeholders. They are **not** measured causal effects.
 
 ```text
-loss_if_long = $10 + 0.10 × basket_value
+miss_cost = $10 + 0.10 × basket_value
+upgrade_cost = clip(freight × lognormal(median 0.50×, σ_log 0.35), min $5, max min($80, 8% basket))
 ```
 
-| Action | Unit cost | Assumed prevent / impact | Mean EV / flagged order | Total EV (top 10%) | Spend |
-|---|---:|---|---:|---:|---:|
-| EXPEDITE | $8 | 60% prevent | **+$3.86** | ~$5.6k | $11.6k |
-| CUSTOMER_NOTIFICATION | $1 | 0% prevent, 20% impact cut | **+$2.95** | ~$4.3k | $1.4k |
-| SELLER_ESCALATION | $4 | 35% prevent | **+$2.92** | ~$4.2k | $5.8k |
-| MANUAL_REVIEW | $5 | 30% prevent | **+$0.93** | ~$1.3k | $7.2k |
-| NO_ACTION | $0 | — | $0 | $0 | $0 |
+| Action | When | OTIF recovery in sim | Notes |
+|---|---|---|---|
+| `LATE_NOTICE` | P0 already past ETA | 0% | Honesty / revised ETA |
+| `REMAINING_LEG_UPGRADE` | P1 + eligible window/geo | versioned prevent rate | Freight-scaled **proxy** spend; human gate if cost ≥ $20 |
+| `AT_RISK_NOTICE` | P1 ineligible or P2 | 0% OTIF; impact reduction only | CS / revised ETA |
+| `NO_ACTION` | P3 | — | — |
 
-EV for prevention actions: `P(risk) × prevent × loss − cost`  
-EV for notification: `P(risk) × loss × impact_reduction − cost`
-
-Under these assumptions, intervening on the **top 10%** looks **positive-EV** for EXPEDITE / notification / escalation; MANUAL_REVIEW is marginal. H9/H10 are approved as **simulation defaults** ([h9-h10-economics-gate.md](h9-h10-economics-gate.md)); causal ROI claims remain disallowed.
+Do not present net simulated $ as P&L. H9/H10 remain **simulation defaults** ([h9-h10-economics-gate.md](h9-h10-economics-gate.md)).
 
 ## Business read
 
-- Ranking is strong enough for a capacity-constrained ops demo.
-- The actionable story is **enrichment at a budgeted flag rate** (precision/lift @ 10%), not overall accuracy.
-- Decision layer (D1–D13) is shipped; check `make economics-gate` before claiming ROI.
+- Lead with **exception queue + remaining-leg window**, not overall accuracy.
+- Ranking is strong enough for a capacity-constrained NOC demo on a ~5% later-period miss rate.
+- Temporal base-rate shift is a feature of the story (valid vs test), not something to hide.
+- Agent **copies** the frozen NOC action (`noc-handoff-policy-v1`). It does not re-argmax EV.
+
+## Appendix — superseded hero (ADR 0005 long-delivery)
+
+Approval-time `long_delivery` (>14d duration) test PR-AUC **0.531** / ROC-AUC **0.796**, test base **20.4%**, precision @ 10% **64.7%**. Still the PIT source for `seller_late_rate_*`. Do not lead an interview with those numbers.
 
 ## Regenerate
 
 ```bash
-# After train, from repo root — or re-run the assessment snippet that writes
-# artifacts/business_assessment.json
 uv run python -m olist_ml.training.pipeline --data-dir data/raw --trials 25
+# then read artifacts/eval_report.json and artifacts/model_meta.json
 ```

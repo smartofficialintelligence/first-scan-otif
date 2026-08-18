@@ -34,7 +34,12 @@ def set_service(service: PredictionService) -> None:
     _service = service
 
 
-def predict_long_delivery(
+def _iso(value: str | None) -> datetime | None:
+    return datetime.fromisoformat(value) if value else None
+
+
+def _score_kwargs(
+    *,
     order_id: str,
     seller_id: str,
     purchase_timestamp: str,
@@ -56,34 +61,102 @@ def predict_long_delivery(
     seller_late_rate_7d: float | None = None,
     seller_late_rate_30d: float | None = None,
     seller_late_rate_90d: float | None = None,
+    handling_days: float | None = None,
+    remaining_to_promise_days: float | None = None,
+    handling_frac_of_promise: float | None = None,
+    limit_miss: float | None = None,
+    same_state: float | None = None,
+) -> dict[str, Any]:
+    return {
+        "order_id": order_id,
+        "seller_id": seller_id,
+        "purchase_timestamp": datetime.fromisoformat(purchase_timestamp),
+        "prediction_timestamp": _iso(prediction_timestamp),
+        "item_count": item_count,
+        "basket_value": basket_value,
+        "freight_value": freight_value,
+        "seller_count": seller_count,
+        "category_count": category_count,
+        "payment_type_primary": payment_type_primary,
+        "installment_count": installment_count,
+        "estimated_delivery_horizon_days": estimated_delivery_horizon_days,
+        "customer_state": customer_state,
+        "seller_state_primary": seller_state_primary,
+        "geo_distance_km": geo_distance_km,
+        "seller_order_count_7d": seller_order_count_7d,
+        "seller_order_count_30d": seller_order_count_30d,
+        "seller_order_count_90d": seller_order_count_90d,
+        "seller_late_rate_7d": seller_late_rate_7d,
+        "seller_late_rate_30d": seller_late_rate_30d,
+        "seller_late_rate_90d": seller_late_rate_90d,
+        "handling_days": handling_days,
+        "remaining_to_promise_days": remaining_to_promise_days,
+        "handling_frac_of_promise": handling_frac_of_promise,
+        "limit_miss": limit_miss,
+        "same_state": same_state,
+    }
+
+
+def predict_promise_miss(
+    order_id: str,
+    seller_id: str,
+    purchase_timestamp: str,
+    item_count: int,
+    basket_value: float,
+    freight_value: float,
+    estimated_delivery_horizon_days: float,
+    prediction_timestamp: str | None = None,
+    seller_count: int = 1,
+    category_count: int = 1,
+    payment_type_primary: str = "unknown",
+    installment_count: int = 1,
+    customer_state: str = "unknown",
+    seller_state_primary: str = "unknown",
+    geo_distance_km: float = 0.0,
+    seller_order_count_7d: float | None = None,
+    seller_order_count_30d: float | None = None,
+    seller_order_count_90d: float | None = None,
+    seller_late_rate_7d: float | None = None,
+    seller_late_rate_30d: float | None = None,
+    seller_late_rate_90d: float | None = None,
+    handling_days: float | None = None,
+    remaining_to_promise_days: float | None = None,
+    handling_frac_of_promise: float | None = None,
+    limit_miss: float | None = None,
+    same_state: float | None = None,
     service: PredictionService | None = None,
 ) -> dict[str, Any]:
-    """Score late-delivery risk for one order via PredictionService.predict_one."""
+    """Score promise-miss risk at carrier handoff via PredictionService.predict_one."""
     svc = service or get_service()
     req = PredictRequest(
-        order_id=order_id,
-        seller_id=seller_id,
-        purchase_timestamp=datetime.fromisoformat(purchase_timestamp),
-        prediction_timestamp=(
-            datetime.fromisoformat(prediction_timestamp) if prediction_timestamp else None
-        ),
-        item_count=item_count,
-        basket_value=basket_value,
-        freight_value=freight_value,
-        seller_count=seller_count,
-        category_count=category_count,
-        payment_type_primary=payment_type_primary,
-        installment_count=installment_count,
-        estimated_delivery_horizon_days=estimated_delivery_horizon_days,
-        customer_state=customer_state,
-        seller_state_primary=seller_state_primary,
-        geo_distance_km=geo_distance_km,
-        seller_order_count_7d=seller_order_count_7d,
-        seller_order_count_30d=seller_order_count_30d,
-        seller_order_count_90d=seller_order_count_90d,
-        seller_late_rate_7d=seller_late_rate_7d,
-        seller_late_rate_30d=seller_late_rate_30d,
-        seller_late_rate_90d=seller_late_rate_90d,
+        **_score_kwargs(
+            order_id=order_id,
+            seller_id=seller_id,
+            purchase_timestamp=purchase_timestamp,
+            item_count=item_count,
+            basket_value=basket_value,
+            freight_value=freight_value,
+            estimated_delivery_horizon_days=estimated_delivery_horizon_days,
+            prediction_timestamp=prediction_timestamp,
+            seller_count=seller_count,
+            category_count=category_count,
+            payment_type_primary=payment_type_primary,
+            installment_count=installment_count,
+            customer_state=customer_state,
+            seller_state_primary=seller_state_primary,
+            geo_distance_km=geo_distance_km,
+            seller_order_count_7d=seller_order_count_7d,
+            seller_order_count_30d=seller_order_count_30d,
+            seller_order_count_90d=seller_order_count_90d,
+            seller_late_rate_7d=seller_late_rate_7d,
+            seller_late_rate_30d=seller_late_rate_30d,
+            seller_late_rate_90d=seller_late_rate_90d,
+            handling_days=handling_days,
+            remaining_to_promise_days=remaining_to_promise_days,
+            handling_frac_of_promise=handling_frac_of_promise,
+            limit_miss=limit_miss,
+            same_state=same_state,
+        )
     )
     return svc.predict_one(req).model_dump(mode="json")
 
@@ -100,7 +173,7 @@ def get_model_metrics(service: PredictionService | None = None) -> dict[str, Any
     return svc.model_info().model_dump(mode="json")
 
 
-def explain_long_delivery(
+def explain_promise_miss(
     order_id: str,
     seller_id: str,
     purchase_timestamp: str,
@@ -122,34 +195,44 @@ def explain_long_delivery(
     seller_late_rate_7d: float | None = None,
     seller_late_rate_30d: float | None = None,
     seller_late_rate_90d: float | None = None,
+    handling_days: float | None = None,
+    remaining_to_promise_days: float | None = None,
+    handling_frac_of_promise: float | None = None,
+    limit_miss: float | None = None,
+    same_state: float | None = None,
     service: PredictionService | None = None,
 ) -> dict[str, Any]:
     """Stub feature explanation via PredictionService.explain_one (same as REST /v1/explain)."""
     svc = service or get_service()
     req = ExplainRequest(
-        order_id=order_id,
-        seller_id=seller_id,
-        purchase_timestamp=datetime.fromisoformat(purchase_timestamp),
-        prediction_timestamp=(
-            datetime.fromisoformat(prediction_timestamp) if prediction_timestamp else None
-        ),
-        item_count=item_count,
-        basket_value=basket_value,
-        freight_value=freight_value,
-        seller_count=seller_count,
-        category_count=category_count,
-        payment_type_primary=payment_type_primary,
-        installment_count=installment_count,
-        estimated_delivery_horizon_days=estimated_delivery_horizon_days,
-        customer_state=customer_state,
-        seller_state_primary=seller_state_primary,
-        geo_distance_km=geo_distance_km,
-        seller_order_count_7d=seller_order_count_7d,
-        seller_order_count_30d=seller_order_count_30d,
-        seller_order_count_90d=seller_order_count_90d,
-        seller_late_rate_7d=seller_late_rate_7d,
-        seller_late_rate_30d=seller_late_rate_30d,
-        seller_late_rate_90d=seller_late_rate_90d,
+        **_score_kwargs(
+            order_id=order_id,
+            seller_id=seller_id,
+            purchase_timestamp=purchase_timestamp,
+            item_count=item_count,
+            basket_value=basket_value,
+            freight_value=freight_value,
+            estimated_delivery_horizon_days=estimated_delivery_horizon_days,
+            prediction_timestamp=prediction_timestamp,
+            seller_count=seller_count,
+            category_count=category_count,
+            payment_type_primary=payment_type_primary,
+            installment_count=installment_count,
+            customer_state=customer_state,
+            seller_state_primary=seller_state_primary,
+            geo_distance_km=geo_distance_km,
+            seller_order_count_7d=seller_order_count_7d,
+            seller_order_count_30d=seller_order_count_30d,
+            seller_order_count_90d=seller_order_count_90d,
+            seller_late_rate_7d=seller_late_rate_7d,
+            seller_late_rate_30d=seller_late_rate_30d,
+            seller_late_rate_90d=seller_late_rate_90d,
+            handling_days=handling_days,
+            remaining_to_promise_days=remaining_to_promise_days,
+            handling_frac_of_promise=handling_frac_of_promise,
+            limit_miss=limit_miss,
+            same_state=same_state,
+        )
     )
     return svc.explain_one(req).model_dump(mode="json")
 
@@ -173,8 +256,7 @@ def create_mcp_server():
         ),
     )
 
-    @server.tool(name="predict_long_delivery")
-    def _predict(
+    def _predict_impl(
         order_id: str,
         seller_id: str,
         purchase_timestamp: str,
@@ -196,9 +278,13 @@ def create_mcp_server():
         seller_late_rate_7d: float | None = None,
         seller_late_rate_30d: float | None = None,
         seller_late_rate_90d: float | None = None,
+        handling_days: float | None = None,
+        remaining_to_promise_days: float | None = None,
+        handling_frac_of_promise: float | None = None,
+        limit_miss: float | None = None,
+        same_state: float | None = None,
     ) -> dict[str, Any]:
-        """Score long-delivery probability for an order."""
-        return predict_long_delivery(
+        return predict_promise_miss(
             order_id=order_id,
             seller_id=seller_id,
             purchase_timestamp=purchase_timestamp,
@@ -220,6 +306,70 @@ def create_mcp_server():
             seller_late_rate_7d=seller_late_rate_7d,
             seller_late_rate_30d=seller_late_rate_30d,
             seller_late_rate_90d=seller_late_rate_90d,
+            handling_days=handling_days,
+            remaining_to_promise_days=remaining_to_promise_days,
+            handling_frac_of_promise=handling_frac_of_promise,
+            limit_miss=limit_miss,
+            same_state=same_state,
+        )
+
+    @server.tool(name="predict_promise_miss")
+    def _predict_promise_miss(
+        order_id: str,
+        seller_id: str,
+        purchase_timestamp: str,
+        item_count: int,
+        basket_value: float,
+        freight_value: float,
+        estimated_delivery_horizon_days: float,
+        prediction_timestamp: str | None = None,
+        seller_count: int = 1,
+        category_count: int = 1,
+        payment_type_primary: str = "unknown",
+        installment_count: int = 1,
+        customer_state: str = "unknown",
+        seller_state_primary: str = "unknown",
+        geo_distance_km: float = 0.0,
+        seller_order_count_7d: float | None = None,
+        seller_order_count_30d: float | None = None,
+        seller_order_count_90d: float | None = None,
+        seller_late_rate_7d: float | None = None,
+        seller_late_rate_30d: float | None = None,
+        seller_late_rate_90d: float | None = None,
+        handling_days: float | None = None,
+        remaining_to_promise_days: float | None = None,
+        handling_frac_of_promise: float | None = None,
+        limit_miss: float | None = None,
+        same_state: float | None = None,
+    ) -> dict[str, Any]:
+        """Score promise-miss probability at first carrier scan."""
+        return _predict_impl(
+            order_id=order_id,
+            seller_id=seller_id,
+            purchase_timestamp=purchase_timestamp,
+            item_count=item_count,
+            basket_value=basket_value,
+            freight_value=freight_value,
+            estimated_delivery_horizon_days=estimated_delivery_horizon_days,
+            prediction_timestamp=prediction_timestamp,
+            seller_count=seller_count,
+            category_count=category_count,
+            payment_type_primary=payment_type_primary,
+            installment_count=installment_count,
+            customer_state=customer_state,
+            seller_state_primary=seller_state_primary,
+            geo_distance_km=geo_distance_km,
+            seller_order_count_7d=seller_order_count_7d,
+            seller_order_count_30d=seller_order_count_30d,
+            seller_order_count_90d=seller_order_count_90d,
+            seller_late_rate_7d=seller_late_rate_7d,
+            seller_late_rate_30d=seller_late_rate_30d,
+            seller_late_rate_90d=seller_late_rate_90d,
+            handling_days=handling_days,
+            remaining_to_promise_days=remaining_to_promise_days,
+            handling_frac_of_promise=handling_frac_of_promise,
+            limit_miss=limit_miss,
+            same_state=same_state,
         )
 
     @server.tool(name="get_model_status")
@@ -232,8 +382,7 @@ def create_mcp_server():
         """Return model metadata including training metrics when available."""
         return get_model_metrics()
 
-    @server.tool(name="explain_long_delivery")
-    def _explain(
+    def _explain_impl(
         order_id: str,
         seller_id: str,
         purchase_timestamp: str,
@@ -255,9 +404,13 @@ def create_mcp_server():
         seller_late_rate_7d: float | None = None,
         seller_late_rate_30d: float | None = None,
         seller_late_rate_90d: float | None = None,
+        handling_days: float | None = None,
+        remaining_to_promise_days: float | None = None,
+        handling_frac_of_promise: float | None = None,
+        limit_miss: float | None = None,
+        same_state: float | None = None,
     ) -> dict[str, Any]:
-        """Return a stub feature explanation (same path as REST /v1/explain)."""
-        return explain_long_delivery(
+        return explain_promise_miss(
             order_id=order_id,
             seller_id=seller_id,
             purchase_timestamp=purchase_timestamp,
@@ -279,6 +432,70 @@ def create_mcp_server():
             seller_late_rate_7d=seller_late_rate_7d,
             seller_late_rate_30d=seller_late_rate_30d,
             seller_late_rate_90d=seller_late_rate_90d,
+            handling_days=handling_days,
+            remaining_to_promise_days=remaining_to_promise_days,
+            handling_frac_of_promise=handling_frac_of_promise,
+            limit_miss=limit_miss,
+            same_state=same_state,
+        )
+
+    @server.tool(name="explain_promise_miss")
+    def _explain_promise_miss(
+        order_id: str,
+        seller_id: str,
+        purchase_timestamp: str,
+        item_count: int,
+        basket_value: float,
+        freight_value: float,
+        estimated_delivery_horizon_days: float,
+        prediction_timestamp: str | None = None,
+        seller_count: int = 1,
+        category_count: int = 1,
+        payment_type_primary: str = "unknown",
+        installment_count: int = 1,
+        customer_state: str = "unknown",
+        seller_state_primary: str = "unknown",
+        geo_distance_km: float = 0.0,
+        seller_order_count_7d: float | None = None,
+        seller_order_count_30d: float | None = None,
+        seller_order_count_90d: float | None = None,
+        seller_late_rate_7d: float | None = None,
+        seller_late_rate_30d: float | None = None,
+        seller_late_rate_90d: float | None = None,
+        handling_days: float | None = None,
+        remaining_to_promise_days: float | None = None,
+        handling_frac_of_promise: float | None = None,
+        limit_miss: float | None = None,
+        same_state: float | None = None,
+    ) -> dict[str, Any]:
+        """Return a stub feature explanation (same path as REST /v1/explain)."""
+        return _explain_impl(
+            order_id=order_id,
+            seller_id=seller_id,
+            purchase_timestamp=purchase_timestamp,
+            item_count=item_count,
+            basket_value=basket_value,
+            freight_value=freight_value,
+            estimated_delivery_horizon_days=estimated_delivery_horizon_days,
+            prediction_timestamp=prediction_timestamp,
+            seller_count=seller_count,
+            category_count=category_count,
+            payment_type_primary=payment_type_primary,
+            installment_count=installment_count,
+            customer_state=customer_state,
+            seller_state_primary=seller_state_primary,
+            geo_distance_km=geo_distance_km,
+            seller_order_count_7d=seller_order_count_7d,
+            seller_order_count_30d=seller_order_count_30d,
+            seller_order_count_90d=seller_order_count_90d,
+            seller_late_rate_7d=seller_late_rate_7d,
+            seller_late_rate_30d=seller_late_rate_30d,
+            seller_late_rate_90d=seller_late_rate_90d,
+            handling_days=handling_days,
+            remaining_to_promise_days=remaining_to_promise_days,
+            handling_frac_of_promise=handling_frac_of_promise,
+            limit_miss=limit_miss,
+            same_state=same_state,
         )
 
     @server.tool(name="get_order_risk")
@@ -304,8 +521,13 @@ def create_mcp_server():
         seller_late_rate_7d: float | None = None,
         seller_late_rate_30d: float | None = None,
         seller_late_rate_90d: float | None = None,
+        handling_days: float | None = None,
+        remaining_to_promise_days: float | None = None,
+        handling_frac_of_promise: float | None = None,
+        limit_miss: float | None = None,
+        same_state: float | None = None,
     ) -> dict[str, Any]:
-        """Alias of predict_long_delivery for agent tool naming."""
+        """Score promise-miss risk (same path as predict_promise_miss)."""
         return dtools.get_order_risk(
             order_id=order_id,
             seller_id=seller_id,
@@ -328,6 +550,11 @@ def create_mcp_server():
             seller_late_rate_7d=seller_late_rate_7d,
             seller_late_rate_30d=seller_late_rate_30d,
             seller_late_rate_90d=seller_late_rate_90d,
+            handling_days=handling_days,
+            remaining_to_promise_days=remaining_to_promise_days,
+            handling_frac_of_promise=handling_frac_of_promise,
+            limit_miss=limit_miss,
+            same_state=same_state,
         )
 
     @server.tool(name="list_available_actions")
@@ -338,13 +565,13 @@ def create_mcp_server():
     @server.tool(name="calculate_action_value")
     def _calc_value(
         action: str,
-        long_delivery_probability: float,
+        promise_miss_probability: float,
         basket_value: float,
     ) -> dict[str, Any]:
-        """Compute expected value for one approved action (simulation assumptions)."""
+        """Score one approved action under simulation assumptions (not causal)."""
         return dtools.calculate_action_value(
             action=action,
-            probability=long_delivery_probability,
+            probability=promise_miss_probability,
             basket_value=basket_value,
         )
 
@@ -371,6 +598,11 @@ def create_mcp_server():
         seller_late_rate_7d: float | None = None,
         seller_late_rate_30d: float | None = None,
         seller_late_rate_90d: float | None = None,
+        handling_days: float | None = None,
+        remaining_to_promise_days: float | None = None,
+        handling_frac_of_promise: float | None = None,
+        limit_miss: float | None = None,
+        same_state: float | None = None,
         persist_ledger: bool = True,
     ) -> dict[str, Any]:
         """Predict then recommend an action via the deterministic NOC policy."""
@@ -397,6 +629,11 @@ def create_mcp_server():
             seller_late_rate_30d=seller_late_rate_30d,
             seller_late_rate_90d=seller_late_rate_90d,
             persist_ledger=persist_ledger,
+            remaining_to_promise_days=remaining_to_promise_days,
+            handling_days=handling_days,
+            handling_frac_of_promise=handling_frac_of_promise,
+            limit_miss=limit_miss,
+            same_state=same_state,
         )
 
     @server.tool(name="execute_simulated_action")
@@ -407,8 +644,8 @@ def create_mcp_server():
         action: str,
         model_version: str,
         policy_version: str,
-        observed_long_delivery: bool,
         basket_value: float,
+        observed_promise_miss: bool,
         expected_net_value: float | None = None,
         persist_ledger: bool = True,
     ) -> dict[str, Any]:
@@ -420,7 +657,7 @@ def create_mcp_server():
             action=action,
             model_version=model_version,
             policy_version=policy_version,
-            observed_long_delivery=observed_long_delivery,
+            observed_promise_miss=observed_promise_miss,
             basket_value=basket_value,
             expected_net_value=expected_net_value,
             persist_ledger=persist_ledger,

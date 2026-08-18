@@ -18,15 +18,11 @@ def business_loss_if_miss(basket_value: float, cfg: BusinessLossConfig) -> float
     return float(cfg.fixed_miss_cost + cfg.order_value_loss_rate * basket_value)
 
 
-# Back-compat alias used by a few replay helpers.
-business_loss_if_long = business_loss_if_miss
-
-
 def score_action(
     *,
     action: ActionEconomics,
     probability: float,
-    loss_if_long: float,
+    loss_if_miss: float,
     cost_override: float | None = None,
 ) -> ActionCandidate:
     """
@@ -43,8 +39,8 @@ def score_action(
     """
     if not 0.0 <= probability <= 1.0:
         raise ValueError("probability must be in [0, 1]")
-    if loss_if_long < 0:
-        raise ValueError("loss_if_long must be >= 0")
+    if loss_if_miss < 0:
+        raise ValueError("loss_if_miss must be >= 0")
 
     cost = float(action.cost if cost_override is None else cost_override)
 
@@ -60,17 +56,17 @@ def score_action(
     if action.action in IMPACT_ONLY_ACTIONS or (
         action.risk_prevention_probability <= 0 and action.customer_impact_reduction > 0
     ):
-        avoided = probability * loss_if_long * action.customer_impact_reduction
+        avoided = probability * loss_if_miss * action.customer_impact_reduction
         formula = (
             "P(risk)*loss*customer_impact_reduction - cost "
-            f"= {probability:.4f}*{loss_if_long:.4f}*{action.customer_impact_reduction:.4f}"
+            f"= {probability:.4f}*{loss_if_miss:.4f}*{action.customer_impact_reduction:.4f}"
             f" - {cost:.4f}"
         )
     else:
-        avoided = probability * action.risk_prevention_probability * loss_if_long
+        avoided = probability * action.risk_prevention_probability * loss_if_miss
         formula = (
             "P(risk)*prevention*loss - cost "
-            f"= {probability:.4f}*{action.risk_prevention_probability:.4f}*{loss_if_long:.4f}"
+            f"= {probability:.4f}*{action.risk_prevention_probability:.4f}*{loss_if_miss:.4f}"
             f" - {cost:.4f}"
         )
 
@@ -97,7 +93,7 @@ def score_all_actions(
         score_action(
             action=econ,
             probability=probability,
-            loss_if_long=loss,
+            loss_if_miss=loss,
             cost_override=overrides.get(econ.action),
         )
         for econ in config.actions.values()

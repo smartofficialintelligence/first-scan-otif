@@ -21,7 +21,7 @@ def derive_seed(*parts: str, base_seed: int = 42) -> int:
 def simulate_intervention(
     *,
     action: ActionEconomics,
-    observed_long_delivery: bool,
+    observed_promise_miss: bool,
     basket_value: float,
     loss_cfg: BusinessLossConfig,
     seed: int,
@@ -39,12 +39,12 @@ def simulate_intervention(
     if action.action == ActionType.NO_ACTION:
         return {
             "intervention_success": None,
-            "simulated_long_delivery": bool(observed_long_delivery),
+            "simulated_promise_miss": bool(observed_promise_miss),
             "simulated_impact_loss_reduction": 0.0,
             "simulated_cost": 0.0,
             "simulated_gross_avoided_loss": 0.0,
             "simulated_net_value": 0.0,
-            "business_loss_if_long": loss,
+            "business_loss_if_miss": loss,
         }
 
     # Impact-only: lateness unchanged; reduce realized customer-impact loss.
@@ -52,30 +52,30 @@ def simulate_intervention(
         action.risk_prevention_probability <= 0 and action.customer_impact_reduction > 0
     ):
         impact = float(action.customer_impact_reduction)
-        avoided = (loss * impact) if observed_long_delivery else 0.0
+        avoided = (loss * impact) if observed_promise_miss else 0.0
         return {
             "intervention_success": None,
-            "simulated_long_delivery": bool(observed_long_delivery),
+            "simulated_promise_miss": bool(observed_promise_miss),
             "simulated_impact_loss_reduction": avoided,
             "simulated_cost": cost,
             "simulated_gross_avoided_loss": avoided,
             "simulated_net_value": avoided - cost,
-            "business_loss_if_long": loss,
+            "business_loss_if_miss": loss,
         }
 
     success = False
-    simulated_long = bool(observed_long_delivery)
-    if observed_long_delivery and action.risk_prevention_probability > 0:
+    simulated_miss = bool(observed_promise_miss)
+    if observed_promise_miss and action.risk_prevention_probability > 0:
         success = bool(rng.random() < action.risk_prevention_probability)
         if success:
-            simulated_long = False
-    avoided = loss if (observed_long_delivery and success) else 0.0
+            simulated_miss = False
+    avoided = loss if (observed_promise_miss and success) else 0.0
     return {
-        "intervention_success": success if observed_long_delivery else None,
-        "simulated_long_delivery": simulated_long,
+        "intervention_success": success if observed_promise_miss else None,
+        "simulated_promise_miss": simulated_miss,
         "simulated_impact_loss_reduction": 0.0,
         "simulated_cost": cost,
         "simulated_gross_avoided_loss": avoided,
         "simulated_net_value": avoided - cost,
-        "business_loss_if_long": loss,
+        "business_loss_if_miss": loss,
     }

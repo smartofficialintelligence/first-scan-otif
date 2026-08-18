@@ -1,7 +1,7 @@
 version: 2
 
 models:
-      - name: fct_order_labels
+  - name: fct_order_labels
     description: Promise-miss labels at first carrier scan (ADR 0006).
     columns:
       - name: order_id
@@ -10,14 +10,15 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: [0, 1]
-              quote: false
+              arguments:
+                values: [0, 1]
+                quote: false
       - name: handoff_ts
         tests: [not_null]
       - name: prediction_ts
         tests: [not_null]
 
-      - name: fct_order_features
+  - name: fct_order_features
     description: PIT-safe order features + promise_miss label for training (at handoff_ts).
     columns:
       - name: order_id
@@ -32,21 +33,22 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: [0, 1]
-              quote: false
+              arguments:
+                values: [0, 1]
+                quote: false
       - name: seller_order_count_30d
         tests: [not_null]
       - name: seller_late_rate_30d
         tests: [not_null]
 
   - name: int_seller_history
-    description: Seller rolling history strictly before each order.
+    description: Seller rolling history strictly before each order handoff.
     columns:
       - name: order_id
         tests: [unique, not_null]
 
   - name: fct_seller_features
-    description: Seller-grain feature rows for Feast (entity seller_id, event_timestamp).
+    description: Seller-grain feature rows for Feast (entity seller_id, event_timestamp=handoff_ts).
     columns:
       - name: seller_id
         tests: [not_null]

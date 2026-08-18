@@ -109,9 +109,9 @@ ARCHITECTURE/COST/RUNBOOK actuals placeholders, demo script, teardown commands v
 
 ## Deferred — Decision + agentic action layer
 
-**Status:** COMPLETE on `main`. H9/H10 approved as **simulation defaults** (`econ-sim-v2`); causal ROI still disallowed. H2 audit recorded in [h2-feature-audit.md](h2-feature-audit.md).
+**Status:** COMPLETE on `main`, then **retargeted** by [ADR 0006](adr/0006-handoff-promise-miss-noc.md). H9/H10 approved as **simulation defaults** (`econ-sim-v3`); causal ROI still disallowed. H2 audit amended for `handoff_ts` PIT in [h2-feature-audit.md](h2-feature-audit.md).
 
-Full instruction set (D1–D13):  
-[followup-decision-agentic-layer.md](followup-decision-agentic-layer.md)
+Historical EV-argmax spec (D1–D13):  
+[followup-decision-agentic-layer.md](followup-decision-agentic-layer.md) — do not implement EV-argmax as the hero path.
 
-**Shipped:** EV policy + ActionExecutor + ledger + replay + REST + MCP + LangGraph agent review + human gate + local evals + optional LangSmith + decision-eval Airflow stub + demo harness. Interviewer sequence: [demo-script.md](demo-script.md) Demo 7.
+**Shipped:** promise-miss at first carrier scan + deterministic NOC bands P0–P3 + ActionExecutor + ledger + replay + REST + MCP + LangGraph agent that **copies** the frozen action + human gate on upgrade spend + local evals + optional LangSmith + decision-eval Airflow stub + demo harness. Interviewer sequence: [demo-script.md](demo-script.md) Demo 7.
