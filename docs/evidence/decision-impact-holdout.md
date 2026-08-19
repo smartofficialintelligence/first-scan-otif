@@ -26,3 +26,23 @@ On this ledger the frozen NOC policy performed 196 late notices, 338 at-risk not
 - Net simulated value: **$550.34**
 
 _Simulated under econ-sim-v3. Not observed P&L and not a causal ROI claim. Upgrade flips use an assumed Bernoulli prevent rate; notices do not change on-time status or days late._
+
+## Policy comparison — same 9,647 orders, three policies
+
+The replay runs every order through three policies with the same seeds, so the frozen NOC policy is judged against real alternatives, not against zero.
+
+| | Do nothing | Naive threshold (score ≥ 0.70, notice only) | **Frozen NOC policy (P0–P3)** |
+|---|---:|---:|---:|
+| Interventions (rate) | 0 | 257 (2.7%) | **630 (6.5%)** |
+| Precision of interventions | — | 99.2% | 67.3% |
+| Observed misses reached | 0% | 28.9% | **48.1%** |
+| Moved late → on-time | 0 | 0 | **27** |
+| Delay-days avoided | 0 | 0 | **88.8** |
+| Simulated spend | $0 | $257 | $1,432 |
+| Net simulated value | $0 | $906 | $550 |
+
+The naive threshold **"wins" on simulated net value — and changes nothing physical.** It only sends $1 notices, whose value here is an assumed customer-impact reduction; it never upgrades a shipment, so zero deliveries actually arrive on time that wouldn't have. The NOC policy spends real (simulated) money on remaining-leg upgrades and is the only arm that moves outcomes: 27 deliveries on-time, 88.8 delay-days avoided, while reaching 48% of misses instead of 29%.
+
+That asymmetry is the argument for the design: the policy is a **banded capacity rule, not an EV-argmax** — under any economics where notices are cheap and credited with soft impact, EV-argmax degenerates into notice-spam that optimizes the simulation instead of the delivery. It is also the argument for the standing caveat: which column you prefer depends entirely on assumed notice-impact and upgrade-prevention rates (`econ-sim-v3`), and the way to settle it is an experiment on the actions — not a bigger simulation.
+
+_Simulated under econ-sim-v3. Not observed P&L and not a causal ROI claim._
