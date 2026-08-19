@@ -1,9 +1,9 @@
 # GCP serving proof
 
 One live Cloud Run + Cloud Monitoring run of the champion promise-miss API.
-Turned **on**, exercised, recorded here, then turned **off**. Redis / Vertex Endpoint / Composer were not created.
+Turned **on** and exercised. Redis / Vertex Endpoint / Composer were not created.
 
-Captured: `2026-08-18T23:56:30Z` (UTC)
+Captured: `2026-08-19T01:17:59Z` (UTC)
 
 ## What was on
 
@@ -12,13 +12,13 @@ Captured: `2026-08-18T23:56:30Z` (UTC)
 | Region | `us-central1` |
 | Cloud Run service | `olist-ml-api` |
 | URI | `https://olist-ml-api-dmkg75dg4a-uc.a.run.app` |
-| Image | `us-central1-docker.pkg.dev/<gcp-project>/olist-ml/api:20260818T235214Z` |
-| Live revision image | `us-central1-docker.pkg.dev/<gcp-project>/olist-ml/api:20260818T235214Z` |
+| Image | `us-central1-docker.pkg.dev/<gcp-project>/olist-ml/api:20260819T011400Z` |
+| Live revision image | `us-central1-docker.pkg.dev/<gcp-project>/olist-ml/api:20260819T011400Z` |
 | Min instances | `0` (Terraform `min_instance_count = 0`) |
 | Auth | Not public. Identity token as `roles/run.invoker` (IAM). App `AUTH_MODE=off`. |
-| Dashboard | `projects/345139826011/dashboards/9472f8c6-59c5-4bdd-aa9c-2c64256eb106` |
+| Dashboard | `projects/345139826011/dashboards/c7652114-a27f-4a7b-a414-9839a886a3c0` |
 | Dashboard display name | `olist-ml serving and ML` |
-| Turned on at | `2026-08-18T23:55:38Z` |
+| Turned on at | `2026-08-19T01:17:04Z` |
 
 ## REST
 
@@ -36,10 +36,10 @@ Champion artifact baked into the serving image: `artifacts/model.joblib` (`local
 
 ## MCP
 
-MCP is stdio (not an HTTP listener on Cloud Run). Smoke used the same local champion artifact the image was built from.
+Streamable HTTP on the same Cloud Run service (`POST /mcp`, identity token). Same `PredictionService` as REST.
 
 ```
-mcp_ready model=local-20260818T041243Z p=0.0171 band=low
+mcp_http model=local-20260818T041243Z p=0.0171 band=low
 ```
 
 ## Holdout replay through Cloud Run
@@ -51,7 +51,7 @@ mcp_ready model=local-20260818T041243Z p=0.0171 band=low
 | Rows | 50 |
 | HTTP 200 | 50 |
 | model_version values | local-20260818T041243Z |
-| p95 latency_ms (client) | 78.8 |
+| p95 latency_ms (client) | 81.2 |
 
 Log path (gitignored): `artifacts/prediction_logs_gcp.jsonl`
 
@@ -74,13 +74,3 @@ make gcp-down    # destroy Cloud Run + dashboard; keep registry + warehouse
 ```
 
 Warehouse (BigQuery / GCS / IAM) is independent and already applied.
-
-
-## Turned off
-
-- Timestamp (UTC): 2026-08-19T00:01:34Z
-- gcloud run services list names: (none)
-- Terraform cloud_run_uri: `null`
-- Terraform monitoring_dashboard_id: `null`
-- Artifact Registry and warehouse (BQ / GCS / IAM) were left in place so make gcp-up can turn serving back on.
-

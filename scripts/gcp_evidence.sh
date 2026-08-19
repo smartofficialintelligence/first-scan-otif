@@ -170,7 +170,7 @@ now = __import__("datetime").datetime.now(__import__("datetime").UTC).strftime("
 md = f"""# GCP serving proof
 
 One live Cloud Run + Cloud Monitoring run of the champion promise-miss API.
-Turned **on**, exercised, recorded here, then turned **off**. Redis / Vertex Endpoint / Composer were not created.
+Turned **on** and exercised. Redis / Vertex Endpoint / Composer were not created.
 
 Captured: `{now}` (UTC)
 
