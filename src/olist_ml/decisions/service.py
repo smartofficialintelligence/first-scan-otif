@@ -6,6 +6,7 @@ import os
 import subprocess
 import uuid
 from datetime import UTC, datetime
+from functools import lru_cache
 from pathlib import Path
 
 from olist_ml.decisions.economics import PolicyEconomicsConfig, load_policy_economics
@@ -15,6 +16,7 @@ from olist_ml.decisions.schemas import DecisionContext, DecisionResult
 from olist_ml.schemas import PredictResponse
 
 
+@lru_cache(maxsize=1)
 def _git_sha() -> str | None:
     env = os.environ.get("GIT_SHA") or os.environ.get("GITHUB_SHA")
     if env:

@@ -14,7 +14,7 @@ Walkthrough: [`ARCHITECTURE.md`](ARCHITECTURE.md) · Numbers: [`docs/business_as
 
 ### What is in production
 
-Champion model **`local-20260819T060630Z`** (isotonic-calibrated XGBoost) scored in-process on Cloud Run `olist-ml-api` (IAM-gated, min instances 0). Same process mounts **REST** and **MCP** (`POST /mcp`). Local: `make serve-local` on `:8080`. Teardown: `make gcp-down`.
+Champion model **`local-20260819T170145Z`** (isotonic-calibrated XGBoost) scored in-process on Cloud Run `olist-ml-api` (IAM-gated, min instances 0). Same process mounts **REST** and **MCP** (`POST /mcp`). Local: `make serve-local` on `:8080`. Teardown: `make gcp-down`.
 
 The **decision** in production is not “here is a probability.” It is a queue band: late notice, at-risk notice, remaining-leg upgrade proxy, or no action (`noc-handoff-policy-v1`). Promote, retrain, and spend above $20 stay with a person.
 
@@ -50,7 +50,7 @@ Olist CSVs → pandas feature table → train / calibrate / MLflow candidate
 
 ### Business impact (what is measured vs assumed)
 
-**Measured:** ranking quality for an exception queue on a later test window (n = 14,471, **4.6%** miss rate). Top **2.5%** of scores: **46.3%** precision, **10.0×** lift vs random. Top **10%**: **22.7%** precision, **4.9×** lift, ~half of misses. Test PR-AUC **0.320**, ROC-AUC **0.834**, Brier **0.037**.
+**Measured:** ranking quality for an exception queue on a later test window (n = 14,471, **4.6%** miss rate). Top **2.5%** of scores: **46.0%** precision, **10.0×** lift vs random. Top **10%**: **22.5%** precision, **4.9×** lift, ~half of misses. Test PR-AUC **0.310**, ROC-AUC **0.827**, Brier **0.037**.
 
 **Assumed, not causal:** miss cost, upgrade cost, and prevention rate (`econ-sim-v3`). Replay also credits **delay days avoided** when an upgrade Bernoulli succeeds (observed overrun, or a 6-day miss median). Notices do not change days late. No new EDD is invented. `allow_causal_roi_claims: false`. Intervention lift needs an experiment (switchback or A/B on the action). This repo does not fake one. Ranking lift is the KPI this slice earned.
 
@@ -84,27 +84,27 @@ REST and MCP share `PredictionService`. Agents do not get a second, undocumented
 
 ## Model quality and queue lift
 
-Champion **`local-20260819T060630Z`** (calibrated XGBoost, 25 Optuna trials; late rates use observed customer delivery only). Test **n = 14,471**, promise-miss rate **4.6%**.
+Champion **`local-20260819T170145Z`** (calibrated XGBoost, 100 Optuna trials; late rates use observed customer delivery only; validation split in half so calibration/early-stopping and threshold-freezing never share rows). Test **n = 14,471**, promise-miss rate **4.6%**.
 
 Lead with **exception-queue lift** (how much better the work list is than a random draw), then ranking/calibration. Accuracy on a rare miss is the wrong headline.
 
 | Capacity (test) | Precision | Recall | Lift vs 4.6% base |
 |---:|---:|---:|---:|
-| Top 2.5% (P1-sized queue) | **46.3%** | 25.0% | **10.0×** |
-| Top 10% (P2-sized queue) | **22.7%** | 49.0% | **4.9×** |
+| Top 2.5% (P1-sized queue) | **46.0%** | 24.8% | **10.0×** |
+| Top 10% (P2-sized queue) | **22.5%** | 48.7% | **4.9×** |
 
 Among the highest-risk fortieth of later orders, about **2 in 5** actually miss the promise. The top tenth captures about **half** of test misses. That is the capacity story for a NOC: scarce attention, ranked work.
 
 | Ranking / calibration | Test | Bootstrap 95% CI |
 |---|---:|---|
-| PR-AUC | **0.320** | 0.286 – 0.355 |
-| ROC-AUC | **0.834** | 0.817 – 0.849 |
-| Brier | 0.037 | 0.035 – 0.040 |
-| ECE | 0.014 | — |
+| PR-AUC | **0.310** | 0.276 – 0.343 |
+| ROC-AUC | **0.827** | 0.807 – 0.844 |
+| Brier | 0.037 | 0.034 – 0.040 |
+| ECE | 0.004 | — |
 
-Validation (where policy cutoffs are frozen): PR-AUC **0.455**, ROC-AUC **0.822**. Test miss rate is lower than validation (12.3% → 4.6%). Thresholds stay frozen rather than being re-fit on later traffic, so the queue definition does not silently drift with the base rate.
+The validation window is split in half by time: the earlier half fits early stopping and isotonic calibration; the later half — untouched by any fitting — freezes the policy cutoffs and is what "validation" metrics report (PR-AUC **0.356**, ROC-AUC **0.820**, miss rate 4.8% vs 4.6% on test). Thresholds stay frozen rather than being re-fit on later traffic, so the queue definition does not silently drift with the base rate.
 
-Policy cutoffs from validation scores: **P1 = 0.5989**, **P2 = 0.2963**.
+Policy cutoffs from held-out validation scores: **P1 = 0.5000**, **P2 = 0.2471**.
 
 ---
 
@@ -115,8 +115,8 @@ The model does not pick the action. A versioned policy (`noc-handoff-policy-v1`)
 | Band | Rule | Workflow action |
 |---|---|---|
 | **P0** | Remaining days to promise ≤ 0 | `LATE_NOTICE` (already late; clock rule, not a ranker) |
-| **P1** | Score ≥ 0.5989 | `REMAINING_LEG_UPGRADE` if eligible, else `AT_RISK_NOTICE` |
-| **P2** | Score ≥ 0.2963 | `AT_RISK_NOTICE` |
+| **P1** | Score ≥ 0.5000 | `REMAINING_LEG_UPGRADE` if eligible, else `AT_RISK_NOTICE` |
+| **P2** | Score ≥ 0.2471 | `AT_RISK_NOTICE` |
 | **P3** | Else | `NO_ACTION` |
 
 Upgrade eligibility (demo proxy, not a carrier SKU): P1 **and** `0 < remaining ≤ 7` days **and** (`geo ≥ 100 km` **or** not same state). Intervention cost ≥ **$20** waits for a person — high-stakes model-adjacent spend is not autonomous.
@@ -165,7 +165,7 @@ One FastAPI process so REST and MCP cannot diverge on **scoring** (`PredictionSe
 | `GET` | `/health` | Liveness |
 | `GET` | `/ready` | Artifact loaded + `model_version` |
 | `GET` | `/v1/model` | Metrics, P1/P2 thresholds |
-| `GET` | `/v1/metrics` | In-process counters plus ledger `business_sim` (action mix, late→on-time, spend) |
+| `GET` | `/v1/metrics` | In-process counters plus ledger `business_sim` (action mix, late→on-time, spend). Both are per-instance and reset on scale-to-zero — demo telemetry, not durable ops metrics on Cloud Run |
 | `POST` | `/v1/predict` | `promise_miss_probability`, `risk_band`, ids |
 | `POST` | `/v1/explain` | Tree SHAP on the booster (pre-calibration; displayed `p` is isotonic) |
 | `GET` | `/v1/policies/current` | Frozen policy + simulation economics |
@@ -260,7 +260,7 @@ make canary-bad            # degraded challenger should fail delayed-label gate
 make gcp-up && make gcp-smoke && make gcp-down
 ```
 
-Lint: `make lint`. Full local train: `make train-pipeline` (registers a **candidate**, not champion).
+Lint: `make lint`. Full local train: `make train-pipeline` — writes a **candidate** under `artifacts/candidates/<version>/`, never the champion path. Serving picks it up only after an explicit, named promote: `make promote-candidate APPROVED_BY=<you>` (H6; appends to `artifacts/promote_record.jsonl`).
 
 ---
 

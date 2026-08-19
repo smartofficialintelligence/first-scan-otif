@@ -217,3 +217,24 @@ def test_policy_replay_ranks_noc_vs_no_action(cfg) -> None:
 def test_derive_seed_stable() -> None:
     assert derive_seed("a", "b", base_seed=1) == derive_seed("a", "b", base_seed=1)
     assert derive_seed("a", "b", base_seed=1) != derive_seed("a", "c", base_seed=1)
+
+
+def test_noc_replay_reproducible_across_runs(cfg) -> None:
+    """Same rows + base_seed must give identical NOC results — the executor seed
+    derives from decision_id, so replay must not mint a fresh uuid per run."""
+    rows = [
+        ReplayRow("o1", "p1", "m", 0.9, 200.0, True, remaining_to_promise_days=3.0),
+        ReplayRow("o2", "p2", "m", 0.85, 180.0, True, remaining_to_promise_days=2.0),
+        ReplayRow("o3", "p3", "m", 0.8, 220.0, False, remaining_to_promise_days=3.0),
+        ReplayRow("o4", "p4", "m", 0.75, 150.0, True, remaining_to_promise_days=1.0),
+    ]
+    first = replay_policies(rows, config=cfg, threshold=0.70, base_seed=7)
+    second = replay_policies(rows, config=cfg, threshold=0.70, base_seed=7)
+    for key in (
+        "net_simulated_value",
+        "simulated_misses_prevented",
+        "simulated_delay_days_avoided",
+        "roi_simulated",
+        "intervention_spend",
+    ):
+        assert first["policies"]["noc"][key] == second["policies"]["noc"][key], key

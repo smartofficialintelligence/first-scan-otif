@@ -35,7 +35,10 @@ try:
     from airflow.operators.python import PythonOperator
 
     def _drift_task(**_context: Any) -> dict[str, Any]:
-        return run_drift_check(baseline_log_path=resolve_baseline_log())
+        result = run_drift_check(baseline_log_path=resolve_baseline_log())
+        if result.get("baseline_missing"):
+            raise ValueError(result.get("message") or "drift baseline missing")
+        return result
 
     with DAG(
         dag_id="olist_drift",
@@ -65,6 +68,9 @@ def main(argv: list[str] | None = None) -> None:
         alarm_path=args.alarm_path,
     )
     print(json.dumps(result, indent=2, default=str))
+    if result.get("baseline_missing"):
+        # Not "no drift" — the check could not run against a trusted baseline.
+        raise SystemExit(3)
     if result.get("alarm"):
         raise SystemExit(2)
 

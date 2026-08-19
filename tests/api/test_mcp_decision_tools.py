@@ -15,6 +15,7 @@ from olist_ml.inference.predictor import PredictionService
 from olist_ml.outcomes.ledger import DecisionLedger
 from olist_ml.tools import decision_tools
 from olist_ml.training.pipeline import run_training
+from olist_ml.training.promote import promote_candidate
 
 FIXTURES = Path(__file__).resolve().parents[2] / "data" / "fixtures"
 CONFIG = Path(__file__).resolve().parents[2] / "config" / "policy_economics.yaml"
@@ -34,7 +35,8 @@ def trained_stack(tmp_path_factory: pytest.TempPathFactory):
         cv_folds=2,
         auth_mode="off",
     )
-    run_training(settings, data_dir=FIXTURES)
+    meta = run_training(settings, data_dir=FIXTURES)
+    promote_candidate(settings, meta.model_version, approved_by="pytest")
     pred = PredictionService(settings)
     pred.load()
     decision = DecisionService(config_path=CONFIG)
@@ -148,6 +150,34 @@ def test_execute_simulated_action_and_outcome(trained_stack) -> None:
     assert "observed_days_late" in action
     out = decision_tools.get_action_outcome(action["action_id"], ledger=trained_stack[3])
     assert len(out["records"]) >= 1
+
+
+def test_execute_uses_ledgered_upgrade_cost_when_caller_omits_it(trained_stack) -> None:
+    """MCP execute passes no cost context; the frozen decision's priced
+    upgrade_cost must be used instead of the freight-0 $5 minimum fallback."""
+    ledger = trained_stack[3]
+    ledger.append_decision(
+        {
+            "decision_id": "mcp-cost-1",
+            "order_id": "mcp-cost",
+            "prediction_id": "pred-cost",
+            "recommended_action": "REMAINING_LEG_UPGRADE",
+            "upgrade_cost": 42.5,
+        }
+    )
+    action = decision_tools.execute_simulated_action(
+        order_id="mcp-cost",
+        prediction_id="pred-cost",
+        decision_id="mcp-cost-1",
+        action="REMAINING_LEG_UPGRADE",
+        model_version="m",
+        policy_version="noc-handoff-policy-v1",
+        observed_promise_miss=True,
+        basket_value=800.0,
+        executor=trained_stack[2],
+        ledger=ledger,
+    )
+    assert action["simulated_cost"] == pytest.approx(42.5)
 
 
 def test_execute_rejects_action_not_in_policy(trained_stack) -> None:

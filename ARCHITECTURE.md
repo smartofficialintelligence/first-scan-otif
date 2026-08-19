@@ -60,17 +60,17 @@ Capacity is the business story: on the later test window (~4.6% miss rate), the 
 | Agent | Copies `recommended_action`. Does not re-choose |
 | External side effects | Off. Simulated ledger only |
 
-Published local champion `local-20260818T041243Z` (8 Optuna trials, test n=14,471):
+Published local champion `local-20260819T170145Z` (100 Optuna trials, test n=14,471):
 
 | Metric | Test |
 |---|---|
-| PR-AUC | 0.296 (bootstrap 95% CI ~0.26–0.33) |
-| ROC-AUC | 0.816 |
+| PR-AUC | 0.310 (bootstrap 95% CI 0.28–0.34) |
+| ROC-AUC | 0.827 |
 | Miss rate | 4.6% |
-| Brier | 0.038 |
-| ECE | 0.019 |
+| Brier | 0.037 |
+| ECE | 0.004 |
 
-Policy cutoffs are **frozen validation score thresholds** (P1 ≈ 0.56, P2 ≈ 0.32), not live percentiles of today’s traffic. The later test book has a lower miss rate than validation (12.3% → 4.6%). That shift is part of the story, not something to hide.
+Policy cutoffs are **frozen validation score thresholds** (P1 = 0.50, P2 ≈ 0.25) read from the held-out half of the validation window (the earlier half fits early stopping + isotonic calibration; the two never share rows), not live percentiles of today’s traffic. The full validation window's miss rate is higher than the test book's (12.3% → 4.6%); that shift is part of the story, not something to hide.
 
 ### Why not the earlier targets
 

@@ -22,9 +22,10 @@ from olist_ml.schemas import PredictRequest
 # Request-native numerics plus history. History is filled from Feast (seller
 # online) in PredictionService before this assembler runs; remaining None is
 # true cold-start (0), not a substitute for an online lookup.
+# same_state is NOT here: when omitted it is derived from customer/seller
+# state below (training derives it the same way in build.py).
 _OPTIONAL_NUMERIC_DEFAULTS: tuple[str, ...] = (
     "approval_lag_hours",
-    "same_state",
     "avg_product_weight_g",
     *REQUEST_HISTORY_FEATURES,
 )

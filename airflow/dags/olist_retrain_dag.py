@@ -39,7 +39,11 @@ def run_retrain_trigger(
     assert_retrain_allowed(reason=reason, require_h5=require_h5)
     from pipelines.local_pipeline import run_pipeline
 
-    result = run_pipeline(Path(data_dir), trials=trials, tracking_uri=tracking_uri)
+    # Governance path enforces offline gates vs the current champion; a worse
+    # candidate is rejected here, not at some later human step.
+    result = run_pipeline(
+        Path(data_dir), trials=trials, tracking_uri=tracking_uri, enforce_gates=True
+    )
     result["retrain_reason"] = reason
     result["human_gates"] = {
         "H5_retrain_approval": "required — this trigger checked the H5 flag",

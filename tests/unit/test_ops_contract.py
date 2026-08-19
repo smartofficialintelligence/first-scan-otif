@@ -123,8 +123,25 @@ def test_run_drift_check_uses_separate_baseline_log(tmp_path: Path) -> None:
     result = run_drift_check(log_path=recent, baseline_log_path=baseline, alarm_path=alarm)
     assert result["feature_psi"]["geo_distance_km"] > 0.2
     assert result["alarm"] is True
+    assert result["baseline_missing"] is False
+    # Without a baseline the same drifted log must NOT read as "ok" — it is
+    # inconclusive (self-comparison would report PSI ≈ 0 for uniform drift).
     same = run_drift_check(log_path=recent, alarm_path=alarm)
     assert same["alarm"] is False
+    assert same["baseline_missing"] is True
+    assert same["baseline_source"] == "first_half_fallback"
+    assert "INCONCLUSIVE" in same["message"]
+
+
+def test_psi_counts_mass_shifted_outside_baseline_range() -> None:
+    import numpy as np
+
+    rng = np.random.default_rng(0)
+    baseline = rng.normal(100.0, 10.0, 500)
+    # Everything shifted far above the baseline max: closed edge bins would
+    # drop it all and renormalize the remainder to PSI ≈ 0.
+    shifted = baseline + 200.0
+    assert population_stability_index(baseline, shifted) > 0.2
 
 
 def test_evaluate_delayed_loads_offline_pr_auc_from_meta(tmp_path: Path) -> None:

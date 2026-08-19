@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import secrets
 from functools import lru_cache
 
 from fastapi import Header, HTTPException
@@ -51,11 +52,17 @@ def decision_ledger_dep() -> DecisionLedger:
     return DecisionLedger(settings.decision_ledger_path)
 
 
+def _api_key_ok(supplied: str | None, expected: str) -> bool:
+    if not expected or supplied is None:
+        return False
+    return secrets.compare_digest(supplied.encode(), expected.encode())
+
+
 def verify_api_key(x_api_key: str | None = Header(default=None)) -> None:
     settings = settings_dep()
     if settings.auth_mode != "api_key":
         return
-    if not settings.api_key or x_api_key != settings.api_key:
+    if not _api_key_ok(x_api_key, settings.api_key):
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
 
 
@@ -71,6 +78,6 @@ async def api_key_middleware(request: Request, call_next) -> Response:
     if settings.auth_mode != "api_key" or path in _OPEN_PATHS:
         return await call_next(request)
     supplied = request.headers.get("x-api-key")
-    if not settings.api_key or supplied != settings.api_key:
+    if not _api_key_ok(supplied, settings.api_key):
         return JSONResponse({"detail": "Invalid or missing API key"}, status_code=401)
     return await call_next(request)

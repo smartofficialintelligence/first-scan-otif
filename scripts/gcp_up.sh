@@ -19,7 +19,8 @@ if [[ -z "$PROJECT" ]]; then
   PROJECT="$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['project_id'])" "$KEY")"
 fi
 if [[ ! -f artifacts/model.joblib || ! -f artifacts/model_meta.json ]]; then
-  echo "Missing artifacts/model.joblib — train first (make train-local / existing champion)." >&2
+  echo "Missing artifacts/model.joblib — train, then promote a candidate:" >&2
+  echo "  make train-local && make promote-candidate APPROVED_BY=<you>" >&2
   exit 1
 fi
 

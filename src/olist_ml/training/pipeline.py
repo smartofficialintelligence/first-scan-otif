@@ -17,6 +17,7 @@ from olist_ml.features.contracts import FEATURE_COLUMNS, TARGET_COLUMN, TARGET_N
 from olist_ml.logging import get_logger, setup_logging
 from olist_ml.training.evaluate import evaluate_predictions, score_capacity_thresholds
 from olist_ml.training.package import ModelMeta, new_model_version, save_artifact
+from olist_ml.training.promote import candidate_paths
 from olist_ml.training.train import train_model_bundle
 from olist_ml.training.tune import tune_xgboost
 
@@ -41,10 +42,24 @@ def run_training(settings: Settings, data_dir: Path | None = None) -> ModelMeta:
     valid_df = splits.validation if len(splits.validation) else train_df
     test_df = splits.test if len(splits.test) else valid_df
 
+    # The validation window is split so no slice does triple duty: the earlier
+    # half (calibration) fits early stopping + isotonic; the later half
+    # (threshold) is untouched by any fitting and freezes P1/P2 cutoffs and
+    # the reported validation metrics. Tiny fixture runs cannot split.
+    if len(valid_df) >= 40:
+        cal_cut = len(valid_df) // 2
+        cal_df = valid_df.iloc[:cal_cut]
+        thr_df = valid_df.iloc[cal_cut:]
+    else:
+        cal_df = valid_df
+        thr_df = valid_df
+
     X_train_df = select_feature_frame(train_df)
     y_train = train_df[TARGET_COLUMN].to_numpy()
-    X_valid_df = select_feature_frame(valid_df)
-    y_valid = valid_df[TARGET_COLUMN].to_numpy()
+    X_cal_df = select_feature_frame(cal_df)
+    y_cal = cal_df[TARGET_COLUMN].to_numpy()
+    X_thr_df = select_feature_frame(thr_df)
+    y_thr = thr_df[TARGET_COLUMN].to_numpy()
     X_test_df = select_feature_frame(test_df)
     y_test = test_df[TARGET_COLUMN].to_numpy()
 
@@ -65,18 +80,18 @@ def run_training(settings: Settings, data_dir: Path | None = None) -> ModelMeta:
         y_train,
         best_params=study.best_params,
         seed=settings.random_seed,
-        X_df_valid=X_valid_df,
-        y_valid=y_valid,
+        X_df_valid=X_cal_df,
+        y_valid=y_cal,
     )
 
-    valid_proba = bundle.predict_proba(X_valid_df)[:, 1]
+    thr_proba = bundle.predict_proba(X_thr_df)[:, 1]
     test_proba = bundle.predict_proba(X_test_df)[:, 1]
-    valid_report = evaluate_predictions(y_valid, valid_proba, seed=settings.random_seed)
+    valid_report = evaluate_predictions(y_thr, thr_proba, seed=settings.random_seed)
     test_report = evaluate_predictions(y_test, test_proba, seed=settings.random_seed)
     p1_capacity = 0.025
     p2_capacity = 0.10
     p1_score_threshold, p2_score_threshold = score_capacity_thresholds(
-        valid_proba, p1_capacity=p1_capacity, p2_capacity=p2_capacity
+        thr_proba, p1_capacity=p1_capacity, p2_capacity=p2_capacity
     )
 
     version = new_model_version("local")
@@ -91,6 +106,8 @@ def run_training(settings: Settings, data_dir: Path | None = None) -> ModelMeta:
             "best_cv_pr_auc": float(study.best_value),
             "p1_score_threshold": p1_score_threshold,
             "p2_score_threshold": p2_score_threshold,
+            "n_calibration": float(len(cal_df)),
+            "n_threshold": float(len(thr_df)),
         },
         n_train=len(train_df),
         n_valid=len(valid_df),
@@ -102,8 +119,11 @@ def run_training(settings: Settings, data_dir: Path | None = None) -> ModelMeta:
         p2_capacity=p2_capacity,
     )
 
+    # Candidates never land on the champion path (settings.model_path) —
+    # that swap is an explicit human promote (scripts/promote_candidate.py, H6).
     settings.artifact_dir.mkdir(parents=True, exist_ok=True)
-    save_artifact(bundle, meta, model_path=settings.model_path, meta_path=settings.model_meta_path)
+    cand_model, cand_meta = candidate_paths(settings, version)
+    save_artifact(bundle, meta, model_path=cand_model, meta_path=cand_meta)
 
     report_path = settings.artifact_dir / "eval_report.json"
     report_path.write_text(

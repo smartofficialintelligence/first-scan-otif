@@ -26,8 +26,15 @@ def population_stability_index(
         mu_e, mu_a = float(np.mean(expected)), float(np.mean(actual))
         sigma = float(np.std(expected)) or 1.0
         return abs(mu_a - mu_e) / sigma
-    exp_counts, _ = np.histogram(expected, bins=cuts)
-    act_counts, _ = np.histogram(actual, bins=cuts)
+    # Dedicated overflow bins: mass shifted outside the baseline range must
+    # register as drift, not silently drop out of the histogram (which would
+    # renormalize the remainder and attenuate PSI for exactly the shifts this
+    # check exists to catch). The upper overflow starts strictly above the
+    # baseline max so baseline mass at the max stays in the top regular bin.
+    upper = np.nextafter(cuts[-1], np.inf)
+    edges = np.concatenate([[-np.inf], cuts[:-1].astype(float), [upper], [np.inf]])
+    exp_counts, _ = np.histogram(expected, bins=edges)
+    act_counts, _ = np.histogram(actual, bins=edges)
     exp_pct = exp_counts / max(int(exp_counts.sum()), 1)
     act_pct = act_counts / max(int(act_counts.sum()), 1)
     exp_pct = np.clip(exp_pct, 1e-6, None)

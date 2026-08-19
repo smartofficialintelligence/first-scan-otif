@@ -46,6 +46,8 @@ make gcp-down          # destroy Cloud Run + dashboard; keep registry + warehous
 
 Details: [docs/gcp-live-serving.md](docs/gcp-live-serving.md). After `gcp-down`, serving is off and can be turned on again with `gcp-up`.
 
+**Ledger scope on Cloud Run:** the decision ledger is a per-instance JSONL that resets on scale-to-zero and is not shared across instances (max 2). Consequences: `business_sim` on `/v1/metrics` and `GET /v1/orders/{id}/decision` see only their instance's rows, and simulate/execute — which verifies the action against the ledgered decision — can 4xx with "No policy decision for decision_id" if the decision landed on the other instance. Fine for the demo; a real deployment needs a shared store (Firestore/SQL) before the bind check is trustworthy across instances. Demo lineage flows (`demo-decision`, replay) run in one process and are unaffected.
+
 ## Feast
 
 ```text

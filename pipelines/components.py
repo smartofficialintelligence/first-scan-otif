@@ -12,6 +12,7 @@ from olist_ml.registry.mlflow_registry import log_and_register_candidate
 from olist_ml.training.gates import offline_promotion_checks
 from olist_ml.training.package import ModelMeta
 from olist_ml.training.pipeline import run_training
+from olist_ml.training.promote import candidate_paths
 
 logger = get_logger(__name__)
 
@@ -70,8 +71,9 @@ def register_candidate(
     offline_promotion_checks and raises if they fail.
     """
     cfg = get_settings()
-    model_p = Path(model_path) if model_path else cfg.model_path
-    meta_p = Path(meta_path) if meta_path else cfg.model_meta_path
+    default_model, default_meta = candidate_paths(cfg, meta.model_version)
+    model_p = Path(model_path) if model_path else default_model
+    meta_p = Path(meta_path) if meta_path else default_meta
 
     if enforce_gates:
         gate = offline_promotion_checks(meta.metrics, champion_metrics)

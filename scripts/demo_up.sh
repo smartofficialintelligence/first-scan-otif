@@ -22,8 +22,10 @@ else
 fi
 
 if [[ ! -f artifacts/model.joblib || ! -f artifacts/model_meta.json ]]; then
-  echo "==> no local artifact; train-local"
+  echo "==> no champion artifact; train-local + promote (demo approver)"
   make train-local
+  uv run python scripts/promote_candidate.py --approved-by "demo_up.sh" \
+    --note "local demo bootstrap — not a production promote"
 else
   echo "==> artifact present at artifacts/model.joblib"
 fi

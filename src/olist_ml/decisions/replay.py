@@ -107,7 +107,10 @@ def replay_policies(
                     )
                 )
                 action = decision.recommended_action
-                decision_id = decision.decision_id
+                # Deterministic id: the executor derives its Bernoulli seed from
+                # (order_id, decision_id, action), so a uuid here would make
+                # late→on-time / delay-days-avoided wobble across replays.
+                decision_id = f"replay-noc-{row.order_id}"
                 policy_version = decision.policy_version
                 expected_net = decision.expected_net_value
                 upgrade_cost = decision.upgrade_cost

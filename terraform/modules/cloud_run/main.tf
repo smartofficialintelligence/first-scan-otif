@@ -84,7 +84,9 @@ resource "google_cloud_run_v2_service" "api" {
       }
       startup_probe {
         http_get {
-          path = "/health"
+          # /ready verifies the model artifact actually loaded; /health is a
+          # static ok and would pass a revision that can only serve 503s.
+          path = "/ready"
           port = 8080
         }
         initial_delay_seconds = 10

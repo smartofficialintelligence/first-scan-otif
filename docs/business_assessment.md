@@ -1,7 +1,7 @@
 # Business assessment — promise-miss at carrier handoff
 
 **Hero product:** first-scan NOC queue ([ADR 0006](adr/0006-handoff-promise-miss-noc.md)).  
-**Model:** `local-20260818T041243Z` (8 Optuna trials on full public Olist).  
+**Model:** `local-20260819T170145Z` (100 Optuna trials on full public Olist; late rates use only outcomes observed by handoff; calibration and threshold-freezing on disjoint validation halves).  
 **Target:** `promise_miss` = customer delivery after `order_estimated_delivery_date`.  
 **Decision time:** `handoff_ts = order_delivered_carrier_date`. Splits and PIT history use that clock.  
 **Machine-readable:** `artifacts/eval_report.json` / `artifacts/model_meta.json` (gitignored).
@@ -12,11 +12,11 @@ Exec KPIs for the demo are **$ / customer / dates under versioned simulation ass
 
 | Metric | Value | Bootstrap 95% CI |
 |---|---:|---|
-| PR-AUC | **0.296** | 0.264 – 0.329 |
-| ROC-AUC | **0.816** | 0.799 – 0.833 |
-| Brier | 0.038 | 0.035 – 0.041 |
+| PR-AUC | **0.310** | 0.276 – 0.343 |
+| ROC-AUC | **0.827** | 0.807 – 0.844 |
+| Brier | 0.037 | 0.034 – 0.040 |
 
-Valid (threshold-setting) PR-AUC **0.478** / ROC-AUC **0.838**.
+Valid (held-out threshold half) PR-AUC **0.356** / ROC-AUC **0.820**.
 
 This is **not** the ADR 0005 long-delivery ranker (test PR-AUC ~0.53 on a 20%+ duration label). Promise-miss is rarer and operationally the right OTIF question. Handoff clocks lift it well above the approval-time promise-miss baseline (~0.10–0.20).
 

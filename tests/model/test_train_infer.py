@@ -11,6 +11,7 @@ from olist_ml.features.assembler import select_feature_frame
 from olist_ml.inference.predictor import PredictionService
 from olist_ml.schemas import PredictRequest
 from olist_ml.training.pipeline import run_training
+from olist_ml.training.promote import promote_candidate
 
 FIXTURES = Path(__file__).resolve().parents[2] / "data" / "fixtures"
 
@@ -28,6 +29,9 @@ def test_train_and_deterministic_predict(tmp_path: Path) -> None:
     meta = run_training(settings, data_dir=FIXTURES)
     assert meta.model_version
     assert "test_pr_auc" in meta.metrics
+    # Training writes a candidate only; serving needs an explicit promote (H6).
+    assert not settings.model_path.exists()
+    promote_candidate(settings, meta.model_version, approved_by="pytest")
 
     service = PredictionService(settings)
     service.load()

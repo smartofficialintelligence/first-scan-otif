@@ -11,6 +11,7 @@ from olist_ml.api import mcp_server
 from olist_ml.config import Settings
 from olist_ml.inference.predictor import PredictionService
 from olist_ml.training.pipeline import run_training
+from olist_ml.training.promote import promote_candidate
 
 FIXTURES = Path(__file__).resolve().parents[2] / "data" / "fixtures"
 
@@ -27,7 +28,8 @@ def trained_service(tmp_path_factory: pytest.TempPathFactory) -> PredictionServi
         cv_folds=2,
         auth_mode="off",
     )
-    run_training(settings, data_dir=FIXTURES)
+    meta = run_training(settings, data_dir=FIXTURES)
+    promote_candidate(settings, meta.model_version, approved_by="pytest")
     service = PredictionService(settings)
     service.load()
     return service

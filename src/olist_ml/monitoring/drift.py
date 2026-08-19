@@ -44,20 +44,23 @@ def _high_rate(rows: list[dict[str, Any]]) -> float:
 
 def split_baseline_recent(
     rows: list[dict[str, Any]],
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], str]:
     """
-    Baseline vs recent windows.
+    Baseline vs recent windows, plus how the baseline was obtained.
 
-    Prefer explicit ``window`` tags; else first half vs second half in log order.
+    Prefer explicit ``window`` tags ("window_tags"); else first half vs second
+    half in log order ("first_half_fallback"). The fallback compares a log to
+    itself — a uniformly drifted log yields PSI ≈ 0 — so callers must surface
+    it as inconclusive rather than "no drift".
     """
     tagged_b = [r for r in rows if r.get("window") == "baseline"]
     tagged_r = [r for r in rows if r.get("window") == "recent"]
     if tagged_b and tagged_r:
-        return tagged_b, tagged_r
+        return tagged_b, tagged_r, "window_tags"
     if len(rows) < 4:
-        return rows, rows
+        return rows, rows, "first_half_fallback"
     mid = len(rows) // 2
-    return rows[:mid], rows[mid:]
+    return rows[:mid], rows[mid:], "first_half_fallback"
 
 
 def evaluate_drift(
@@ -66,7 +69,7 @@ def evaluate_drift(
     psi_threshold: float = PSI_ALARM_THRESHOLD,
     high_band_threshold: float = HIGH_BAND_RELATIVE_SHIFT_THRESHOLD,
 ) -> dict[str, Any]:
-    baseline, recent = split_baseline_recent(rows)
+    baseline, recent, baseline_source = split_baseline_recent(rows)
     feature_psi: dict[str, float] = {}
     alarming_features: list[str] = []
     for col in DRIFT_FEATURE_COLUMNS:
@@ -88,6 +91,7 @@ def evaluate_drift(
     alarmed = feature_alarm or mix_alarm
     return {
         "alarm": alarmed,
+        "baseline_source": baseline_source,
         "feature_alarm": feature_alarm,
         "prediction_mix_alarm": mix_alarm,
         "psi_threshold": psi_threshold,
@@ -146,6 +150,17 @@ def run_drift_check(
     baseline_rows = read_jsonl(baseline_log_path) if baseline_log_path is not None else None
     rows = merge_baseline_recent(recent, baseline_rows)
     result = evaluate_drift(rows, psi_threshold=psi_threshold)
+    if result["baseline_source"] == "first_half_fallback":
+        # No trusted baseline: a uniformly drifted log self-compares to PSI ≈ 0.
+        # Fail loudly instead of reporting "ok — no drift alarm".
+        result["baseline_missing"] = True
+        result["message"] = (
+            "INCONCLUSIVE — no baseline window. Provide window-tagged rows or "
+            f"a baseline log ({DEFAULT_BASELINE_LOG}); drift was NOT evaluated "
+            "against a trusted baseline."
+        )
+    else:
+        result["baseline_missing"] = False
     sources = [str(log_path) if log_path.exists() else "missing"]
     if baseline_log_path is not None:
         sources.insert(0, str(baseline_log_path))

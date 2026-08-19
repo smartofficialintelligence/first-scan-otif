@@ -12,10 +12,19 @@ import argparse
 import json
 from pathlib import Path
 
-from olist_ml.monitoring.delayed_eval import run_evaluate_delayed
+from olist_ml.monitoring.delayed_eval import DEFAULT_META, run_evaluate_delayed
 from olist_ml.monitoring.logs import load_jsonl
 
 DEFAULT_LOG = Path("artifacts/prediction_logs.jsonl")
+
+
+def _champion_run_id_from_meta(meta_path: Path = DEFAULT_META) -> str:
+    """Champion identity comes from the baked model_meta, never a hardcoded id."""
+    try:
+        payload = json.loads(meta_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return "unknown"
+    return str(payload.get("model_version") or "unknown")
 
 
 def _p95_latency_ms(rows: list[dict]) -> float:
@@ -36,11 +45,21 @@ def _http_ok_rate(rows: list[dict]) -> float:
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--champion-run-id", default="local-20260818T041243Z")
-    parser.add_argument("--champion-pr-auc", type=float, default=0.296)
+    parser.add_argument(
+        "--champion-run-id",
+        default=None,
+        help="Default: model_version from artifacts/model_meta.json",
+    )
+    parser.add_argument(
+        "--champion-pr-auc",
+        type=float,
+        default=None,
+        help="Default: test_pr_auc from artifacts/model_meta.json (never hardcode)",
+    )
     parser.add_argument("--log-path", type=Path, default=DEFAULT_LOG)
     parser.add_argument("--out", type=Path, default=Path("artifacts/canary_decision.json"))
     args = parser.parse_args(argv)
+    champion_run_id = args.champion_run_id or _champion_run_id_from_meta()
 
     rows = load_jsonl(args.log_path)
     latency_p95 = _p95_latency_ms(rows)
@@ -65,14 +84,14 @@ def main(argv: list[str] | None = None) -> None:
         "h4_required": True,
         "recommendation": "PROMOTE_CANDIDATE" if recommend_promote else "ROLLBACK",
         "traffic": "100% champion" if not recommend_promote else "hold for H4",
-        "champion_run_id": args.champion_run_id,
+        "champion_run_id": champion_run_id,
         "n_rows": n_rows,
         "n_released": n_released,
         "n_unreleased": n_rows - n_released,
         "latency_p95_ms": round(latency_p95, 2),
         "http_ok_rate": round(http_ok, 4),
         "pr_auc_released": delayed.get("pr_auc_released"),
-        "champion_pr_auc": args.champion_pr_auc,
+        "champion_pr_auc": delayed.get("champion_pr_auc"),
         "canary_pr_auc_min": delayed.get("canary_pr_auc_min"),
         "quality_alarm": delayed.get("quality_alarm"),
         "canary_delayed_label_gate": delayed.get("canary_delayed_label_gate"),

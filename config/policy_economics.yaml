@@ -30,8 +30,11 @@ business_loss:
 noc_policy:
   p1_capacity: 0.025
   p2_capacity: 0.10
-  default_p1_score_threshold: 0.35
-  default_p2_score_threshold: 0.20
+  # Last-resort fallback ONLY (context without model-meta thresholds).
+  # Must track the frozen champion cutoffs in artifacts/model_meta.json;
+  # champion local-20260819T170145Z froze P1=0.5000, P2=0.2471.
+  default_p1_score_threshold: 0.5000
+  default_p2_score_threshold: 0.2471
   upgrade_remaining_max_days: 7.0
   upgrade_min_geo_km: 100.0
   human_approval_upgrade_cost_min: 20.0

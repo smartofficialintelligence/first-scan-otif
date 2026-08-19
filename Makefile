@@ -1,7 +1,7 @@
 .PHONY: sync lint typecheck test train-local serve-local smoke-local fixtures download-olist
 .PHONY: m2-env-check gcp-auth tf-fmt tf-validate tf-plan dbt-deps dbt-compile dbt-build ingest-bq ingest-fixtures-bq
 .PHONY: feast-apply feast-historical feast-parity demo-up demo-down mcp-serve
-.PHONY: train-pipeline airflow-train-local replay-baseline canary-bad drift-check teardown-endpoint
+.PHONY: train-pipeline promote-candidate airflow-train-local replay-baseline canary-bad drift-check teardown-endpoint
 .PHONY: demo-decision agent-evals decision-eval demo-decision-api economics-gate overrun-experiment miss-history-experiment short-promise-experiment early-delta-experiment
 .PHONY: gcp-up gcp-down gcp-smoke gcp-evidence
 .PHONY: drift-geo drift-seller-late replay-canary
@@ -34,6 +34,11 @@ train-olist:
 
 train-pipeline:
 	uv run python scripts/run_train_pipeline.py --data-dir data/fixtures --trials 3
+
+# H6: candidate → champion swap is a named-person decision, never a train side effect.
+promote-candidate:
+	@test -n "$(APPROVED_BY)" || (echo "Usage: make promote-candidate APPROVED_BY=<your name> [VERSION=<candidate>]" >&2; exit 1)
+	uv run python scripts/promote_candidate.py --approved-by "$(APPROVED_BY)" $(if $(VERSION),--version $(VERSION),)
 
 serve-local:
 	uv run uvicorn olist_ml.api.app:app --host 0.0.0.0 --port 8080
@@ -97,7 +102,7 @@ release-labels:
 	uv run python scripts/release_labels.py --virtual-now $${VIRTUAL_NOW:-2099-01-01T00:00:00Z}
 
 evaluate-delayed:
-	uv run python scripts/evaluate_delayed.py --champion-pr-auc 0.296
+	uv run python scripts/evaluate_delayed.py
 
 drift-geo:
 	uv run python scripts/replay_traffic.py --inprocess true --scenario baseline --no-challenger --log-path artifacts/prediction_logs_baseline.jsonl

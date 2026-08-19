@@ -78,8 +78,8 @@ Fields (minimum):
 - `seller_late_rate_90d`
 - `feature_timestamp`
 
-Missing entity → documented default (global prior or null + model default handling).  
-Stale feature → if `now - feature_timestamp > freshness_sla` (default 36h during demo), count as stale and record metric; still predict with fallback policy.
+Missing entity → cold-start default **0.0** for counts and late rates (the same fill training applies to sellers with no prior orders — an optimistic prior, not a base-rate prior).  
+Stale feature → if `now - feature_timestamp > freshness_sla` (default 36h during demo), count as stale and record metric; still predict with the same 0-fill fallback. Online hydration runs only when `FEAST_ONLINE_ENABLED=true`; otherwise history comes from the request payload or the cold-start default.
 
 ## Explicit non-features (blocked)
 
@@ -91,8 +91,8 @@ Stale feature → if `now - feature_timestamp > freshness_sla` (default 36h duri
 ## Training–serving consistency
 
 - Single feature contract module (`features/contracts.py`) shared by training assembly and API assembly
-- Offline training rows come from Feast historical retrieval or the dbt snapshot that Feast reads — **not** a parallel pandas feature script
-- Parity test: sample keys, compare offline vs online values within tolerance
+- Offline training rows come from the shared pandas builder (`features/build.py`) over raw CSVs — the same request-native derivations the API assembler uses. The dbt marts / Feast snapshot are the warehouse and online-serving path, **not** the training path; before any dbt-trained variant, re-establish parity between `build.py` and the marts (dayofweek encoding, state casing, and timestamp precision are known divergences)
+- Parity test (`scripts/feast_parity.py`): compares Feast online values against the BigQuery table Feast materializes from — it validates the materialize job, not training/serving parity
 
 ## H2 checklist (human)
 

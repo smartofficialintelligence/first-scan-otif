@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 
 from olist_ml.config import Settings
 from olist_ml.training.pipeline import run_training
+from olist_ml.training.promote import promote_candidate
 
 FIXTURES = Path(__file__).resolve().parents[2] / "data" / "fixtures"
 
@@ -28,7 +29,8 @@ def trained_settings(tmp_path_factory: pytest.TempPathFactory) -> Settings:
         cv_folds=2,
         auth_mode="off",
     )
-    run_training(settings, data_dir=FIXTURES)
+    meta = run_training(settings, data_dir=FIXTURES)
+    promote_candidate(settings, meta.model_version, approved_by="pytest")
     return settings
 
 

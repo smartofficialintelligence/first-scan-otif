@@ -346,7 +346,14 @@ def execute_simulated_action(
     except ValueError as exc:
         raise ValueError(f"Unknown action: {action}") from exc
     led = ledger or get_ledger()
-    assert_action_matches_policy(led, decision_id=decision_id, action=action_type.value)
+    decision_row = assert_action_matches_policy(
+        led, decision_id=decision_id, action=action_type.value
+    )
+    # Callers (notably MCP) may omit cost context; the frozen decision already
+    # priced the upgrade with real freight — without this, the executor's
+    # freight-0 fallback clips every upgrade to the $5 minimum cost.
+    if intervention_cost is None and decision_row.get("upgrade_cost") is not None:
+        intervention_cost = float(decision_row["upgrade_cost"])
     ex = executor or get_executor()
     result = ex.execute(
         ActionRequest(

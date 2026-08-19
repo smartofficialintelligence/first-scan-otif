@@ -288,11 +288,19 @@ def agent_review(
     stored = latest_prediction(ledger, body.prediction_id)
     proba = body.promise_miss_probability
     model_version = body.model_version
+    p1_threshold = body.p1_score_threshold
+    p2_threshold = body.p2_score_threshold
     if stored is not None:
         if stored.get("promise_miss_probability") is not None:
             proba = float(stored["promise_miss_probability"])
         if stored.get("model_version"):
             model_version = str(stored["model_version"])
+        # Frozen champion cutoffs travel with the prediction; config defaults
+        # are a last resort, not the served policy.
+        if p1_threshold is None and stored.get("p1_score_threshold") is not None:
+            p1_threshold = float(stored["p1_score_threshold"])
+        if p2_threshold is None and stored.get("p2_score_threshold") is not None:
+            p2_threshold = float(stored["p2_score_threshold"])
 
     result = run_agent_review(
         {
@@ -306,8 +314,8 @@ def agent_review(
             "geo_distance_km": body.geo_distance_km,
             "same_state": body.same_state,
             "freight_value": body.freight_value,
-            "p1_score_threshold": body.p1_score_threshold,
-            "p2_score_threshold": body.p2_score_threshold,
+            "p1_score_threshold": p1_threshold,
+            "p2_score_threshold": p2_threshold,
             "observed_promise_miss": body.observed_promise_miss,
             "observed_days_late": body.observed_days_late,
             "run_simulation": body.run_simulation,
