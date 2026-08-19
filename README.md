@@ -86,6 +86,10 @@ A coding agent (Cursor) connected to the **live IAM-gated Cloud Run endpoint** o
 
 ![Decision ledger lineage for the order](docs/img/06-decision-lineage.png)
 
+**7 · Live traffic on the platform dashboard.** A 2,000-request scored replay through the IAM-gated endpoint: 100% HTTP 200, **p95 162 ms** — under the repo's own 200 ms canary gate. The ~1-minute lines in the latency tile are held-open **agent MCP streaming connections**, not inference latency (Cloud Run can't split the two by label — one service, one auth boundary, one telemetry stream; the in-process `/v1/metrics` counters and the ledger are what separate app from agent traffic). Billable instance time shows scale-to-zero before and after.
+
+![Cloud Monitoring: request plateau, p95 latency, scale-to-zero billable time](docs/img/07-cloud-monitoring.png)
+
 ---
 
 ## The operating problem
