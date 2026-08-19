@@ -32,24 +32,42 @@ module "iam" {
   name_prefix = var.name_prefix
 }
 
+module "artifact_registry" {
+  source        = "../../modules/artifact_registry"
+  project_id    = var.project_id
+  region        = var.region
+  repository_id = var.name_prefix
+}
+
 module "cloud_run" {
-  count  = var.enable_serving ? 1 : 0
+  count  = (var.enable_cloud_run || var.enable_serving) ? 1 : 0
   source = "../../modules/cloud_run"
 
-  project_id = var.project_id
-  region     = var.region
-  name       = "${var.name_prefix}-api"
-  image      = var.serving_image
+  project_id            = var.project_id
+  region                = var.region
+  name                  = "${var.name_prefix}-api"
+  image                 = var.serving_image
+  invoker_sa_email      = var.invoker_sa_email
+  extra_invoker_members = var.extra_invoker_members
 }
 
 module "vertex_endpoint" {
-  count  = var.enable_serving ? 1 : 0
+  count  = var.enable_vertex_endpoint ? 1 : 0
   source = "../../modules/vertex_endpoint"
 
   project_id   = var.project_id
   region       = var.region
   display_name = "${var.name_prefix}-late-delivery"
   endpoint_id  = "${var.name_prefix}-endpoint"
+}
+
+module "monitoring" {
+  count  = var.enable_monitoring ? 1 : 0
+  source = "../../modules/monitoring"
+
+  project_id        = var.project_id
+  name_prefix       = var.name_prefix
+  cloud_run_service = (var.enable_cloud_run || var.enable_serving) ? module.cloud_run[0].service_name : "${var.name_prefix}-api"
 }
 
 output "raw_bucket" {
@@ -65,9 +83,17 @@ output "dbt_runner_email" {
 }
 
 output "cloud_run_uri" {
-  value = var.enable_serving ? module.cloud_run[0].uri : null
+  value = (var.enable_cloud_run || var.enable_serving) ? module.cloud_run[0].uri : null
 }
 
 output "vertex_endpoint_id" {
-  value = var.enable_serving ? module.vertex_endpoint[0].endpoint_id : null
+  value = var.enable_vertex_endpoint ? module.vertex_endpoint[0].endpoint_id : null
+}
+
+output "monitoring_dashboard_id" {
+  value = var.enable_monitoring ? module.monitoring[0].dashboard_id : null
+}
+
+output "artifact_registry_image_base" {
+  value = module.artifact_registry.image_base
 }

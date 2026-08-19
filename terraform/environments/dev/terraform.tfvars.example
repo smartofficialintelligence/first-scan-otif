@@ -1,6 +1,11 @@
 # Example tfvars — copy to terraform.tfvars locally (gitignored).
-# Review the plan (H7) before `terraform apply`.
-project_id = "production-ml-model"
-region     = "us-central1"
-location   = "US"
+# Cloud Run / monitoring are flipped by make gcp-up / gcp-down (not Redis, not Vertex).
+project_id  = "your-gcp-project-id"
+region      = "us-central1"
+location    = "US"
 name_prefix = "olist-ml"
+enable_cloud_run        = false
+enable_vertex_endpoint  = false
+enable_monitoring       = false
+enable_serving          = false
+# extra_invoker_members = ["user:you@gmail.com"]

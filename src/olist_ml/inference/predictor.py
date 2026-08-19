@@ -12,6 +12,12 @@ import numpy as np
 
 from olist_ml.config import Settings
 from olist_ml.features.assembler import frame_from_requests, select_feature_frame
+from olist_ml.inference.explain import (
+    SHAP_NOTE,
+    STUB_NOTE,
+    tree_shap_top_features,
+    unwrap_xgb_classifier,
+)
 from olist_ml.logging import get_logger
 from olist_ml.monitoring.metrics import get_metrics
 from olist_ml.schemas import (
@@ -26,12 +32,6 @@ from olist_ml.schemas import (
 from olist_ml.training.package import ModelMeta, load_artifact
 
 logger = get_logger(__name__)
-
-# Deterministic stub; SHAP is available but skipped by default to keep latency/deps light.
-EXPLAIN_TIMEOUT_NOTE = (
-    "Deterministic stub explanation (feature names with zero contributions). "
-    "Full SHAP is available but skipped by default to avoid heavy compute/timeouts in tests."
-)
 
 
 def risk_band(probability: float, *, low_max: float, medium_max: float) -> str:
@@ -49,6 +49,7 @@ class PredictionService:
         self.settings = settings
         self._model: Any | None = None
         self._meta: ModelMeta | None = None
+        self._shap_explainer: Any | None = None
 
     @property
     def ready(self) -> bool:
@@ -61,8 +62,10 @@ class PredictionService:
             logger.warning("Model artifact missing at %s", model_path)
             self._model = None
             self._meta = None
+            self._shap_explainer = None
             return
         self._model, self._meta = load_artifact(model_path, meta_path)
+        self._shap_explainer = None
         logger.info("Loaded model_version=%s", self._meta.model_version)
 
     def readiness(self) -> ReadyResponse:
@@ -137,7 +140,7 @@ class PredictionService:
                 )
 
     def explain_one(self, request: ExplainRequest | PredictRequest) -> ExplainResponse:
-        """Return a deterministic stub explanation (feature names + zero contributions)."""
+        """Score the request, then Tree-SHAP the XGBoost booster (pre-calibration)."""
         started = time.perf_counter()
         err = False
         band: str | None = None
@@ -149,18 +152,14 @@ class PredictionService:
             # Avoid double-counting: predict_one records once; explain adds its own latency row.
             prediction = self.predict_one(predict_req, _record_metrics=False)
             band = prediction.risk_band
-            assert self._meta is not None
-            top_features = [
-                TopFeatureContribution(feature=name, contribution=0.0)
-                for name in self._meta.feature_names[:10]
-            ]
+            top_features, method, note = self._explain_features(predict_req)
             return ExplainResponse(
                 order_id=prediction.order_id,
                 model_version=prediction.model_version,
                 promise_miss_probability=prediction.promise_miss_probability,
                 top_features=top_features,
-                method="stub",
-                note=EXPLAIN_TIMEOUT_NOTE,
+                method=method,  # type: ignore[arg-type]
+                note=note,
                 target=prediction.target,
             )
         except Exception:
@@ -174,3 +173,37 @@ class PredictionService:
                 error=err,
                 stale=False,
             )
+
+    def _explain_features(
+        self, request: PredictRequest
+    ) -> tuple[list[TopFeatureContribution], str, str]:
+        if self._model is None or self._meta is None:
+            raise RuntimeError("Model not ready")
+        bundle = self._model
+        xgb_clf = unwrap_xgb_classifier(getattr(bundle, "model", bundle))
+        preprocessor = getattr(bundle, "preprocessor", None)
+        if xgb_clf is None or preprocessor is None:
+            logger.warning("No XGBoost tree to explain; using stub")
+            return self._stub_features(), "stub", STUB_NOTE
+        try:
+            frame = select_feature_frame(frame_from_requests([request]))
+            xt = preprocessor.transform(frame)
+            names = [str(n) for n in preprocessor.get_feature_names_out()]
+            top, self._shap_explainer = tree_shap_top_features(
+                xgb_clf,
+                xt,
+                names,
+                explainer=self._shap_explainer,
+            )
+            return top, "shap", SHAP_NOTE
+        except Exception:
+            logger.exception("Tree SHAP failed; using stub")
+            self._shap_explainer = None
+            return self._stub_features(), "stub", STUB_NOTE
+
+    def _stub_features(self) -> list[TopFeatureContribution]:
+        assert self._meta is not None
+        return [
+            TopFeatureContribution(feature=name, contribution=0.0)
+            for name in self._meta.feature_names[:10]
+        ]

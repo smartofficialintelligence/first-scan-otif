@@ -19,6 +19,7 @@ dependencies = [
   "httpx>=0.27.0",
   "python-dotenv>=1.0.0",
   "pyyaml>=6.0.0",
+  "mcp>=2.0.0",
 ]
 
 [project.optional-dependencies]
@@ -41,7 +42,7 @@ gcp = [
   "google-cloud-aiplatform>=1.60.0",
 ]
 mcp = [
-    "mcp>=1.0.0",
+    "mcp>=2.0.0",
 ]
 agent = [
     "langchain-core>=0.3.0",

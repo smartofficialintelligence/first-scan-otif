@@ -29,27 +29,27 @@ Status: locked policy. Update **actuals** after first live demo run.
 
 ## On / off switches
 
-### `make demo-up` (on)
+### `make demo-up` / `demo-down` (local API)
 
-Intended sequence:
+Local uvicorn only. Does not create Cloud Run.
 
-1. Ensure GCS canonical raw (upload if missing)
-2. Create BQ datasets; load raw; `dbt build`
-3. Feast apply + offline materialize; start Memorystore; online materialize
-4. Ensure MLflow tracking reachable
-5. Deploy champion (and optional challenger) to Vertex Endpoint
-6. Deploy FastAPI Cloud Run (`min_instances=0` unless demo needs warm start)
-7. Optionally start Composer **only if** orchestration demo is in scope
-8. Smoke: `/health`, one `/v1/predict`
+### `make gcp-up` (live serving on)
 
-### `make demo-down` (off)
+Intended sequence (no Redis, no Vertex Endpoint, no Composer):
 
-1. Undeploy Vertex Endpoint (or scale to zero / delete)
-2. Delete Memorystore Redis
-3. Delete or stop Composer environment if created
-4. Undeploy Cloud Run services **or** force `min_instances=0` and confirm no traffic
-5. Delete BQ datasets used for demo (optional but preferred for ~$0)
-6. Leave GCS + Artifact Registry + Terraform state intact for fast restore
+1. Enable Cloud Run / Artifact Registry / Monitoring APIs
+2. Apply Artifact Registry (kept across on/off)
+3. Build `--target serving` with the champion joblib and push
+4. Apply Cloud Run (`min_instance_count = 0`, max 2) + Cloud Monitoring dashboard
+5. Wait for `/ready` with an identity token
+
+### `make gcp-down` (live serving off)
+
+1. Terraform apply with `enable_cloud_run=false` and `enable_monitoring=false`
+2. Cloud Run service and dashboard are **destroyed**
+3. Leave Artifact Registry + GCS + BigQuery + IAM intact for the next `gcp-up`
+
+Idle target after `gcp-down`: **near $0/day** for serving (registry storage is cents).
 
 ### `make data-purge` / `make data-restore`
 
@@ -84,16 +84,22 @@ After the first complete paid demo, fill in:
 
 Keep this file honest; do not invent numbers.
 
-## Actuals placeholder (fill after live demo)
+## Actuals (first live serving slice, 2026-08-18)
+
+Serving was on for **minutes**, then destroyed. **Do not treat these as a billed invoice** — console $ was not exported. Hours are wall-clock from evidence timestamps.
 
 | Service | Planned estimate | Actual $ | Hours on | Notes |
 |---|---|---|---|---|
-| BigQuery (query + storage) | TBD | TBD | TBD | |
-| Vertex AI Endpoint | TBD | TBD | TBD | Tear down same day |
-| Cloud Run (API / MLflow) | TBD | TBD | TBD | `min_instances=0` |
-| Memorystore Redis | TBD | TBD | TBD | Demo-on only |
-| Cloud Composer | TBD | TBD | TBD | Prefer local Airflow; delete if created |
-| Artifact Registry / GCS | TBD | TBD | TBD | Retain OK |
-| **Total** | **≤ $30 target** | **TBD** | | Update after first paid demo |
+| BigQuery (query + storage) | TBD | not billed this slice | warehouse already applied | Idle storage only; no dbt/query in this run |
+| Vertex AI Endpoint | TBD | **$0** | 0 | Flag stayed off |
+| Cloud Run (API) | TBD | not exported | ~0.1 | `olist-ml-api`, min instances 0; created 23:54Z, destroyed 00:01Z |
+| Cloud Monitoring dashboard | TBD | not exported | ~0.1 | Destroyed with `gcp-down` |
+| Cloud Build (image) | TBD | not exported | job minutes | Nested Docker overlay; image `…/api:20260818T235214Z` |
+| Memorystore Redis | TBD | **$0** | 0 | Not created |
+| Cloud Composer | TBD | **$0** | 0 | Not created |
+| Artifact Registry / GCS | TBD | retain | kept | Registry `olist-ml` left on for the next `gcp-up` |
+| **Total** | **≤ $30 target** | **not exported** | | Fill $ from Billing after a paid interview demo |
 
-Idle after `demo-down`: target **~$0/day** (optional storage cents if data retained).
+Idle after `gcp-down`: Cloud Run gone (URI 404). Registry + warehouse remain (cents).
+
+Proof: [docs/evidence/gcp-serving-run.md](docs/evidence/gcp-serving-run.md).

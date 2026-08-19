@@ -1,10 +1,12 @@
 # Demo script
 
-Locked sequence for interview / portfolio recording. Prefer local commands first; GCP steps need H7 and secrets.
+Locked sequence for interview / portfolio recording. Prefer local commands first; GCP apply needs a reviewed plan and secrets.
+
+System walkthrough (read before the live demo): [ARCHITECTURE.md](../ARCHITECTURE.md).
 
 **Product language:** promise-miss at **first carrier scan** → `promise_miss_probability` ([ADR 0006](adr/0006-handoff-promise-miss-noc.md)).  
 Policy is deterministic **P0–P3** (notice / remaining-leg upgrade proxy / no action). The LangGraph agent **copies** that action — it does not re-choose policy.  
-Do **not** claim causal ROI from intervention simulation — economics are approved **simulation** assumptions (H9/H10; `allow_causal_roi_claims: false`). See [limitations-assumptions-proxies.md](limitations-assumptions-proxies.md).
+Do **not** claim causal ROI from intervention simulation — economics are versioned **simulation** assumptions (`allow_causal_roi_claims: false`). See [limitations-assumptions-proxies.md](limitations-assumptions-proxies.md).
 
 ## Prep (day of)
 
@@ -34,38 +36,49 @@ make train-pipeline
 
 ## Demo 3 — Serve
 
+Local:
+
 ```bash
 curl -s localhost:8080/health
 curl -s localhost:8080/ready
 curl -s localhost:8080/v1/model
-# POST /v1/predict  |  make mcp-serve → predict_promise_miss
+# POST /v1/predict  |  POST /mcp (Streamable HTTP) → predict_promise_miss
 # Response includes model_version + prediction_id + promise_miss_probability
 ```
 
-Talking point: ranking quality is appendix. Lead with OTIF / exception queue / remaining-leg window.
+Live Cloud Run (optional proof; tear down the same day):
+
+```bash
+make gcp-up && make gcp-smoke && make gcp-evidence && make gcp-down
+```
+
+Talking point: ranking quality is appendix. Lead with OTIF / exception queue / remaining-leg window. The live path is Cloud Run + baked champion, not Redis and not a Vertex Endpoint.
 
 ## Demo 4 — Canary
 
 ```bash
 make replay-baseline
-# Inspect artifacts/prediction_logs.jsonl — traffic_bucket + model_version
+make release-labels
+make evaluate-delayed
+# Inspect artifacts/prediction_logs.jsonl — traffic_bucket + model_version + label_released
 ```
 
 ## Demo 5 — Rollback
 
 ```bash
 make canary-bad
-# create_bad_challenger → replay → canary_decide
+# create_bad_challenger → replay → release_labels → canary_decide
 # Expect ROLLBACK → 100% champion recommendation (never auto-promote)
 ```
 
 ## Demo 6 — Drift / retrain
 
 ```bash
-make drift-check
+make drift-geo
 cat artifacts/drift_alarm.json
-# H5 → make airflow-train-local / train-pipeline → new candidate
-# H6 required before promote
+make approve-h5
+make retrain-trigger
+# H6 required before promote. make airflow-train-local is the unconstrained M4 demo only.
 ```
 
 ## Demo 7 — Decision + agent layer (local)
@@ -122,13 +135,14 @@ curl -s localhost:8080/v1/policies/current
 5. H9/H10 simulation defaults are approved (`econ-sim-v3`); still do **not** claim causal ROI (`make economics-gate`).
 6. Optional LangSmith: set `LANGSMITH_API_KEY` — see [d9-langsmith.md](d9-langsmith.md).
 
-MCP path (same services): `make mcp-serve` → `recommend_policy_action` / `execute_simulated_action`.
+MCP path (same services): `POST /mcp` on uvicorn/Cloud Run, or `make mcp-serve` (stdio) → `recommend_policy_action` / `execute_simulated_action`.
 
 ## Demo 8 — Cost / teardown
 
 ```bash
 make demo-down
-make teardown-endpoint   # dry-run unless --apply with live Vertex
+make gcp-down              # if you ran gcp-up
+make teardown-endpoint     # dry-run unless --apply with live Vertex
 # Fill COST.md actuals table after paid demo
 ```
 

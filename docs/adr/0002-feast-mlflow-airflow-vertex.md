@@ -14,7 +14,7 @@ An all-Vertex ML lifecycle is coherent on GCP but less transferable and blurs ow
 | Concern | System |
 |---|---|
 | Feature engineering | dbt on BigQuery |
-| Feature registry / offline / online | **Feast** (BQ offline, Redis online) |
+| Feature registry / offline / online | **Feast** (BQ offline, **SQLite online** in this demo). Redis remains the production choice for a shared low-latency store across many serving replicas; skipped here for demo cost. |
 | Orchestration / triggers | **Airflow** |
 | Training DAG of ML steps | **Vertex AI Pipelines** |
 | Experiments + model registry | **MLflow** |

@@ -6,7 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +21,13 @@ from olist_ml.data.targets import build_labeled_orders
 from olist_ml.features.build import build_feature_table
 from olist_ml.inference.predictor import PredictionService
 from olist_ml.logging import get_logger, setup_logging
+from olist_ml.monitoring.logs import (
+    DEFAULT_LABEL_DELAY,
+    label_release_at,
+    log_completeness,
+    window_for_scenario,
+)
+from olist_ml.monitoring.scenarios import apply_drift_scenario
 from olist_ml.schemas import PredictRequest
 
 logger = get_logger(__name__)
@@ -107,7 +114,22 @@ def row_to_request(row: pd.Series) -> PredictRequest:
 
 def _predict_inprocess(service: PredictionService, request: PredictRequest) -> dict[str, Any]:
     t0 = time.perf_counter()
-    resp = service.predict_one(request)
+    stale = False
+    freshness_ts = None
+    feast_ms = 0.0
+    lookup_t0 = time.perf_counter()
+    if getattr(service, "feast_client", None) is not None:
+        try:
+            rows = service.feast_client.get_online_features([request.seller_id])
+            feast_ms = (time.perf_counter() - lookup_t0) * 1000.0
+            if rows:
+                stale = bool(rows[0].stale)
+                freshness_ts = rows[0].feature_timestamp
+        except Exception:  # noqa: BLE001 — feast optional on local replay
+            feast_ms = (time.perf_counter() - lookup_t0) * 1000.0
+    else:
+        feast_ms = 0.0
+    resp = service.predict_one(request, stale_features=stale)
     latency_ms = (time.perf_counter() - t0) * 1000.0
     return {
         "order_id": resp.order_id,
@@ -117,6 +139,10 @@ def _predict_inprocess(service: PredictionService, request: PredictRequest) -> d
         "latency_ms": latency_ms,
         "http_status": 200,
         "error_class": None,
+        "feature_freshness_ts": freshness_ts.isoformat() if freshness_ts else None,
+        "feast_lookup_ms": feast_ms,
+        "stale_features": stale,
+        "prediction_timestamp": resp.prediction_timestamp.isoformat(),
     }
 
 
@@ -138,6 +164,12 @@ def _predict_http(
                 "latency_ms": latency_ms,
                 "http_status": r.status_code,
                 "error_class": "http_error",
+                "feature_freshness_ts": None,
+                "feast_lookup_ms": None,
+                "stale_features": False,
+                "prediction_timestamp": request.prediction_timestamp.isoformat()
+                if request.prediction_timestamp
+                else None,
             }
         body = r.json()
         return {
@@ -148,6 +180,10 @@ def _predict_http(
             "latency_ms": latency_ms,
             "http_status": r.status_code,
             "error_class": None,
+            "feature_freshness_ts": body.get("feature_timestamp"),
+            "feast_lookup_ms": body.get("feast_lookup_ms"),
+            "stale_features": bool(body.get("stale_features")),
+            "prediction_timestamp": body.get("prediction_timestamp"),
         }
     except Exception as exc:  # noqa: BLE001 — continue replay on transport errors
         latency_ms = (time.perf_counter() - t0) * 1000.0
@@ -159,6 +195,10 @@ def _predict_http(
             "latency_ms": latency_ms,
             "http_status": 0,
             "error_class": type(exc).__name__,
+            "feature_freshness_ts": None,
+            "feast_lookup_ms": None,
+            "stale_features": False,
+            "prediction_timestamp": None,
         }
 
 
@@ -184,6 +224,9 @@ def run_replay(
     challenger_model: Path | None = Path("artifacts/model_challenger_bad.joblib"),
     challenger_meta: Path | None = Path("artifacts/model_challenger_bad_meta.json"),
     use_challenger: bool = True,
+    snapshot_id: str = "local-fixtures",
+    label_delay: timedelta = DEFAULT_LABEL_DELAY,
+    bearer_token: str | None = None,
 ) -> Path:
     """
     Replay holdout events.
@@ -196,6 +239,7 @@ def run_replay(
     frame = load_replay_frame(holdout_path, data_dir=data_dir, settings=settings)
     if frame.empty:
         raise SystemExit("Replay holdout is empty")
+    frame = apply_drift_scenario(frame, scenario, seed=seed)
 
     time_col = "handoff_ts" if "handoff_ts" in frame.columns else "prediction_ts"
     ordered = frame.sample(frac=1.0, random_state=seed).sort_values(
@@ -225,7 +269,10 @@ def run_replay(
                 logger.warning("Challenger failed to load; serving champion for all buckets")
                 challenger_svc = None
     else:
-        client = httpx.Client(timeout=30.0)
+        headers = {}
+        if bearer_token:
+            headers["Authorization"] = f"Bearer {bearer_token}"
+        client = httpx.Client(timeout=60.0, headers=headers or None)
 
     n = 0
     with log_path.open("w", encoding="utf-8") as fh:
@@ -246,12 +293,17 @@ def run_replay(
                 assert client is not None
                 pred = _predict_http(client, base_url, request)
 
+            pred_ts = request.prediction_timestamp or request.purchase_timestamp
+            release_at = label_release_at(pred_ts, delay=label_delay)
+
             record = {
                 "event_id": f"{scenario}-{request.order_id}",
                 "order_id": request.order_id,
-                "snapshot_id": None,
+                "snapshot_id": snapshot_id,
                 "scenario": scenario,
+                "window": window_for_scenario(scenario),
                 "request_ts": datetime.now(UTC).isoformat(),
+                "prediction_timestamp": pred.get("prediction_timestamp") or pred_ts.isoformat(),
                 "model_version": pred.get("model_version"),
                 "promise_miss_probability": pred.get("promise_miss_probability"),
                 "proba": pred.get("promise_miss_probability"),
@@ -259,10 +311,25 @@ def run_replay(
                 "latency_ms": pred.get("latency_ms"),
                 "http_status": pred.get("http_status"),
                 "error_class": pred.get("error_class"),
+                "feature_freshness_ts": pred.get("feature_freshness_ts"),
+                "feast_lookup_ms": pred.get("feast_lookup_ms")
+                if pred.get("feast_lookup_ms") is not None
+                else 0.0,
+                "stale_features": bool(pred.get("stale_features")),
+                "geo_distance_km": request.geo_distance_km,
+                "seller_late_rate_7d": request.seller_late_rate_7d,
+                "seller_late_rate_30d": request.seller_late_rate_30d,
+                "seller_late_rate_90d": request.seller_late_rate_90d,
+                "seller_order_count_7d": request.seller_order_count_7d,
+                "seller_order_count_30d": request.seller_order_count_30d,
+                "seller_order_count_90d": request.seller_order_count_90d,
                 "traffic_bucket": traffic_bucket,
                 "label_promise_miss": promise_label,
+                "label_release_at": release_at.isoformat(),
+                "label_released": False,
                 "seed": seed,
             }
+            record.update(log_completeness(record))
             fh.write(json.dumps(record, default=str) + "\n")
             n += 1
 
@@ -304,10 +371,17 @@ def main(argv: list[str] | None = None) -> None:
         type=Path,
         default=Path("artifacts/model_challenger_bad_meta.json"),
     )
+    parser.add_argument("--snapshot-id", type=str, default="local-fixtures")
     parser.add_argument(
         "--no-challenger",
         action="store_true",
         help="Serve champion artifact for all buckets (attribution still 90/10)",
+    )
+    parser.add_argument(
+        "--bearer-token",
+        type=str,
+        default=None,
+        help="Bearer token for HTTP replay (Cloud Run identity token)",
     )
     args = parser.parse_args(argv)
     run_replay(
@@ -324,6 +398,8 @@ def main(argv: list[str] | None = None) -> None:
         challenger_model=None if args.no_challenger else args.challenger_model,
         challenger_meta=None if args.no_challenger else args.challenger_meta,
         use_challenger=not args.no_challenger,
+        snapshot_id=args.snapshot_id,
+        bearer_token=args.bearer_token,
     )
 
 

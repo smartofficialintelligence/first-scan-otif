@@ -1,15 +1,22 @@
-FROM python:3.12-slim
+FROM python:3.12-slim AS base
 
 WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PATH="/app/.venv/bin:$PATH"
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-COPY pyproject.toml README.md ./
+COPY pyproject.toml uv.lock README.md ./
 COPY src ./src
-RUN mkdir -p artifacts && uv sync --no-dev
+COPY config ./config
+# mcp is a core dep so Streamable HTTP (/mcp) is in the same image as REST.
+RUN mkdir -p artifacts && uv sync --frozen --no-dev
 
 EXPOSE 8080
-CMD ["uv", "run", "uvicorn", "olist_ml.api.app:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "olist_ml.api.app:app", "--host", "0.0.0.0", "--port", "8080"]
+
+# Production image: champion artifact baked in (not used by CI).
+FROM base AS serving
+COPY artifacts/model.joblib artifacts/model_meta.json ./artifacts/

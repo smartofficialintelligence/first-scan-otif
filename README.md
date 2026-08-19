@@ -12,12 +12,12 @@ This is not a notebook demo. It is an end-to-end ML platform slice: features, tr
 | M2 BigQuery + dbt | merged to `main` (PR #3) |
 | M3 Feast | implemented on `cursor/milestones-remaining-642f` (SQLite demo-off) |
 | M4 Vertex training + MLflow | implemented on `cursor/milestones-remaining-642f` (local pipeline + candidate registry) |
-| M5 Managed inference | implemented on `cursor/milestones-remaining-642f` (local REST + TF scaffolds) |
+| M5 Managed inference | **live Cloud Run on/off** (`make gcp-up` / `gcp-down`); Vertex endpoint stays off |
 | M6 MCP | implemented on `cursor/milestones-remaining-642f` |
 | M7 CI/CD + Terraform hardening | implemented on `cursor/milestones-remaining-642f` |
-| M8 Monitoring | implemented on `cursor/milestones-remaining-642f` (logs + drift stub) |
-| M9 Canary + replay + rollback | implemented on `cursor/milestones-remaining-642f` |
-| M10 Airflow triggers | implemented on `cursor/milestones-remaining-642f` (local DAGs; no Composer required) |
+| M8 Monitoring | feature PSI, delayed labels, exported metrics, TF dashboard module (off by default) |
+| M9 Canary + replay + rollback | 90/10 + delayed-label canary; named drift scenarios |
+| M10 Airflow triggers | replay, labels, delayed eval, drift, H5-gated retrain (local DAGs; no Composer required) |
 | M11 Polish | implemented on `cursor/milestones-remaining-642f` (docs/runbook/cost placeholders) |
 | Decision + agent (D1–D13) | **complete** on `main` — simulation H9/H10 approved; causal ROI disallowed |
 | Handoff NOC policy (ADR 0006) | merged to `main` (PR #19); interviewer packet + CI follow-up on this branch |
@@ -29,15 +29,15 @@ Details: [docs/milestones.md](docs/milestones.md)
 | Layer | Choice |
 |---|---|
 | Warehouse / transforms | BigQuery + dbt |
-| Feature store | Feast (BQ offline, Redis online for demos) |
+| Feature store | Feast (BQ offline, SQLite online in this demo; Redis would be the prod shared store) |
 | Orchestration | Airflow |
 | Training | Vertex AI Pipelines (XGBoost + Optuna) |
 | Experiments / registry | MLflow |
 | Model serving | Vertex AI Endpoint |
 | App APIs | FastAPI on Cloud Run (REST + MCP) |
 
-Full diagram: [ARCHITECTURE.md](ARCHITECTURE.md)  
-Binding decisions: [docs/LOCKED_DECISIONS.md](docs/LOCKED_DECISIONS.md)
+Full walkthrough (function, stack, tradeoffs, operate-the-model): [ARCHITECTURE.md](ARCHITECTURE.md)  
+Binding tables: [docs/LOCKED_DECISIONS.md](docs/LOCKED_DECISIONS.md)
 
 ## ML problem
 
@@ -60,12 +60,21 @@ curl -s localhost:8080/health
 curl -s localhost:8080/ready
 ```
 
+Live Cloud Run (no Redis, no Vertex Endpoint). Tear down the same day:
+
+```bash
+make gcp-up && make gcp-smoke && make gcp-evidence && make gcp-down
+```
+
+Details: [docs/gcp-live-serving.md](docs/gcp-live-serving.md) · Proof: [docs/evidence/gcp-serving-run.md](docs/evidence/gcp-serving-run.md)
+
 Pipeline + canary (no GCP):
 
 ```bash
 make train-pipeline
-make canary-bad          # bad challenger → ROLLBACK recommendation
-make airflow-train-local # local Airflow trigger (no Composer)
+make canary-bad          # delayed-label gates → ROLLBACK recommendation
+make approve-h5 && make retrain-trigger  # H5-gated candidate (needs drift alarm if reason=drift)
+make airflow-train-local # unconstrained M4 demo (no Composer, no H5)
 make demo-decision       # predict→policy→agent→sim harness (needs agent extra)
 ```
 
@@ -80,8 +89,8 @@ make train-olist
 
 Demo resources are ephemeral:
 
-- `make demo-up` — stand up billable path (local API today; GCP gated)
-- `make demo-down` — tear down to ~$0/day idle
+- `make demo-up` / `demo-down` — local API
+- `make gcp-up` / `gcp-down` — live Cloud Run + Monitoring; registry kept
 
 Policy: [COST.md](COST.md) · Ops: [RUNBOOK.md](RUNBOOK.md)
 

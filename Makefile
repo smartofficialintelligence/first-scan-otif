@@ -3,6 +3,8 @@
 .PHONY: feast-apply feast-historical feast-parity demo-up demo-down mcp-serve
 .PHONY: train-pipeline airflow-train-local replay-baseline canary-bad drift-check teardown-endpoint
 .PHONY: demo-decision agent-evals decision-eval demo-decision-api economics-gate overrun-experiment miss-history-experiment short-promise-experiment early-delta-experiment
+.PHONY: gcp-up gcp-down gcp-smoke gcp-evidence
+.PHONY: drift-geo drift-seller-late replay-canary
 
 export PATH := $(HOME)/.local/bin:/opt/google-cloud-sdk/bin:$(PATH)
 
@@ -10,7 +12,7 @@ sync:
 	uv sync --all-extras
 
 lint:
-	uv run ruff check src tests scripts
+	uv run ruff check src tests scripts pipelines
 
 typecheck:
 	uv run mypy src/olist_ml
@@ -39,6 +41,9 @@ serve-local:
 smoke-local:
 	curl -sf http://127.0.0.1:8080/health
 	curl -sf http://127.0.0.1:8080/ready
+
+metrics-smoke:
+	curl -sf http://127.0.0.1:8080/v1/metrics
 
 demo-up:
 	bash scripts/demo_up.sh
@@ -79,19 +84,60 @@ early-delta-experiment:
 replay-baseline:
 	uv run python scripts/replay_traffic.py --inprocess true --scenario baseline --no-challenger
 
+replay-canary:
+	uv run python airflow/dags/olist_replay_dag.py --scenario baseline
+
 canary-bad:
 	uv run python scripts/create_bad_challenger.py
 	uv run python scripts/replay_traffic.py --inprocess true --scenario bad_canary
-	uv run python scripts/canary_decide.py
+	uv run python scripts/release_labels.py --virtual-now 2099-01-01T00:00:00Z
+	uv run python scripts/canary_decide.py; test $$? -eq 1
+
+release-labels:
+	uv run python scripts/release_labels.py --virtual-now $${VIRTUAL_NOW:-2099-01-01T00:00:00Z}
+
+evaluate-delayed:
+	uv run python scripts/evaluate_delayed.py --champion-pr-auc 0.296
+
+drift-geo:
+	uv run python scripts/replay_traffic.py --inprocess true --scenario baseline --no-challenger --log-path artifacts/prediction_logs_baseline.jsonl
+	uv run python scripts/replay_traffic.py --inprocess true --scenario drift_geo --no-challenger
+	uv run python airflow/dags/olist_drift_dag.py --baseline-log artifacts/prediction_logs_baseline.jsonl
+
+drift-seller-late:
+	uv run python scripts/replay_traffic.py --inprocess true --scenario baseline --no-challenger --log-path artifacts/prediction_logs_baseline.jsonl
+	uv run python scripts/replay_traffic.py --inprocess true --scenario drift_seller_late --no-challenger
+	uv run python airflow/dags/olist_drift_dag.py --baseline-log artifacts/prediction_logs_baseline.jsonl
 
 drift-check:
 	uv run python airflow/dags/olist_drift_dag.py
+
+approve-h5:
+	uv run python scripts/approve_h5_retrain.py --reason drift
+
+retrain-trigger:
+	uv run python airflow/dags/olist_retrain_dag.py --reason drift
+
+export-monitoring:
+	uv run python scripts/export_monitoring.py
 
 airflow-train-local:
 	uv run python airflow/dags/olist_train_dag.py --local --data-dir data/fixtures --trials 3
 
 teardown-endpoint:
 	uv run python scripts/teardown_endpoint.py
+
+gcp-up:
+	bash scripts/gcp_up.sh
+
+gcp-down:
+	bash scripts/gcp_down.sh
+
+gcp-smoke:
+	bash scripts/gcp_smoke.sh
+
+gcp-evidence:
+	bash scripts/gcp_evidence.sh
 
 # --- Milestone 2 (requires GCP secrets; do not terraform apply without H7) ---
 

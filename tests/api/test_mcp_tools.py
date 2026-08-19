@@ -87,7 +87,7 @@ def test_predict_promise_miss(trained_service: PredictionService) -> None:
 def test_explain_promise_miss(trained_service: PredictionService) -> None:
     body = mcp_server.explain_promise_miss(service=trained_service, **_payload())
     assert body["order_id"] == "mcp-demo"
-    assert body["method"] == "stub"
+    assert body["method"] == "shap"
     assert isinstance(body["top_features"], list)
     assert body["top_features"]
-    assert body["top_features"][0]["contribution"] == 0.0
+    assert "calibrat" in (body.get("note") or "").lower()

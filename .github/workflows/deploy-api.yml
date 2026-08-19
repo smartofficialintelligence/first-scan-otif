@@ -24,7 +24,7 @@ jobs:
           echo "=== Deploy API stub (no secrets / no live deploy) ==="
           echo "1. Build container image from Dockerfile"
           echo "2. Push image to Artifact Registry (project-specific)"
-          echo "3. Update Cloud Run service revision (enable_serving TF path)"
+          echo "3. Update Cloud Run service revision (make gcp-up / enable_cloud_run)"
           echo "4. Smoke: GET /health and GET /ready"
           echo "Target environment: ${{ inputs.environment }}"
           echo "Real deploy wiring lands after H7 + serving secrets are available."

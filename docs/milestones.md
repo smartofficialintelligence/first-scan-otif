@@ -43,13 +43,13 @@ See [m4-training-mlflow.md](m4-training-mlflow.md).
 
 ## Milestone 5 — Managed inference
 
-**Status:** implemented on `cursor/milestones-remaining-642f` (local REST + demo scripts + TF scaffolds; Vertex apply gated).
+**Status:** live Cloud Run path is `make gcp-up` / `gcp-down` (champion joblib in the image). Vertex Endpoint stays off.
 
-MLflow/champion artifact → Vertex Endpoint → Cloud Run FastAPI.
+MLflow/champion artifact → FastAPI on Cloud Run. Same `PredictionService` as local uvicorn / MCP.
 
-**Accept:** live REST predict; `model_version` returned; demo-down tears endpoint down.
+**Accept:** live REST predict; `model_version` returned; `gcp-down` destroys Cloud Run + dashboard and keeps Artifact Registry.
 
-See [m5-serving.md](m5-serving.md).
+See [m5-serving.md](m5-serving.md) · [gcp-live-serving.md](gcp-live-serving.md) · [evidence/gcp-serving-run.md](evidence/gcp-serving-run.md).
 
 ## Milestone 6 — MCP
 
@@ -71,29 +71,34 @@ PR CI (lint/type/test/dbt compile/tf validate/docker). Deploy workflows. H7 for 
 
 ## Milestone 8 — Monitoring
 
-**Status:** implemented on `cursor/milestones-remaining-642f` (prediction logs + drift alarm stub; dashboards optional later).
+**Status:** implemented (feature PSI + delayed-label eval + exported metrics + Terraform dashboard module gated off).
 
-Service + ML telemetry (latency, errors, drift, prediction mix, delayed-label quality).
+Service + ML telemetry (latency, errors, **per-feature PSI**, prediction mix, **delayed-label** PR-AUC).
 
-**Accept:** dashboards or exported metrics show both service and ML signals; drift ≠ quality documented.
+**Accept:** dashboards **or** exported metrics show both service and ML signals; drift ≠ quality documented.
+
+- Local export: `make export-monitoring` → `artifacts/monitoring_dashboard.json`
+- GCP: `terraform/modules/monitoring` with `enable_monitoring=false` until H7
+
+See [monitoring.md](monitoring.md).
 
 ## Milestone 9 — Canary + replay + rollback
 
-**Status:** implemented on `cursor/milestones-remaining-642f`.
+**Status:** implemented (90/10 attribution, named drift scenarios, delayed-label canary).
 
-Implements [simulation.md](simulation.md): baseline canary, bad challenger rollback, prediction logs.
+Implements [simulation.md](simulation.md): baseline canary, bad challenger rollback, prediction logs with freshness / Feast lookup / delayed-label fields.
 
-**Accept:** 90/10 version attribution; bad canary rolls back to 100% champion.
+**Accept:** 90/10 version attribution; bad canary rolls back to 100% champion after **released** labels.
 
 See [m9-canary-replay.md](m9-canary-replay.md).
 
 ## Milestone 10 — Airflow triggers
 
-**Status:** implemented on `cursor/milestones-remaining-642f`.
+**Status:** implemented (replay, label release, delayed eval, drift, H5-gated retrain).
 
 Schedule + drift/performance → candidate training pipeline; still requires H5/H6.
 
-**Accept:** trigger produces candidate; no auto-promote.
+**Accept:** `retrain_trigger` produces a candidate only after H5 (and an alarm when `reason=drift`); no auto-promote.
 
 See [m10-airflow.md](m10-airflow.md).
 

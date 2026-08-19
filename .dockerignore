@@ -9,7 +9,7 @@ __pycache__
 htmlcov
 .env
 data/raw/
-artifacts/
-*.joblib
 .DS_Store
-uv.lock
+sa-key.json
+terraform/**/.terraform/
+terraform/**/*.tfstate*

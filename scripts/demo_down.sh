@@ -27,9 +27,10 @@ fi
 
 echo ""
 echo "Teardown reminders (manual — not deleting GCP without explicit flags):"
+echo "  - Cloud Run (live proof): make gcp-down"
 echo "  - Vertex Endpoint: uv run python scripts/teardown_endpoint.py --dry-run"
 echo "    (pass --apply only when GCP credentials are set and you intend to undeploy)"
 echo "  - Redis / Feast online: stop any demo Redis; SQLite files under data/feast are local-only"
 echo "  - Composer / Airflow: pause DAGs; do not delete Composer env without H7"
-echo "  - Cloud Run: gcloud run services delete <name> --region <region> (only if you deployed)"
+echo "  - Cloud Run: make gcp-down (destroys the service; keeps Artifact Registry)"
 echo "  - Terraform: do not terraform destroy without review; idle cost target is ~\$0 after down"

@@ -152,9 +152,9 @@ No auto-promote. Alarms open candidates or notifications only.
 
 - Same `seed` + `snapshot_id` → identical request order and bodies
 - Replay never includes train/val/test order_ids
-- Prediction logs always include `model_version`
-- `bad_canary` scenario fails gates in CI (with local stub endpoint acceptable in unit/contract tests)
-- Drift scenario increments drift metric above threshold in a unit/integration fixture
+- Prediction logs always include `model_version`, `feature_freshness_ts`, `feast_lookup_ms`
+- `bad_canary` scenario fails gates after delayed-label release
+- Drift scenario increments drift metric above threshold in a unit/integration fixture (`tests/unit/test_ops_contract.py`)
 
 ## Non-goals
 
