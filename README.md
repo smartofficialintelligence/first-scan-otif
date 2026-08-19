@@ -58,6 +58,29 @@ Olist CSVs → pandas feature table → train / calibrate / MLflow candidate
 
 ---
 
+## See it running — an agent on the governed tool surface
+
+A coding agent (Cursor) connected to the **live IAM-gated Cloud Run endpoint** over MCP — same `PredictionService` the REST API uses, no side channel. Model → frozen policy → simulated action → refusal when an agent tries to substitute.
+
+**1 · What's serving.** `get_model_status` returns the champion version and frozen P1/P2 staffing cutoffs — matching this README because the served artifact and these numbers come from the same promoted `model_meta.json`.
+
+![Agent calls get_model_status: champion version, cutoffs, ranking and calibration](docs/img/01-mcp-model-status.png)
+
+**2 · Score → banded action.** An SP→Bahia order at first scan: blown ship limit, 38% recent seller late rate, 4.25 days left on the promise. The policy answers with band **P1**, a remaining-leg upgrade priced ~$23, and `requires_human_approval: true` — spend above $20 is not autonomous.
+
+![Agent calls recommend_policy_action: P1 band, upgrade action, human approval required](docs/img/02-decision-p1-upgrade.png)
+
+**3 · The agent cannot pick a cheaper action.** Executing anything other than the ledgered policy decision is refused by the server — the copy-the-action contract is enforced, not advisory.
+
+![Server refuses AT_RISK_NOTICE: not the frozen policy action for this decision](docs/img/03-policy-refusal.png)
+
+<!-- Optional extra frames — uncomment when captured:
+![Simulated execution priced from the ledgered decision](docs/img/04-simulated-execution.png)
+![Order lineage: prediction → decision → action → outcome](docs/img/05-decision-lineage.png)
+-->
+
+---
+
 ## The operating problem
 
 Commerce here looks like a small fulfillment network: many sellers, a carrier handoff, a promised delivery date, and a customer who either gets the order on time or does not. At **first carrier scan** (`handoff_ts = order_delivered_carrier_date`) the seller is done. Remaining levers are the rest of the journey and customer communication.
