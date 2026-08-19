@@ -126,6 +126,15 @@ def merge_baseline_recent(
     return _tag_window(baseline_rows, "baseline") + _tag_window(recent_rows, "recent")
 
 
+def resolve_baseline_log(explicit: Path | None = None) -> Path | None:
+    """CLI/DAG share this: explicit path, else artifacts/prediction_logs_baseline.jsonl."""
+    if explicit is not None:
+        return explicit
+    if DEFAULT_BASELINE_LOG.exists():
+        return DEFAULT_BASELINE_LOG
+    return None
+
+
 def run_drift_check(
     *,
     log_path: Path = DEFAULT_LOG,

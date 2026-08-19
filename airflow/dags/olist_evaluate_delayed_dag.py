@@ -42,6 +42,7 @@ try:
     from airflow.operators.python import PythonOperator
 
     def _task(**_context: Any) -> dict[str, Any]:
+        # Loads baseline/champion PR-AUC from artifacts/model_meta.json when unset.
         return run_evaluate_delayed_task()
 
     with DAG(

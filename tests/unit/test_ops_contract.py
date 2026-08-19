@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -108,6 +109,44 @@ def test_psi_identical_samples_near_zero() -> None:
 
     x = np.linspace(0.1, 0.9, 50)
     assert population_stability_index(x, x) < 0.05
+
+
+def test_run_drift_check_uses_separate_baseline_log(tmp_path: Path) -> None:
+    baseline = tmp_path / "baseline.jsonl"
+    recent = tmp_path / "recent.jsonl"
+    alarm = tmp_path / "alarm.json"
+    b_rows = _logs_from_frame(_frame(40, geo=50.0), "baseline")
+    r_rows = _logs_from_frame(_frame(40, geo=400.0), "recent")
+    baseline.write_text("\n".join(json.dumps(r) for r in b_rows) + "\n")
+    recent.write_text("\n".join(json.dumps(r) for r in r_rows) + "\n")
+    result = run_drift_check(log_path=recent, baseline_log_path=baseline, alarm_path=alarm)
+    assert result["feature_psi"]["geo_distance_km"] > 0.2
+    assert result["alarm"] is True
+    same = run_drift_check(log_path=recent, alarm_path=alarm)
+    assert same["alarm"] is False
+
+
+def test_evaluate_delayed_loads_offline_pr_auc_from_meta(tmp_path: Path) -> None:
+    from olist_ml.monitoring.delayed_eval import run_evaluate_delayed
+
+    meta = tmp_path / "model_meta.json"
+    meta.write_text(json.dumps({"metrics": {"test_pr_auc": 0.99}}))
+    log_path = tmp_path / "logs.jsonl"
+    anti = [
+        {"proba": 0.1, "label_promise_miss": 1, "label_released": True, "traffic_bucket": "champion"},
+        {"proba": 0.2, "label_promise_miss": 1, "label_released": True, "traffic_bucket": "champion"},
+        {"proba": 0.8, "label_promise_miss": 0, "label_released": True, "traffic_bucket": "champion"},
+        {"proba": 0.9, "label_promise_miss": 0, "label_released": True, "traffic_bucket": "champion"},
+    ]
+    log_path.write_text("\n".join(json.dumps(r) for r in anti) + "\n")
+    report = run_evaluate_delayed(
+        log_path=log_path,
+        out_path=tmp_path / "out.json",
+        meta_path=meta,
+    )
+    assert report["baseline_pr_auc"] == pytest.approx(0.99)
+    assert report["champion_pr_auc"] == pytest.approx(0.99)
+    assert report["quality_alarm"] is True
 
 
 def test_unreleased_labels_are_ignored_until_release() -> None:

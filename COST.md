@@ -84,16 +84,22 @@ After the first complete paid demo, fill in:
 
 Keep this file honest; do not invent numbers.
 
-## Actuals placeholder (fill after live demo)
+## Actuals (first live serving slice, 2026-08-18)
+
+Serving was on for **minutes**, then destroyed. **Do not treat these as a billed invoice** — console $ was not exported. Hours are wall-clock from evidence timestamps.
 
 | Service | Planned estimate | Actual $ | Hours on | Notes |
 |---|---|---|---|---|
-| BigQuery (query + storage) | TBD | TBD | TBD | |
-| Vertex AI Endpoint | TBD | TBD | TBD | Tear down same day |
-| Cloud Run (API / MLflow) | TBD | TBD | TBD | `min_instances=0` |
-| Memorystore Redis | TBD | TBD | TBD | Demo-on only |
-| Cloud Composer | TBD | TBD | TBD | Prefer local Airflow; delete if created |
-| Artifact Registry / GCS | TBD | TBD | TBD | Retain OK |
-| **Total** | **≤ $30 target** | **TBD** | | Update after first paid demo |
+| BigQuery (query + storage) | TBD | not billed this slice | warehouse already applied | Idle storage only; no dbt/query in this run |
+| Vertex AI Endpoint | TBD | **$0** | 0 | Flag stayed off |
+| Cloud Run (API) | TBD | not exported | ~0.1 | `olist-ml-api`, min instances 0; created 23:54Z, destroyed 00:01Z |
+| Cloud Monitoring dashboard | TBD | not exported | ~0.1 | Destroyed with `gcp-down` |
+| Cloud Build (image) | TBD | not exported | job minutes | Nested Docker overlay; image `…/api:20260818T235214Z` |
+| Memorystore Redis | TBD | **$0** | 0 | Not created |
+| Cloud Composer | TBD | **$0** | 0 | Not created |
+| Artifact Registry / GCS | TBD | retain | kept | Registry `olist-ml` left on for the next `gcp-up` |
+| **Total** | **≤ $30 target** | **not exported** | | Fill $ from Billing after a paid interview demo |
 
-Idle after `demo-down`: target **~$0/day** (optional storage cents if data retained).
+Idle after `gcp-down`: Cloud Run gone (URI 404). Registry + warehouse remain (cents).
+
+Proof: [docs/evidence/gcp-serving-run.md](docs/evidence/gcp-serving-run.md).

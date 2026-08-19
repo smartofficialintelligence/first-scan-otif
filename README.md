@@ -12,7 +12,7 @@ This is not a notebook demo. It is an end-to-end ML platform slice: features, tr
 | M2 BigQuery + dbt | merged to `main` (PR #3) |
 | M3 Feast | implemented on `cursor/milestones-remaining-642f` (SQLite demo-off) |
 | M4 Vertex training + MLflow | implemented on `cursor/milestones-remaining-642f` (local pipeline + candidate registry) |
-| M5 Managed inference | implemented on `cursor/milestones-remaining-642f` (local REST + TF scaffolds) |
+| M5 Managed inference | **live Cloud Run on/off** (`make gcp-up` / `gcp-down`); Vertex endpoint stays off |
 | M6 MCP | implemented on `cursor/milestones-remaining-642f` |
 | M7 CI/CD + Terraform hardening | implemented on `cursor/milestones-remaining-642f` |
 | M8 Monitoring | feature PSI, delayed labels, exported metrics, TF dashboard module (off by default) |
@@ -60,6 +60,14 @@ curl -s localhost:8080/health
 curl -s localhost:8080/ready
 ```
 
+Live Cloud Run (no Redis, no Vertex Endpoint). Tear down the same day:
+
+```bash
+make gcp-up && make gcp-smoke && make gcp-evidence && make gcp-down
+```
+
+Details: [docs/gcp-live-serving.md](docs/gcp-live-serving.md) · Proof: [docs/evidence/gcp-serving-run.md](docs/evidence/gcp-serving-run.md)
+
 Pipeline + canary (no GCP):
 
 ```bash
@@ -81,8 +89,8 @@ make train-olist
 
 Demo resources are ephemeral:
 
-- `make demo-up` — stand up billable path (local API today; GCP gated)
-- `make demo-down` — tear down to ~$0/day idle
+- `make demo-up` / `demo-down` — local API
+- `make gcp-up` / `gcp-down` — live Cloud Run + Monitoring; registry kept
 
 Policy: [COST.md](COST.md) · Ops: [RUNBOOK.md](RUNBOOK.md)
 

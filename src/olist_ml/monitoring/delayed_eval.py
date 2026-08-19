@@ -14,8 +14,24 @@ from olist_ml.monitoring.logs import read_jsonl, released_rows
 
 DEFAULT_LOG = Path("artifacts/prediction_logs.jsonl")
 DEFAULT_OUT = Path("artifacts/delayed_eval.json")
+DEFAULT_META = Path("artifacts/model_meta.json")
 PR_AUC_QUALITY_DROP = 0.03
 CANARY_PR_AUC_SLACK = 0.02
+
+
+def load_offline_pr_auc(meta_path: Path = DEFAULT_META) -> float | None:
+    """Champion test PR-AUC from the baked model_meta (quality / canary floor)."""
+    if not meta_path.exists():
+        return None
+    try:
+        payload = json.loads(meta_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    metrics = payload.get("metrics") or {}
+    value = metrics.get("test_pr_auc")
+    if value is None:
+        return None
+    return float(value)
 
 
 def _proba(row: dict[str, Any]) -> float:
@@ -130,7 +146,13 @@ def run_evaluate_delayed(
     out_path: Path = DEFAULT_OUT,
     baseline_pr_auc: float | None = None,
     champion_pr_auc: float | None = None,
+    meta_path: Path = DEFAULT_META,
 ) -> dict[str, Any]:
+    offline = load_offline_pr_auc(meta_path)
+    if baseline_pr_auc is None:
+        baseline_pr_auc = offline
+    if champion_pr_auc is None:
+        champion_pr_auc = offline
     rows = read_jsonl(log_path)
     report = evaluate_delayed(
         rows,

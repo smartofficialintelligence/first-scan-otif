@@ -22,8 +22,8 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from olist_ml.monitoring.drift import (  # noqa: E402
     DEFAULT_ALARM,
-    DEFAULT_BASELINE_LOG,
     DEFAULT_LOG,
+    resolve_baseline_log,
     run_drift_check,
 )
 
@@ -35,7 +35,7 @@ try:
     from airflow.operators.python import PythonOperator
 
     def _drift_task(**_context: Any) -> dict[str, Any]:
-        return run_drift_check()
+        return run_drift_check(baseline_log_path=resolve_baseline_log())
 
     with DAG(
         dag_id="olist_drift",
@@ -59,12 +59,9 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--baseline-log", type=Path, default=None)
     parser.add_argument("--alarm-path", type=Path, default=DEFAULT_ALARM)
     args = parser.parse_args(argv)
-    baseline = args.baseline_log
-    if baseline is None and DEFAULT_BASELINE_LOG.exists():
-        baseline = DEFAULT_BASELINE_LOG
     result = run_drift_check(
         log_path=args.log_path,
-        baseline_log_path=baseline,
+        baseline_log_path=resolve_baseline_log(args.baseline_log),
         alarm_path=args.alarm_path,
     )
     print(json.dumps(result, indent=2, default=str))

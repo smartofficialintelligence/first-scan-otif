@@ -43,13 +43,13 @@ See [m4-training-mlflow.md](m4-training-mlflow.md).
 
 ## Milestone 5 — Managed inference
 
-**Status:** implemented on `cursor/milestones-remaining-642f` (local REST + demo scripts + TF scaffolds; Vertex apply gated).
+**Status:** live Cloud Run path is `make gcp-up` / `gcp-down` (champion joblib in the image). Vertex Endpoint stays off.
 
-MLflow/champion artifact → Vertex Endpoint → Cloud Run FastAPI.
+MLflow/champion artifact → FastAPI on Cloud Run. Same `PredictionService` as local uvicorn / MCP.
 
-**Accept:** live REST predict; `model_version` returned; demo-down tears endpoint down.
+**Accept:** live REST predict; `model_version` returned; `gcp-down` destroys Cloud Run + dashboard and keeps Artifact Registry.
 
-See [m5-serving.md](m5-serving.md).
+See [m5-serving.md](m5-serving.md) · [gcp-live-serving.md](gcp-live-serving.md) · [evidence/gcp-serving-run.md](evidence/gcp-serving-run.md).
 
 ## Milestone 6 — MCP
 
