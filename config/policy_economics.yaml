@@ -24,6 +24,8 @@ economics_gate:
 business_loss:
   fixed_miss_cost: 10.0
   order_value_loss_rate: 0.10
+  # Replay diagnostic when observed (delivery − EDD)+ is omitted.
+  median_miss_overrun_days: 6.0
 
 noc_policy:
   p1_capacity: 0.025

@@ -20,6 +20,7 @@ class AgentReviewState(TypedDict, total=False):
     prediction_id: str
     model_version: str
     observed_promise_miss: bool | None
+    observed_days_late: float | None
     feature_payload: dict[str, Any]
     require_human_approval: bool
     human_approved: bool | None  # None=pending, True/False when resolved

@@ -23,6 +23,7 @@ class ActionRequest(BaseModel):
     expected_net_value: float | None = None
     agent_run_id: str | None = None
     observed_promise_miss: bool
+    observed_days_late: float | None = Field(default=None, ge=0)
     basket_value: float = Field(ge=0)
     freight_value: float | None = Field(default=None, ge=0)
     intervention_cost: float | None = Field(default=None, ge=0)
@@ -40,6 +41,9 @@ class ActionResult(BaseModel):
     intervention_success: bool | None
     observed_promise_miss: bool
     simulated_promise_miss: bool
+    observed_days_late: float = 0.0
+    simulated_days_late: float = 0.0
+    simulated_delay_days_avoided: float = 0.0
     simulated_impact_loss_reduction: float = 0.0
     simulated_gross_avoided_loss: float = 0.0
     simulated_net_value: float = 0.0

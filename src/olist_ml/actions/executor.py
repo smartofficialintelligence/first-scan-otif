@@ -66,6 +66,7 @@ class ActionExecutor:
             loss_cfg=self.config.business_loss,
             seed=seed,
             cost_override=cost_override,
+            observed_days_late=request.observed_days_late,
         )
 
         return ActionResult(
@@ -79,6 +80,9 @@ class ActionExecutor:
             intervention_success=sim["intervention_success"],  # type: ignore[arg-type]
             observed_promise_miss=request.observed_promise_miss,
             simulated_promise_miss=bool(sim["simulated_promise_miss"]),
+            observed_days_late=float(sim["observed_days_late"]),
+            simulated_days_late=float(sim["simulated_days_late"]),
+            simulated_delay_days_avoided=float(sim["simulated_delay_days_avoided"]),
             simulated_impact_loss_reduction=float(sim["simulated_impact_loss_reduction"]),
             simulated_gross_avoided_loss=float(sim["simulated_gross_avoided_loss"]),
             simulated_net_value=float(sim["simulated_net_value"]),
@@ -104,6 +108,7 @@ class ActionExecutor:
         expected_net_value: float | None = None,
         freight_value: float | None = None,
         intervention_cost: float | None = None,
+        observed_days_late: float | None = None,
         execution_source: str = "deterministic_policy",
     ) -> ActionResult:
         return self.execute(
@@ -116,6 +121,7 @@ class ActionExecutor:
                 policy_version=policy_version,
                 expected_net_value=expected_net_value,
                 observed_promise_miss=observed_promise_miss,
+                observed_days_late=observed_days_late,
                 basket_value=basket_value,
                 freight_value=freight_value,
                 intervention_cost=intervention_cost,

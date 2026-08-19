@@ -27,6 +27,7 @@ class ReplayRow:
     geo_distance_km: float | None = 150.0
     same_state: float | None = 0.0
     freight_value: float | None = 15.0
+    observed_days_late: float | None = None
     p1_score_threshold: float | None = None
     p2_score_threshold: float | None = None
 
@@ -65,6 +66,7 @@ def replay_policies(
         spend = 0.0
         gross_avoided = 0.0
         net_value = 0.0
+        delay_avoided = 0.0
         simulated_misses = 0
         observed_misses = 0
         action_counts: dict[str, int] = {}
@@ -115,6 +117,7 @@ def replay_policies(
                 model_version=row.model_version,
                 policy_version=policy_version,
                 observed_promise_miss=row.observed_promise_miss,
+                observed_days_late=row.observed_days_late,
                 basket_value=row.basket_value,
                 expected_net_value=expected_net,
                 freight_value=freight,
@@ -129,6 +132,7 @@ def replay_policies(
             spend += result.simulated_cost
             gross_avoided += result.simulated_gross_avoided_loss
             net_value += result.simulated_net_value
+            delay_avoided += result.simulated_delay_days_avoided
             simulated_misses += int(result.simulated_promise_miss)
             flagged_misses += int(row.observed_promise_miss and action != ActionType.NO_ACTION)
 
@@ -140,6 +144,7 @@ def replay_policies(
             "observed_promise_misses": observed_misses,
             "simulated_promise_misses": simulated_misses,
             "simulated_misses_prevented": prevented,
+            "simulated_delay_days_avoided": delay_avoided,
             "gross_avoided_loss_simulated": gross_avoided,
             "net_simulated_value": net_value,
             "roi_simulated": (net_value / spend) if spend > 0 else None,
@@ -157,6 +162,25 @@ def replay_policies(
         }
 
     return summaries
+
+
+def _observed_days_late_from_row(r: pd.Series) -> float | None:
+    if "days_late" in r.index and pd.notna(r["days_late"]):
+        return max(0.0, float(r["days_late"]))
+    delivered = (
+        r["order_delivered_customer_date"]
+        if "order_delivered_customer_date" in r.index
+        else None
+    )
+    eta = (
+        r["order_estimated_delivery_date"]
+        if "order_estimated_delivery_date" in r.index
+        else None
+    )
+    if delivered is None or eta is None or pd.isna(delivered) or pd.isna(eta):
+        return None
+    delta = pd.Timestamp(delivered) - pd.Timestamp(eta)
+    return max(0.0, float(delta.total_seconds()) / 86400.0)
 
 
 def replay_from_frame(
@@ -188,6 +212,7 @@ def replay_from_frame(
                 geo_distance_km=float(geo) if geo is not None and pd.notna(geo) else 150.0,
                 same_state=float(same) if same is not None and pd.notna(same) else 0.0,
                 freight_value=float(freight) if freight is not None and pd.notna(freight) else 15.0,
+                observed_days_late=_observed_days_late_from_row(r),
             )
         )
     return replay_policies(rows, **kwargs)

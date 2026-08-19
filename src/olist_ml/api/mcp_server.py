@@ -590,6 +590,7 @@ def create_mcp_server():
         observed_promise_miss: bool,
         expected_net_value: float | None = None,
         persist_ledger: bool = True,
+        observed_days_late: float | None = None,
     ) -> dict[str, Any]:
         """Simulate an approved intervention via ActionExecutor (no real-world side effects)."""
         return dtools.execute_simulated_action(
@@ -603,6 +604,7 @@ def create_mcp_server():
             basket_value=basket_value,
             expected_net_value=expected_net_value,
             persist_ledger=persist_ledger,
+            observed_days_late=observed_days_late,
         )
 
     @server.tool(name="get_action_outcome")

@@ -144,6 +144,8 @@ def test_execute_simulated_action_and_outcome(trained_stack) -> None:
         ledger=trained_stack[3],
     )
     assert action["status"] == "simulated"
+    assert "simulated_delay_days_avoided" in action
+    assert "observed_days_late" in action
     out = decision_tools.get_action_outcome(action["action_id"], ledger=trained_stack[3])
     assert len(out["records"]) >= 1
 

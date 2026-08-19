@@ -62,6 +62,8 @@ def test_upgrade_can_flip_miss_to_on_time(cfg) -> None:
             successes += 1
             assert out["simulated_promise_miss"] is False
             assert out["simulated_gross_avoided_loss"] > 0
+            assert out["simulated_days_late"] == 0.0
+            assert out["simulated_delay_days_avoided"] == pytest.approx(6.0)
     assert successes > 0
 
 
@@ -73,10 +75,47 @@ def test_notice_keeps_lateness_but_reduces_impact(cfg) -> None:
         basket_value=100.0,
         loss_cfg=cfg.business_loss,
         seed=1,
+        observed_days_late=4.0,
     )
     assert out["simulated_promise_miss"] is True
+    assert out["simulated_days_late"] == pytest.approx(4.0)
+    assert out["simulated_delay_days_avoided"] == 0.0
     assert out["simulated_impact_loss_reduction"] == pytest.approx(20.0 * 0.20)
     assert out["simulated_net_value"] == pytest.approx(4.0 - 1.0)
+
+
+def test_upgrade_credits_observed_overrun_on_success(cfg) -> None:
+    econ = cfg.actions[ActionType.REMAINING_LEG_UPGRADE]
+    out = simulate_intervention(
+        action=econ,
+        observed_promise_miss=True,
+        basket_value=100.0,
+        loss_cfg=cfg.business_loss,
+        seed=0,
+        cost_override=10.0,
+        observed_days_late=9.0,
+    )
+    if out["intervention_success"]:
+        assert out["simulated_days_late"] == 0.0
+        assert out["simulated_delay_days_avoided"] == pytest.approx(9.0)
+    else:
+        assert out["simulated_days_late"] == pytest.approx(9.0)
+        assert out["simulated_delay_days_avoided"] == 0.0
+
+
+def test_on_time_order_has_zero_delay_days(cfg) -> None:
+    econ = cfg.actions[ActionType.REMAINING_LEG_UPGRADE]
+    out = simulate_intervention(
+        action=econ,
+        observed_promise_miss=False,
+        basket_value=100.0,
+        loss_cfg=cfg.business_loss,
+        seed=1,
+        cost_override=10.0,
+    )
+    assert out["observed_days_late"] == 0.0
+    assert out["simulated_days_late"] == 0.0
+    assert out["simulated_delay_days_avoided"] == 0.0
 
 
 def test_executor_rejects_unknown_action(cfg) -> None:
@@ -147,6 +186,8 @@ def test_policy_replay_ranks_noc_vs_no_action(cfg) -> None:
     assert noc["interventions"] >= 1
     assert "net_simulated_value" in noc
     assert "roi_simulated" in noc
+    assert "simulated_delay_days_avoided" in noc
+    assert noc["simulated_delay_days_avoided"] >= 0.0
 
 
 def test_derive_seed_stable() -> None:

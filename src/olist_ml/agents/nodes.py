@@ -177,6 +177,7 @@ def node_execute(state: AgentReviewState) -> dict[str, Any]:
         model_version=str(state["model_version"]),
         policy_version=str(state.get("policy_version") or "noc-handoff-policy-v1"),
         observed_promise_miss=bool(state["observed_promise_miss"]),
+        observed_days_late=state.get("observed_days_late"),
         basket_value=float(state["basket_value"]),
         freight_value=state.get("freight_value"),
         intervention_cost=policy.get("upgrade_cost"),

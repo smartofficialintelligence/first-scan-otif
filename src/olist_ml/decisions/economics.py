@@ -20,6 +20,7 @@ GateItemStatus = Literal["pending", "approved", "rejected"]
 class BusinessLossConfig(BaseModel):
     fixed_miss_cost: float = Field(ge=0, default=10.0)
     order_value_loss_rate: float = Field(ge=0, default=0.10)
+    median_miss_overrun_days: float = Field(ge=0, default=6.0)
 
 
 class UpgradeCostConfig(BaseModel):

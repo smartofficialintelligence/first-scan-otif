@@ -133,6 +133,7 @@ class DecideRequest(PredictRequest):
 
     simulate: bool = False
     observed_promise_miss: bool | None = None
+    observed_days_late: float | None = Field(default=None, ge=0)
     persist_ledger: bool = True
 
 
@@ -144,6 +145,7 @@ class ActionSimulateRequest(BaseModel):
     model_version: str
     policy_version: str
     observed_promise_miss: bool
+    observed_days_late: float | None = Field(default=None, ge=0)
     basket_value: float = Field(ge=0)
     freight_value: float | None = Field(default=None, ge=0)
     expected_net_value: float | None = None
@@ -166,6 +168,7 @@ class AgentReviewRequest(BaseModel):
     p1_score_threshold: float | None = None
     p2_score_threshold: float | None = None
     observed_promise_miss: bool | None = None
+    observed_days_late: float | None = Field(default=None, ge=0)
     run_simulation: bool = False
     require_human_approval: bool = False
     # When require_human_approval=True: True approve, False reject, None wait.
