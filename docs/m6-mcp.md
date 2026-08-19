@@ -19,7 +19,7 @@ uv sync
 | `get_order_risk` | same path (agent-friendly name); accepts handoff clocks |
 | `get_model_status` | `PredictionService.readiness` |
 | `get_model_metrics` | `PredictionService.model_info` |
-| `explain_promise_miss` | `PredictionService.explain_one` |
+| `explain_promise_miss` | `PredictionService.explain_one` (Tree SHAP, pre-calibration) |
 
 Handoff clocks (`handling_days`, `remaining_to_promise_days`, `handling_frac_of_promise`, `limit_miss`, `same_state`) are optional tool args and flow into `PredictRequest`.
 

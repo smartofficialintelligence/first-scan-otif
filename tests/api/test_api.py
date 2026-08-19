@@ -131,9 +131,11 @@ def test_explain(client: TestClient) -> None:
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["order_id"] == "demo"
-    assert body["method"] == "stub"
+    assert body["method"] == "shap"
     assert "top_features" in body
+    assert len(body["top_features"]) >= 1
     assert body["model_version"]
+    assert "calibrat" in (body.get("note") or "").lower()
 
 
 def test_invalid_payload(client: TestClient) -> None:

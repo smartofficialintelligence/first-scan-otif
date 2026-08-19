@@ -108,7 +108,7 @@ class ReadyResponse(BaseModel):
 
 
 class ExplainRequest(PredictRequest):
-    """Same feature payload as predict; explanation is a deterministic stub by default."""
+    """Same feature payload as predict; Tree SHAP on the XGBoost booster."""
 
 
 class TopFeatureContribution(BaseModel):

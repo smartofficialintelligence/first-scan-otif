@@ -31,7 +31,7 @@ See [gcp-live-serving.md](gcp-live-serving.md). Redis is not part of this path.
 | GET | `/ready` | model loaded |
 | GET | `/v1/model` | version + feature names + metrics |
 | POST | `/v1/predict` | returns `model_version` |
-| POST | `/v1/explain` | deterministic stub `top_features` (zeros); SHAP skipped by default |
+| POST | `/v1/explain` | Tree SHAP on the XGBoost booster (pre-calibration); calibrated `p` unchanged |
 
 ## Terraform
 

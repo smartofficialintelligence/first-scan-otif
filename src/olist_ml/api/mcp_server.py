@@ -206,7 +206,7 @@ def explain_promise_miss(
     same_state: float | None = None,
     service: PredictionService | None = None,
 ) -> dict[str, Any]:
-    """Stub feature explanation via PredictionService.explain_one (same as REST /v1/explain)."""
+    """Feature explanation via PredictionService.explain_one (same as REST /v1/explain)."""
     svc = service or get_service()
     req = ExplainRequest(
         **_score_kwargs(
@@ -472,7 +472,7 @@ def create_mcp_server():
         limit_miss: float | None = None,
         same_state: float | None = None,
     ) -> dict[str, Any]:
-        """Return a stub feature explanation (same path as REST /v1/explain)."""
+        """Return Tree SHAP for the XGBoost booster (same path as REST /v1/explain)."""
         return _explain_impl(
             order_id=order_id,
             seller_id=seller_id,

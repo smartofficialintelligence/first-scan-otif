@@ -155,9 +155,47 @@ pred_text = "".join(
     if p.get("type") == "text"
 )
 pred = json.loads(pred_text)
+expl = rpc({
+    "jsonrpc": "2.0",
+    "id": 4,
+    "method": "tools/call",
+    "params": {
+        "name": "explain_promise_miss",
+        "arguments": {
+            "order_id": "mcp-smoke",
+            "seller_id": "unknown",
+            "purchase_timestamp": "2018-07-19T08:58:48+00:00",
+            "prediction_timestamp": "2018-07-19T09:10:16+00:00",
+            "item_count": 2,
+            "basket_value": 280.0,
+            "freight_value": 42.0,
+            "estimated_delivery_horizon_days": 8.0,
+            "customer_state": "SP",
+            "seller_state_primary": "RJ",
+            "geo_distance_km": 250.0,
+            "seller_late_rate_30d": 0.35,
+            "handling_days": 3.0,
+            "remaining_to_promise_days": 4.0,
+        },
+    },
+})
+expl_text = "".join(
+    p.get("text", "")
+    for p in expl.get("result", {}).get("content", [])
+    if p.get("type") == "text"
+)
+explained = json.loads(expl_text)
+assert explained.get("method") == "shap", explained
+top = explained.get("top_features") or []
+assert any(abs(float(f.get("contribution") or 0)) > 0 for f in top), explained
+lead = top[0] if top else {}
 print(
     f"mcp_http model={body.get('model_version')} "
     f"p={float(pred['promise_miss_probability']):.4f} band={pred['risk_band']}"
+)
+print(
+    f"mcp_shap method={explained['method']} "
+    f"top={lead.get('feature')} contrib={float(lead.get('contribution') or 0):+.4f}"
 )
 PY
 
