@@ -4,9 +4,11 @@ Agent tools call the same domain services as REST — no duplicated inference or
 
 ## Install
 
+`mcp` is a core dependency (`uv sync`). The optional extra remains as an alias:
+
 ```bash
-uv sync --extra mcp
-# or: uv sync --all-extras
+uv sync
+# or: uv sync --extra mcp
 ```
 
 ## Prediction tools
@@ -39,12 +41,49 @@ Predict/recommend args mirror `PredictRequest` fields (timestamps as ISO-8601 st
 
 ## Run
 
+### Streamable HTTP (same process as REST)
+
+`make serve-local` or Cloud Run (`make gcp-up`) mounts MCP at **`POST /mcp`**. Same `PredictionService` as `/v1/predict`. Cloud Run IAM is the auth gate (Bearer identity token), identical to REST.
+
+```bash
+make serve-local
+# other terminal — initialize:
+curl -s http://127.0.0.1:8080/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"curl","version":"0"}}}'
+```
+
+Cursor / Claude Desktop remote server (laptop, Cloud Run up):
+
+```json
+{
+  "mcpServers": {
+    "olist-ml": {
+      "url": "https://olist-ml-api-xxxxx-uc.a.run.app/mcp",
+      "headers": {
+        "Authorization": "Bearer <gcloud auth print-identity-token>"
+      }
+    }
+  }
+}
+```
+
+User login tokens: `gcloud auth print-identity-token` with **no** `--audiences`. Tokens expire (~1h). Or proxy without a Bearer header:
+
+```bash
+gcloud run services proxy olist-ml-api --region=us-central1
+# then url: http://127.0.0.1:8080/mcp
+```
+
+### stdio (local agents)
+
 ```bash
 make mcp-serve
 # or: uv run olist-mcp
 ```
 
-Uses `mcp.server.mcpserver.MCPServer` (stdio transport). Entry point: `olist-mcp`.
+Uses `mcp.server.mcpserver.MCPServer` (stdio transport). Entry point: `olist-mcp`. Keep this for local LangGraph / inspector wiring that speaks stdio.
 
 ## Agent review (D8+)
 
@@ -63,5 +102,5 @@ LangSmith (optional): [d9-langsmith.md](d9-langsmith.md). Economics gates: [h9-h
 ## Tests
 
 ```bash
-uv run pytest tests/api/test_mcp_tools.py tests/api/test_mcp_decision_tools.py -q
+uv run pytest tests/api/test_mcp_tools.py tests/api/test_mcp_decision_tools.py tests/api/test_api.py -q
 ```

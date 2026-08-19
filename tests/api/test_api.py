@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -64,7 +65,8 @@ def client(trained_settings: Settings) -> TestClient:
     app.dependency_overrides[deps.decision_service_dep] = lambda: decision_svc
     app.dependency_overrides[deps.action_executor_dep] = lambda: executor
     app.dependency_overrides[deps.decision_ledger_dep] = lambda: ledger
-    return TestClient(app)
+    with TestClient(app) as test_client:
+        yield test_client
 
 
 def test_health_ready_predict(client: TestClient) -> None:
@@ -228,3 +230,70 @@ def test_agent_review_endpoint(client: TestClient) -> None:
     assert isinstance(body["tool_trace"], list)
     metrics = client.get("/v1/metrics").json()
     assert metrics["decision"]["agent_reviews"] >= 1
+
+
+def _mcp_jsonrpc(response) -> dict:
+    """Parse Streamable HTTP (JSON or SSE) into a JSON-RPC object."""
+    ctype = response.headers.get("content-type", "")
+    if "text/event-stream" in ctype:
+        for line in response.text.splitlines():
+            if line.startswith("data:"):
+                payload = json.loads(line[5:].strip())
+                if isinstance(payload, dict) and ("result" in payload or "error" in payload):
+                    return payload
+        raise AssertionError(response.text)
+    return response.json()
+
+
+def test_mcp_http_initialize_status_and_tools(client: TestClient) -> None:
+    pytest.importorskip("mcp")
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json, text/event-stream",
+    }
+    init = client.post(
+        "/mcp",
+        headers=headers,
+        json={
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2025-03-26",
+                "capabilities": {},
+                "clientInfo": {"name": "pytest", "version": "0"},
+            },
+        },
+    )
+    assert init.status_code == 200, init.text
+    info = _mcp_jsonrpc(init)
+    assert info["result"]["serverInfo"]["name"] == "olist-ml"
+
+    listed = client.post(
+        "/mcp",
+        headers=headers,
+        json={"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}},
+    )
+    assert listed.status_code == 200, listed.text
+    tools = {t["name"] for t in _mcp_jsonrpc(listed)["result"]["tools"]}
+    assert "get_model_status" in tools
+    assert "predict_promise_miss" in tools
+    assert "recommend_policy_action" in tools
+
+    status = client.post(
+        "/mcp",
+        headers=headers,
+        json={
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "tools/call",
+            "params": {"name": "get_model_status", "arguments": {}},
+        },
+    )
+    assert status.status_code == 200, status.text
+    result = _mcp_jsonrpc(status)["result"]
+    # MCP tool results are text content wrapping JSON from the handler.
+    text = "".join(part.get("text", "") for part in result.get("content", []) if part.get("type") == "text")
+    body = json.loads(text)
+    assert body["ready"] is True
+    assert body["model_version"]

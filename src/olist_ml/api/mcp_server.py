@@ -1,6 +1,10 @@
 """MCP server exposing PredictionService tools (no duplicated inference logic).
 
-Uses mcp>=2 MCPServer (FastMCP successor). Install with: uv sync --extra mcp
+Uses mcp>=2 MCPServer (FastMCP successor).
+
+Transports:
+- stdio: `olist-mcp` / `make mcp-serve` for local agent wiring
+- Streamable HTTP: mounted on the FastAPI app at ``/mcp`` (same Cloud Run as REST)
 """
 
 from __future__ import annotations
@@ -242,7 +246,7 @@ def create_mcp_server():
     try:
         from mcp.server.mcpserver import MCPServer
     except ImportError as exc:  # pragma: no cover
-        raise ImportError("mcp package required. Install with: uv sync --extra mcp") from exc
+        raise ImportError("mcp package required. Install with: uv sync") from exc
 
     from olist_ml.tools import decision_tools as dtools
 
@@ -679,6 +683,39 @@ def create_mcp_server():
         return dtools.get_policy_metrics()
 
     return server
+
+
+def prepare_streamable_http(
+    *,
+    json_response: bool = True,
+    stateless_http: bool = True,
+):
+    """Create an ASGI app for Streamable HTTP at whatever path it is mounted on.
+
+    ``json_response=True`` and ``stateless_http=True`` fit Cloud Run (no sticky
+    sessions, min instances 0). DNS rebinding protection is off: Cloud Run IAM
+    is the gate, and the Host header is the ``*.run.app`` URL not localhost.
+
+    The caller must enter ``server.session_manager.run()`` in the ASGI lifespan
+    before serving requests.
+    """
+    try:
+        from mcp.server.streamable_http_manager import StreamableHTTPASGIApp
+        from mcp.server.transport_security import TransportSecuritySettings
+    except ImportError as exc:  # pragma: no cover
+        raise ImportError("mcp package required. Install with: uv sync") from exc
+
+    server = create_mcp_server()
+    # Instantiates session_manager (public API). The returned Starlette is unused;
+    # we mount StreamableHTTPASGIApp so /mcp and /mcp/ both hit the transport.
+    server.streamable_http_app(
+        streamable_http_path="/mcp",
+        json_response=json_response,
+        stateless_http=stateless_http,
+        host="0.0.0.0",
+        transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
+    )
+    return server, StreamableHTTPASGIApp(server.session_manager)
 
 
 def main() -> None:

@@ -19,9 +19,9 @@ make test              # unit/model/api
 make fixtures          # regenerate data/fixtures
 make train-local       # train from fixtures → artifacts/model.joblib
 make train-pipeline    # validate → train → MLflow REGISTERED_CANDIDATE
-make serve-local       # FastAPI on :8080
+make serve-local       # FastAPI on :8080 (REST + POST /mcp)
 make smoke-local       # health + ready
-make mcp-serve         # MCP tools over PredictionService
+make mcp-serve         # MCP stdio (local agents; HTTP is on serve-local / Cloud Run)
 ```
 
 ## Demo on / off
@@ -39,7 +39,7 @@ Turn-key on/off for a real Cloud Run + Monitoring slice. **Does not** create Red
 
 ```text
 make gcp-up            # registry (kept) + champion image + Cloud Run + dashboard
-make gcp-smoke         # REST + MCP + 50-event HTTP replay through Cloud Run
+make gcp-smoke         # REST + POST /mcp + 50-event HTTP replay through Cloud Run
 make gcp-evidence      # docs/evidence/gcp-serving-run.md
 make gcp-down          # destroy Cloud Run + dashboard; keep registry + warehouse
 ```

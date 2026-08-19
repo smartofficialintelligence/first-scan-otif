@@ -8,3 +8,4 @@ enable_cloud_run        = false
 enable_vertex_endpoint  = false
 enable_monitoring       = false
 enable_serving          = false
+# extra_invoker_members = ["user:you@gmail.com"]

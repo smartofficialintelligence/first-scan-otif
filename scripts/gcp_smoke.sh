@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Smoke REST on Cloud Run + MCP locally (same PredictionService / champion).
+# Smoke REST + Streamable HTTP MCP on Cloud Run (same PredictionService / champion).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -71,27 +71,94 @@ req = urllib.request.Request(
 print(urllib.request.urlopen(req, timeout=60).read().decode())
 PY
 
-echo "==> MCP (local process, same champion artifact as the image)"
+echo "==> MCP Streamable HTTP on Cloud Run (/mcp)"
 uv run python - <<'PY' | tee artifacts/gcp_mcp_smoke.txt
-from olist_ml.api.mcp_server import get_service
-from olist_ml.schemas import PredictRequest
-from datetime import datetime, timezone
+import json, os, urllib.request
 
-svc = get_service()
-assert svc.ready, "MCP PredictionService not ready"
-req = PredictRequest(
-    order_id="mcp-smoke",
-    seller_id="unknown",
-    purchase_timestamp=datetime(2018, 7, 19, 8, 58, 48, tzinfo=timezone.utc),
-    prediction_timestamp=datetime(2018, 7, 19, 9, 10, 16, tzinfo=timezone.utc),
-    item_count=1,
-    basket_value=100.0,
-    freight_value=10.0,
-    estimated_delivery_horizon_days=14.0,
-    geo_distance_km=50.0,
+uri = os.environ["URI"].rstrip("/")
+token = os.environ["TOKEN"]
+headers = {
+    "Authorization": f"Bearer {token}",
+    "Content-Type": "application/json",
+    "Accept": "application/json, text/event-stream",
+}
+
+
+def rpc(payload: dict) -> dict:
+    req = urllib.request.Request(
+        uri + "/mcp",
+        data=json.dumps(payload).encode(),
+        headers=headers,
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        ctype = resp.headers.get("Content-Type", "")
+        raw = resp.read().decode()
+    if "text/event-stream" in ctype:
+        for line in raw.splitlines():
+            if line.startswith("data:"):
+                body = json.loads(line[5:].strip())
+                if isinstance(body, dict) and ("result" in body or "error" in body):
+                    return body
+        raise SystemExit(f"no JSON-RPC in SSE: {raw[:500]}")
+    return json.loads(raw)
+
+
+init = rpc({
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "initialize",
+    "params": {
+        "protocolVersion": "2025-03-26",
+        "capabilities": {},
+        "clientInfo": {"name": "gcp-smoke", "version": "0"},
+    },
+})
+assert init.get("result", {}).get("serverInfo", {}).get("name") == "olist-ml", init
+
+status = rpc({
+    "jsonrpc": "2.0",
+    "id": 2,
+    "method": "tools/call",
+    "params": {"name": "get_model_status", "arguments": {}},
+})
+text = "".join(
+    p.get("text", "")
+    for p in status.get("result", {}).get("content", [])
+    if p.get("type") == "text"
 )
-resp = svc.predict_one(req)
-print(f"mcp_ready model={resp.model_version} p={resp.promise_miss_probability:.4f} band={resp.risk_band}")
+body = json.loads(text)
+assert body.get("ready") is True, body
+
+score = rpc({
+    "jsonrpc": "2.0",
+    "id": 3,
+    "method": "tools/call",
+    "params": {
+        "name": "predict_promise_miss",
+        "arguments": {
+            "order_id": "mcp-smoke",
+            "seller_id": "unknown",
+            "purchase_timestamp": "2018-07-19T08:58:48+00:00",
+            "prediction_timestamp": "2018-07-19T09:10:16+00:00",
+            "item_count": 1,
+            "basket_value": 100.0,
+            "freight_value": 10.0,
+            "estimated_delivery_horizon_days": 14.0,
+            "geo_distance_km": 50.0,
+        },
+    },
+})
+pred_text = "".join(
+    p.get("text", "")
+    for p in score.get("result", {}).get("content", [])
+    if p.get("type") == "text"
+)
+pred = json.loads(pred_text)
+print(
+    f"mcp_http model={body.get('model_version')} "
+    f"p={float(pred['promise_miss_probability']):.4f} band={pred['risk_band']}"
+)
 PY
 
 echo "==> holdout replay through Cloud Run (50 events)"

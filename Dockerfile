@@ -11,6 +11,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 COPY pyproject.toml uv.lock README.md ./
 COPY src ./src
 COPY config ./config
+# mcp is a core dep so Streamable HTTP (/mcp) is in the same image as REST.
 RUN mkdir -p artifacts && uv sync --frozen --no-dev
 
 EXPOSE 8080

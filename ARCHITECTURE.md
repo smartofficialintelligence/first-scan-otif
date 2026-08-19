@@ -220,8 +220,8 @@ One object: `PredictionService` (`src/olist_ml/inference/predictor.py`).
 
 ```text
 Client
-  → FastAPI  (or MCP stdio)
-       → auth (API key when AUTH_MODE=api_key; open for local)
+  → FastAPI  (REST + Streamable HTTP MCP at /mcp; stdio via olist-mcp)
+       → auth (API key when AUTH_MODE=api_key; open for local; Cloud Run IAM on the live URI)
        → schema validation (PredictRequest)
        → assemble features (request + optional Feast)
        → predict / explain
@@ -231,7 +231,7 @@ Client
 
 **REST (locked surface):** `/health`, `/ready`, `/v1/model`, `/v1/predict`, `/v1/explain`, `/v1/metrics`, plus decision routes (`/v1/decision`, `/v1/action/simulate`, agent review, current policy).
 
-**MCP:** `predict_promise_miss`, `explain_promise_miss`, status/metrics, and decision tools. No second scorer.
+**MCP:** same tools over **Streamable HTTP** (`POST /mcp` on Cloud Run / uvicorn) or **stdio** (`make mcp-serve`). No second scorer.
 
 **Explain:** SHAP on a sampled/synchronous path with a latency budget. Not on the hot path for every canary event.
 

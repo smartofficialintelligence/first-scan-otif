@@ -42,7 +42,7 @@ Local:
 curl -s localhost:8080/health
 curl -s localhost:8080/ready
 curl -s localhost:8080/v1/model
-# POST /v1/predict  |  make mcp-serve → predict_promise_miss
+# POST /v1/predict  |  POST /mcp (Streamable HTTP) → predict_promise_miss
 # Response includes model_version + prediction_id + promise_miss_probability
 ```
 
@@ -135,7 +135,7 @@ curl -s localhost:8080/v1/policies/current
 5. H9/H10 simulation defaults are approved (`econ-sim-v3`); still do **not** claim causal ROI (`make economics-gate`).
 6. Optional LangSmith: set `LANGSMITH_API_KEY` — see [d9-langsmith.md](d9-langsmith.md).
 
-MCP path (same services): `make mcp-serve` → `recommend_policy_action` / `execute_simulated_action`.
+MCP path (same services): `POST /mcp` on uvicorn/Cloud Run, or `make mcp-serve` (stdio) → `recommend_policy_action` / `execute_simulated_action`.
 
 ## Demo 8 — Cost / teardown
 

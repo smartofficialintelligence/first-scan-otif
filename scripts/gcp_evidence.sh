@@ -205,7 +205,7 @@ Champion artifact baked into the serving image: `artifacts/model.joblib` (`local
 
 ## MCP
 
-MCP is stdio (not an HTTP listener on Cloud Run). Smoke used the same local champion artifact the image was built from.
+Streamable HTTP on the same Cloud Run service (`POST /mcp`, identity token). Same `PredictionService` as REST.
 
 ```
 {mcp_line or "(see make gcp-smoke stdout)"}
