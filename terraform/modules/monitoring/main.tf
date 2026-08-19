@@ -57,16 +57,18 @@ resource "google_monitoring_dashboard" "olist" {
           width  = 6
           height = 4
           widget = {
-            title = "Cloud Run request latency"
+            title = "Cloud Run request latency (p95)"
             xyChart = {
               dataSets = [{
                 timeSeriesQuery = {
                   timeSeriesFilter = {
                     filter = "${local.run_filter} metric.type=\"run.googleapis.com/request_latencies\""
                     aggregation = {
-                      alignmentPeriod    = "60s"
-                      perSeriesAligner   = "ALIGN_DELTA"
-                      crossSeriesReducer = "REDUCE_PERCENTILE_95"
+                      alignmentPeriod = "60s"
+                      # Distribution metric: p95 must be computed per series
+                      # (ALIGN_DELTA + cross-series p95 plots garbage at idle).
+                      perSeriesAligner   = "ALIGN_PERCENTILE_95"
+                      crossSeriesReducer = "REDUCE_MEAN"
                     }
                   }
                 }
