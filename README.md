@@ -66,18 +66,25 @@ A coding agent (Cursor) connected to the **live IAM-gated Cloud Run endpoint** o
 
 ![Agent calls get_model_status: champion version, cutoffs, ranking and calibration](docs/img/01-mcp-model-status.png)
 
-**2 · Score → banded action.** An SP→Bahia order at first scan: blown ship limit, 38% recent seller late rate, 4.25 days left on the promise. The policy answers with band **P1**, a remaining-leg upgrade priced ~$23, and `requires_human_approval: true` — spend above $20 is not autonomous.
+**2 · Score → banded action.** An SP→Bahia order at first scan: blown ship limit, 38% recent seller late rate, 4.25 days left on the promise. The policy answers with band **P1**, a remaining-leg upgrade priced ~$23, and `requires_human_approval: true` — spend above $20 is not autonomous. Note the agent's own read: the policy is a band + eligibility rule, **not** a max-NPV picker — it selected the upgrade even though a cheaper action carried higher expected net value in the same payload.
 
 ![Agent calls recommend_policy_action: P1 band, upgrade action, human approval required](docs/img/02-decision-p1-upgrade.png)
 
-**3 · The agent cannot pick a cheaper action.** Executing anything other than the ledgered policy decision is refused by the server — the copy-the-action contract is enforced, not advisory.
+**3 · Why this order.** Tree SHAP on the booster (pre-calibration): remaining promise days and handling fraction dominate — clock and distance, not basket size.
 
-![Server refuses AT_RISK_NOTICE: not the frozen policy action for this decision](docs/img/03-policy-refusal.png)
+![Agent calls explain_promise_miss: top risk drivers](docs/img/03-shap-risk-drivers.png)
 
-<!-- Optional extra frames — uncomment when captured:
-![Simulated execution priced from the ledgered decision](docs/img/04-simulated-execution.png)
-![Order lineage: prediction → decision → action → outcome](docs/img/05-decision-lineage.png)
--->
+**4 · Simulated execution — including when it fails.** This seeded draw's upgrade did **not** prevent the miss: cost $23.29, zero delay-days avoided, net −$23.29. Ex-ante expected value is not the same as an ex-post draw; the simulation reports both honestly rather than always crediting the intervention.
+
+![Simulated execution: intervention failed this draw, net negative, seed recorded](docs/img/04-simulated-execution.png)
+
+**5 · The agent cannot pick a cheaper action.** Executing anything other than the ledgered policy decision is refused by the server — the copy-the-action contract is enforced, not advisory.
+
+![Server refuses AT_RISK_NOTICE: not the frozen policy action for this decision](docs/img/05-policy-refusal.png)
+
+**6 · Lineage.** One append-only chain per order — prediction → decision → action → outcome, linked by ids. The blocked cheaper execute never created an action row.
+
+![Decision ledger lineage for the order](docs/img/06-decision-lineage.png)
 
 ---
 
