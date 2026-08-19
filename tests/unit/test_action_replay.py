@@ -12,6 +12,7 @@ from olist_ml.decisions.economics import clear_policy_cache, load_policy_economi
 from olist_ml.decisions.replay import ReplayRow, replay_policies
 from olist_ml.decisions.schemas import ActionType
 from olist_ml.decisions.service import DecisionService
+from olist_ml.monitoring.metrics import get_metrics
 from olist_ml.outcomes.ledger import DecisionLedger
 from olist_ml.simulation.intervention import derive_seed, simulate_intervention
 
@@ -118,6 +119,27 @@ def test_on_time_order_has_zero_delay_days(cfg) -> None:
     assert out["simulated_delay_days_avoided"] == 0.0
 
 
+def test_executor_records_process_metrics(cfg) -> None:
+    metrics = get_metrics()
+    metrics.reset()
+    ex = ActionExecutor(config=cfg, base_seed=1)
+    ex.execute(
+        ActionRequest(
+            order_id="o-metrics",
+            prediction_id="p",
+            decision_id="d",
+            action_type=ActionType.NO_ACTION,
+            model_version="m",
+            policy_version="v",
+            observed_promise_miss=False,
+            basket_value=10.0,
+        )
+    )
+    snap = metrics.snapshot()["decision"]
+    assert snap["executed_action_distribution"]["NO_ACTION"] == 1
+    metrics.reset()
+
+
 def test_executor_rejects_unknown_action(cfg) -> None:
     cfg.actions[ActionType.LATE_NOTICE].eligible = False
     ex = ActionExecutor(config=cfg, base_seed=1)
@@ -188,6 +210,8 @@ def test_policy_replay_ranks_noc_vs_no_action(cfg) -> None:
     assert "roi_simulated" in noc
     assert "simulated_delay_days_avoided" in noc
     assert noc["simulated_delay_days_avoided"] >= 0.0
+    assert "headline" in report["business_sim"]
+    assert report["business_sim"]["n_actions"] == 5
 
 
 def test_derive_seed_stable() -> None:

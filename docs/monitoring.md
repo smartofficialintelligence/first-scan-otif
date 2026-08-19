@@ -98,8 +98,9 @@ make retrain-trigger
 
 ## Dashboards (M8)
 
-- **Local:** `make export-monitoring` → `artifacts/monitoring_dashboard.json` (service + ML + last drift/delayed snapshots).
-- **GCP:** `make gcp-up` applies `terraform/modules/monitoring` with Cloud Run. Tiles: request count, p95 latency, billable instance time, plus a text panel for PSI / delayed-label quality. Destroyed by `make gcp-down`.
+- **Local serving/ML:** `make export-monitoring` → `artifacts/monitoring_dashboard.json` (service + ML + last drift/delayed snapshots + `business_sim`).
+- **Local business outcome (simulated):** `make decision-eval` → `artifacts/decision_impact.md` (action mix, deliveries moved late→on-time, delay-days avoided, spend). Same numbers under `business_sim` on `GET /v1/metrics`.
+- **GCP:** `make gcp-up` applies `terraform/modules/monitoring` with Cloud Run. Tiles: request count, p95 latency, billable instance time, plus a text panel for PSI / delayed-label quality. **Not** a P&L chart. Destroyed by `make gcp-down`.
 
 ## Unit fixtures
 

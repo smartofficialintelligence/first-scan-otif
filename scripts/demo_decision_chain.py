@@ -15,7 +15,10 @@ from olist_ml.actions.executor import ActionExecutor
 from olist_ml.decisions.replay import ReplayRow, replay_policies
 from olist_ml.decisions.schemas import DecisionContext
 from olist_ml.decisions.service import DecisionService
+from olist_ml.outcomes.ledger import DecisionLedger
 from olist_ml.schemas import PredictResponse
+
+LEDGER_PATH = Path("artifacts/decision_ledger.jsonl")
 
 
 def _handoff_ctx(order_id: str, prediction_id: str, proba: float, basket: float) -> DecisionContext:
@@ -57,7 +60,7 @@ def demo_b_deterministic() -> dict:
     }
 
 
-def demo_c_simulate() -> dict:
+def demo_c_simulate(ledger: DecisionLedger) -> dict:
     decision = DecisionService().decide(_handoff_ctx("demo-c", "pred-demo-c", 0.8, 200.0))
     action = ActionExecutor().execute_decision(
         decision_id=decision.decision_id,
@@ -72,6 +75,8 @@ def demo_c_simulate() -> dict:
         freight_value=35.0,
         intervention_cost=decision.upgrade_cost,
     )
+    ledger.append_decision(decision)
+    ledger.append_action(action)
     return {
         "scenario": "C_simulated_execution",
         "action": action.action_type.value,
@@ -84,7 +89,7 @@ def demo_c_simulate() -> dict:
     }
 
 
-def demo_d_policy_replay() -> dict:
+def demo_d_policy_replay(ledger: DecisionLedger) -> dict:
     rows = [
         ReplayRow("r1", "p1", "demo", 0.9, 200.0, True, remaining_to_promise_days=3.0),
         ReplayRow("r2", "p2", "demo", 0.15, 40.0, False, remaining_to_promise_days=4.0),
@@ -92,8 +97,12 @@ def demo_d_policy_replay() -> dict:
         ReplayRow("r4", "p4", "demo", 0.25, 60.0, False, remaining_to_promise_days=11.0),
         ReplayRow("r5", "p5", "demo", 0.85, 250.0, True, remaining_to_promise_days=2.0),
     ]
-    report = replay_policies(rows, threshold=0.70, base_seed=11)
-    return {"scenario": "D_policy_value", "policies": report["policies"]}
+    report = replay_policies(rows, threshold=0.70, base_seed=11, ledger=ledger)
+    return {
+        "scenario": "D_policy_value",
+        "policies": report["policies"],
+        "business_sim": report["business_sim"],
+    }
 
 
 def demo_e_agent_review() -> dict:
@@ -167,10 +176,11 @@ def demo_g_lineage() -> dict:
 
 
 def main() -> None:
+    ledger = DecisionLedger(LEDGER_PATH)
     out = {
         "B": demo_b_deterministic(),
-        "C": demo_c_simulate(),
-        "D": demo_d_policy_replay(),
+        "C": demo_c_simulate(ledger),
+        "D": demo_d_policy_replay(ledger),
         "E": demo_e_agent_review(),
         "G": demo_g_lineage(),
     }
@@ -192,7 +202,9 @@ def main() -> None:
         "D policies net_simulated_value:",
         {p: out["D"]["policies"][p]["net_simulated_value"] for p in out["D"]["policies"]},
     )
+    print("D business_sim:", out["D"]["business_sim"]["headline"])
     print(f"Wrote {path}")
+    print(f"Appended simulated NOC actions to {LEDGER_PATH}")
 
 
 if __name__ == "__main__":

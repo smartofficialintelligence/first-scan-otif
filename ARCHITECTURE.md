@@ -351,9 +351,9 @@ App deploy CI does not train. Train CI (`train-model.yml`) is manual dispatch an
 
 ### 10.6 Dashboards
 
-Local: `make export-monitoring` → `artifacts/monitoring_dashboard.json` (volume, errors, latency, mix, stale features, last drift and delayed-eval snapshots).
+Local: `make export-monitoring` → `artifacts/monitoring_dashboard.json` (volume, errors, latency, mix, stale features, last drift and delayed-eval snapshots, plus `business_sim` ledger rollup). `make decision-eval` writes the same rollup as `artifacts/decision_impact.md` (action mix, late→on-time, spend).
 
-GCP: Terraform module under `terraform/modules/monitoring` (Cloud Run request count / p95 / instance time, plus a text panel for the ML signals). Flag `enable_monitoring` defaults **false**, same as serving. Applying it is a real infra change.
+GCP: Terraform module under `terraform/modules/monitoring` (Cloud Run request count / p95 / instance time, plus a text panel for the ML signals). Flag `enable_monitoring` defaults **false**, same as serving. Applying it is a real infra change. Simulated $ / OTIF flips are **not** Cloud Monitoring metrics.
 
 ---
 
@@ -369,7 +369,7 @@ Airflow is the **job names and the local CLIs**, not a billable Composer cluster
 | Drift check | Feature PSI + high-band mix → alarm JSON |
 | Retrain trigger | Approval (+ alarm if drift) → candidate |
 | Train (demo) | Unconstrained local pipeline |
-| Decision eval | Ledger summary; not model quality |
+| Decision eval | Simulated ops rollup (action mix, late→on-time, spend); not model quality |
 
 Composer, if used at all, is created for the demo window and deleted in teardown.
 

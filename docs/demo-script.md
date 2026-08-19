@@ -89,12 +89,14 @@ Prediction → deterministic NOC bands → LangGraph executes the frozen action 
 # Offline harness (no API server; no LLM key):
 make demo-decision
 # → artifacts/demo_decision_chain.json  (scenarios B/C/D/E/G)
+#    also appends simulated NOC actions to artifacts/decision_ledger.jsonl
 
 make agent-evals
 # → artifacts/agent_eval_report.json
 
 make decision-eval
-# → artifacts/decision_eval_report.json  (ledger summary; simulated $ only)
+# → stdout headline + artifacts/decision_impact.md + decision_eval_report.json
+#    (action mix, late→on-time, spend, delay-days; simulated $ only)
 ```
 
 With API up (`make serve-local` / `make demo-up`):
@@ -123,7 +125,7 @@ curl -s -X POST localhost:8080/v1/agent/review -H 'Content-Type: application/jso
  "require_human_approval":true,"human_approved":true,"run_simulation":false}
 EOF
 
-curl -s localhost:8080/v1/metrics   # decision.agent_reviews, action_distribution
+curl -s localhost:8080/v1/metrics   # decision.* process counters + business_sim ledger rollup
 curl -s localhost:8080/v1/policies/current
 ```
 

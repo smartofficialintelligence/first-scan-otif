@@ -12,7 +12,7 @@ Local-first orchestration. Cloud Composer is optional and **must not** stay alwa
 | `airflow/dags/olist_drift_dag.py` | `olist_drift` | Per-feature PSI + high-band mix; writes `artifacts/drift_alarm.json` |
 | `airflow/dags/olist_retrain_dag.py` | `olist_retrain` | **H5-gated** train → `REGISTERED_CANDIDATE`. Composer schedule `0 0 1 * *` (monthly) still requires H5. `reason=drift` also requires an active alarm. |
 | `airflow/dags/olist_train_dag.py` | `olist_train` | Unconstrained M4 demo trigger (`make airflow-train-local`). Does **not** replace `olist_retrain`. |
-| `airflow/dags/olist_decision_eval_dag.py` | `olist_daily_decision_evaluation` | Decision ledger summary (not model quality). |
+| `airflow/dags/olist_decision_eval_dag.py` | `olist_daily_decision_evaluation` | Ledger business-sim rollup (action mix, late→on-time, spend; not model quality). |
 
 Airflow DAG objects are defined when `airflow` is installed; otherwise `dag = None` and the files remain CLI entrypoints.
 

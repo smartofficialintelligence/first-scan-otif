@@ -21,6 +21,7 @@ from olist_ml.decisions.service import DecisionService
 from olist_ml.features.assembler import noc_context_from_request
 from olist_ml.inference.predictor import PredictionService
 from olist_ml.monitoring.metrics import get_metrics
+from olist_ml.outcomes.impact import summarize_simulated_impact
 from olist_ml.outcomes.ledger import DecisionLedger
 from olist_ml.schemas import (
     ActionSimulateRequest,
@@ -49,9 +50,11 @@ def ready(service: PredictionService = Depends(prediction_service_dep)) -> Ready
 
 
 @router.get("/v1/metrics", dependencies=[Depends(verify_api_key)])
-def metrics() -> dict[str, Any]:
-    """In-process service + ML metrics snapshot (JSON)."""
-    return get_metrics().snapshot()
+def metrics(ledger: DecisionLedger = Depends(decision_ledger_dep)) -> dict[str, Any]:
+    """In-process counters plus durable ledger business-sim rollup."""
+    snap = get_metrics().snapshot()
+    snap["business_sim"] = summarize_simulated_impact(ledger.read_all())
+    return snap
 
 
 @router.get("/v1/model", response_model=ModelInfoResponse, dependencies=[Depends(verify_api_key)])

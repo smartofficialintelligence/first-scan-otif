@@ -82,6 +82,7 @@ make approve-h5
 make retrain-trigger       # H5 + drift alarm when reason=drift
 make airflow-train-local   # M4 demo; does not check H5
 make export-monitoring
+make decision-eval         # simulated action mix / late→on-time / spend
 ```
 
 H5 (retrain) and H6 (promote) still required — no auto-promote.  

@@ -12,8 +12,11 @@ from olist_ml.monitoring.drift import DEFAULT_ALARM
 from olist_ml.monitoring.h5 import read_json
 from olist_ml.monitoring.logs import read_jsonl
 from olist_ml.monitoring.metrics import get_metrics
+from olist_ml.outcomes.impact import summarize_simulated_impact
+from olist_ml.outcomes.ledger import DecisionLedger
 
 DEFAULT_LOG = Path("artifacts/prediction_logs.jsonl")
+DEFAULT_LEDGER = Path("artifacts/decision_ledger.jsonl")
 DEFAULT_OUT = Path("artifacts/monitoring_dashboard.json")
 
 
@@ -22,6 +25,7 @@ def export_monitoring_snapshot(
     log_path: Path = DEFAULT_LOG,
     alarm_path: Path = DEFAULT_ALARM,
     delayed_path: Path = DELAYED_OUT,
+    ledger_path: Path = DEFAULT_LEDGER,
     out_path: Path = DEFAULT_OUT,
 ) -> dict[str, Any]:
     rows = read_jsonl(log_path)
@@ -31,6 +35,7 @@ def export_monitoring_snapshot(
     high = sum(1 for r in rows if r.get("risk_band") == "high")
     released = sum(1 for r in rows if r.get("label_released"))
     stale = sum(1 for r in rows if r.get("stale_features"))
+    business_sim = summarize_simulated_impact(DecisionLedger(ledger_path).read_all())
     snapshot = {
         "generated_at": datetime.now(UTC).isoformat(),
         "title": "Olist promise-miss serving + ML signals",
@@ -44,12 +49,13 @@ def export_monitoring_snapshot(
             "stale_feature_count": stale,
             "n_released_labels": released,
         },
+        "business_sim": business_sim,
         "in_process_metrics": get_metrics().snapshot(),
         "drift_alarm": read_json(alarm_path),
         "delayed_eval": read_json(delayed_path),
         "note": (
-            "Local exported metrics (M8). GCP Cloud Monitoring dashboard is Terraform "
-            "module terraform/modules/monitoring behind enable_monitoring (H7 apply)."
+            "Local exported metrics (M8). business_sim is econ-sim-v3 ledger rollup, "
+            "not Cloud Monitoring P&L. GCP tiles are volume / p95 / instance time."
         ),
     }
     out_path.parent.mkdir(parents=True, exist_ok=True)

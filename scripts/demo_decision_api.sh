@@ -51,5 +51,5 @@ curl -sf "${BASE}/v1/agent/review" "${HDR[@]}" -d "{
   \"run_simulation\": false
 }" | python -m json.tool
 
-echo "== metrics (decision slice) =="
-curl -sf "${BASE}/v1/metrics" | python -c 'import json,sys; print(json.dumps(json.load(sys.stdin).get("decision",{}), indent=2))'
+echo "== metrics (decision slice + business_sim) =="
+curl -sf "${BASE}/v1/metrics" | python -c 'import json,sys; d=json.load(sys.stdin); print(json.dumps({"decision": d.get("decision",{}), "business_sim": d.get("business_sim",{})}, indent=2))'

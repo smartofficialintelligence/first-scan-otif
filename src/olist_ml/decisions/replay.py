@@ -11,6 +11,8 @@ from olist_ml.actions.executor import ActionExecutor
 from olist_ml.decisions.economics import PolicyEconomicsConfig, load_policy_economics
 from olist_ml.decisions.schemas import ActionType, DecisionContext
 from olist_ml.decisions.service import DecisionService
+from olist_ml.outcomes.impact import summarize_from_replay_policy
+from olist_ml.outcomes.ledger import DecisionLedger
 
 PolicyName = Literal["no_action", "threshold", "noc"]
 
@@ -43,6 +45,7 @@ def replay_policies(
     config_path: str | None = None,
     threshold: float = 0.70,
     base_seed: int = 42,
+    ledger: DecisionLedger | None = None,
 ) -> dict[str, Any]:
     """
     Run three policies on the same historical rows with seeded simulation.
@@ -135,6 +138,8 @@ def replay_policies(
             delay_avoided += result.simulated_delay_days_avoided
             simulated_misses += int(result.simulated_promise_miss)
             flagged_misses += int(row.observed_promise_miss and action != ActionType.NO_ACTION)
+            if policy == "noc" and ledger is not None:
+                ledger.append_action(result)
 
         prevented = observed_misses - simulated_misses
         summaries["policies"][policy] = {
@@ -160,6 +165,11 @@ def replay_policies(
             ),
             "action_distribution": action_counts,
         }
+
+    noc = summaries["policies"]["noc"]
+    summaries["business_sim"] = summarize_from_replay_policy(
+        noc, n_orders=len(rows), policy_name="noc"
+    )
 
     return summaries
 

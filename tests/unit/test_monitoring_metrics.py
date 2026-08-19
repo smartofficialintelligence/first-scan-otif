@@ -38,11 +38,21 @@ def test_decision_and_agent_metrics() -> None:
     m.observe_decision(recommended_action="REMAINING_LEG_UPGRADE")
     m.observe_agent_review(status="waiting_approval", action="REMAINING_LEG_UPGRADE")
     m.observe_agent_review(status="completed", action="AT_RISK_NOTICE", spend=5.0, net=12.0)
+    m.observe_simulated_action(
+        action="REMAINING_LEG_UPGRADE",
+        spend=12.5,
+        net=8.0,
+        delay_days_avoided=6.0,
+        moved_late_to_on_time=True,
+    )
     snap = m.snapshot()["decision"]
     assert snap["decision_requests"] == 1
     assert snap["agent_reviews"] == 2
     assert snap["agent_waiting_approval"] == 1
     assert snap["agent_completed"] == 1
-    assert snap["intervention_spend_simulated"] == 5.0
-    assert snap["net_value_simulated"] == 12.0
+    assert snap["intervention_spend_simulated"] == 12.5
+    assert snap["net_value_simulated"] == 8.0
+    assert snap["simulated_delay_days_avoided"] == 6.0
+    assert snap["moved_late_to_on_time"] == 1
     assert snap["action_distribution"]["REMAINING_LEG_UPGRADE"] == 2
+    assert snap["executed_action_distribution"]["REMAINING_LEG_UPGRADE"] == 1

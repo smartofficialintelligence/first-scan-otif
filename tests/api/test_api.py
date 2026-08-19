@@ -77,6 +77,9 @@ def test_health_ready_predict(client: TestClient) -> None:
     ready = client.get("/ready").json()
     assert ready["ready"] is True
     assert "service" in client.get("/v1/metrics").json()
+    metrics = client.get("/v1/metrics").json()
+    assert "business_sim" in metrics
+    assert metrics["business_sim"]["causal_roi_claim_allowed"] is False
     payload = {
         "order_id": "demo",
         "seller_id": "s000",

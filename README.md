@@ -54,6 +54,8 @@ Olist CSVs → pandas feature table → train / calibrate / MLflow candidate
 
 **Assumed, not causal:** miss cost, upgrade cost, and prevention rate (`econ-sim-v3`). Replay also credits **delay days avoided** when an upgrade Bernoulli succeeds (observed overrun, or a 6-day miss median). Notices do not change days late. No new EDD is invented. `allow_causal_roi_claims: false`. Intervention lift needs an experiment (switchback or A/B on the action). This repo does not fake one. Ranking lift is the KPI this slice earned.
 
+**Simulated ops rollup (same assumptions, operator language):** `make demo-decision` appends NOC simulations to the ledger; holdout `scripts/policy_replay.py` does the same at window scale. Then `make decision-eval` prints and writes `artifacts/decision_impact.md` — how many of each action ran, how many deliveries moved late→on-time, delay-days avoided, and spend. Same block is `business_sim` on `GET /v1/metrics` and in `make export-monitoring`. If the ledger has no actions, eval falls back to `artifacts/policy_replay_report.json`. That is the JD-facing outcome sentence. It is still not observed P&L.
+
 ---
 
 ## The operating problem
@@ -134,7 +136,7 @@ delay days    ≈ observed (delivery − EDD)+   (0 if upgrade “succeeds”; e
                  fallback 6d median on misses when overrun is not passed
 ```
 
-`allow_causal_roi_claims: false`. Ranking lift above is measured. **Intervention lift is not.** A self-serve experimentation / causal-inference platform is out of scope for this slice and would be the way to replace those assumptions. Real emails, tickets, and carrier APIs stay off (`real_external_execution_enabled: false`). Detail: [`docs/limitations-assumptions-proxies.md`](docs/limitations-assumptions-proxies.md).
+`allow_causal_roi_claims: false`. Ranking lift above is measured. **Intervention lift is not.** A self-serve experimentation / causal-inference platform is out of scope for this slice and would be the way to replace those assumptions. Real emails, tickets, and carrier APIs stay off (`real_external_execution_enabled: false`). Detail: [`docs/limitations-assumptions-proxies.md`](docs/limitations-assumptions-proxies.md). The rollup that turns those assumptions into “performed X actions, moved Y late deliveries on-time, spent $Z” is `make decision-eval`.
 
 ---
 
@@ -163,7 +165,7 @@ One FastAPI process so REST and MCP cannot diverge on **scoring** (`PredictionSe
 | `GET` | `/health` | Liveness |
 | `GET` | `/ready` | Artifact loaded + `model_version` |
 | `GET` | `/v1/model` | Metrics, P1/P2 thresholds |
-| `GET` | `/v1/metrics` | In-process serving counters |
+| `GET` | `/v1/metrics` | In-process counters plus ledger `business_sim` (action mix, late→on-time, spend) |
 | `POST` | `/v1/predict` | `promise_miss_probability`, `risk_band`, ids |
 | `POST` | `/v1/explain` | Tree SHAP on the booster (pre-calibration; displayed `p` is isotonic) |
 | `GET` | `/v1/policies/current` | Frozen policy + simulation economics |
@@ -251,6 +253,7 @@ make test
 make serve-local           # REST + MCP on :8080
 make smoke-local
 make demo-decision         # P0–P3 + ledger, no LLM required for policy copy
+make decision-eval         # action mix / late→on-time / spend (simulated)
 make canary-bad            # degraded challenger should fail delayed-label gate
 
 # live GCP (IAM-gated; tear down after the demo)
@@ -283,6 +286,7 @@ Lint: `make lint`. Full local train: `make train-pipeline` (registers a **candid
 | `src/olist_ml/decisions/` | Exception policy, economics, routing |
 | `src/olist_ml/agents/` | LangGraph copy-the-action graph |
 | `src/olist_ml/actions/` | Simulated executor |
+| `src/olist_ml/outcomes/` | Ledger + simulated impact rollup |
 | `src/olist_ml/monitoring/` | Delayed labels, PSI, retrain approval |
 | `dbt/` · `feature_repo/` · `pipelines/` · `airflow/dags/` · `terraform/` | Warehouse, features, train graph, jobs, IaC |
 | `tests/` · `.github/workflows/` | Unit / API / model tests; CI does not auto-promote |

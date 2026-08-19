@@ -105,7 +105,7 @@ resource "google_monitoring_dashboard" "olist" {
           widget = {
             title = "ML signals (local export + this dashboard)"
             text = {
-              content = "Service: volume, error rate, p95 latency.\nML: feature PSI, high-band mix, stale features, delayed-label PR-AUC.\nDrift alarms do not auto-retrain. Quality uses released labels only.\nLocal: make export-monitoring → artifacts/monitoring_dashboard.json"
+              content = "Service: volume, error rate, p95 latency.\nML: feature PSI, high-band mix, stale features, delayed-label PR-AUC.\nDrift alarms do not auto-retrain. Quality uses released labels only.\nSimulated ops (action mix, late→on-time, spend) are local: make decision-eval → artifacts/decision_impact.md. Not this dashboard."
               format  = "MARKDOWN"
             }
           }

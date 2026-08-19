@@ -10,6 +10,7 @@ from olist_ml.actions.schemas import ActionRequest, ActionResult
 from olist_ml.decisions.economics import PolicyEconomicsConfig, load_policy_economics
 from olist_ml.decisions.schemas import ActionType
 from olist_ml.decisions.upgrade_cost import remaining_leg_upgrade_cost
+from olist_ml.monitoring.metrics import get_metrics
 from olist_ml.simulation.intervention import derive_seed, simulate_intervention
 
 
@@ -69,7 +70,7 @@ class ActionExecutor:
             observed_days_late=request.observed_days_late,
         )
 
-        return ActionResult(
+        result = ActionResult(
             action_id=str(uuid.uuid4()),
             order_id=request.order_id,
             prediction_id=request.prediction_id,
@@ -93,6 +94,16 @@ class ActionExecutor:
             timestamp=datetime.now(UTC),
             seed_used=seed,
         )
+        get_metrics().observe_simulated_action(
+            action=result.action_type.value,
+            spend=result.simulated_cost,
+            net=result.simulated_net_value,
+            delay_days_avoided=result.simulated_delay_days_avoided,
+            moved_late_to_on_time=(
+                result.observed_promise_miss and not result.simulated_promise_miss
+            ),
+        )
+        return result
 
     def execute_decision(
         self,
