@@ -52,7 +52,7 @@ Olist CSVs → pandas feature table → train / calibrate / MLflow candidate
 
 **Measured:** ranking quality for an exception queue on a later test window (n = 14,471, **4.6%** miss rate). Top **2.5%** of scores: **46.3%** precision, **10.0×** lift vs random. Top **10%**: **22.7%** precision, **4.9×** lift, ~half of misses. Test PR-AUC **0.320**, ROC-AUC **0.834**, Brier **0.037**.
 
-**Assumed, not causal:** miss cost, upgrade cost, and prevention rate (`econ-sim-v3`). `allow_causal_roi_claims: false`. Intervention lift needs an experiment (switchback or A/B on the action). This repo does not fake one. Ranking lift is the KPI this slice earned.
+**Assumed, not causal:** miss cost, upgrade cost, and prevention rate (`econ-sim-v3`). Replay also credits **delay days avoided** when an upgrade Bernoulli succeeds (observed overrun, or a 6-day miss median). Notices do not change days late. No new EDD is invented. `allow_causal_roi_claims: false`. Intervention lift needs an experiment (switchback or A/B on the action). This repo does not fake one. Ranking lift is the KPI this slice earned.
 
 ---
 
@@ -128,8 +128,10 @@ Versioned placeholders (`econ-sim-v3`) so a stakeholder conversation can happen 
 ```text
 miss_cost     ≈ $10 + 10% of basket          (goodwill + value-at-risk stub)
 upgrade_cost  ≈ freight-scaled placeholder   (clip $5–$80; not a carrier tariff)
-notices       ≈ $1, 0% OTIF recovery in sim  (customer-impact only)
+notices       ≈ $1, 0% OTIF recovery in sim  (customer-impact only; days late unchanged)
 upgrade prevent rate ≈ 0.35                  (assumed Bernoulli, not fitted lift)
+delay days    ≈ observed (delivery − EDD)+   (0 if upgrade “succeeds”; else unchanged)
+                 fallback 6d median on misses when overrun is not passed
 ```
 
 `allow_causal_roi_claims: false`. Ranking lift above is measured. **Intervention lift is not.** A self-serve experimentation / causal-inference platform is out of scope for this slice and would be the way to replace those assumptions. Real emails, tickets, and carrier APIs stay off (`real_external_execution_enabled: false`). Detail: [`docs/limitations-assumptions-proxies.md`](docs/limitations-assumptions-proxies.md).
@@ -166,7 +168,7 @@ One FastAPI process so REST and MCP cannot diverge on **scoring** (`PredictionSe
 | `POST` | `/v1/explain` | Tree SHAP on the booster (pre-calibration; displayed `p` is isotonic) |
 | `GET` | `/v1/policies/current` | Frozen policy + simulation economics |
 | `POST` | `/v1/decision` | Predict → exception policy; optional simulate + ledger |
-| `POST` | `/v1/action/simulate` | Execute the frozen policy action (named action must match the ledger) |
+| `POST` | `/v1/action/simulate` | Frozen policy action; $ sim plus `simulated_delay_days_avoided` |
 | `GET` | `/v1/orders/{order_id}/decision` | Prediction / decision / action lineage |
 | `GET` | `/v1/actions/{action_id}` | Ledger rows for one action |
 | `POST` | `/v1/agent/review` | Copy-the-action review (optional human gate) |
@@ -183,7 +185,7 @@ Same domain services as REST. No duplicated inference.
 | `recommend_policy_action` | predict → `DecisionService` (`POST /v1/decision`) |
 | `list_available_actions` / `get_policy_metrics` | `noc-handoff-policy-v1` + `econ-sim-v3` |
 | `calculate_action_value` | simulation score for one approved action |
-| `execute_simulated_action` | `ActionExecutor` (must match frozen policy) |
+| `execute_simulated_action` | `ActionExecutor` (frozen policy; $ and delay-days sim) |
 | `get_decision_history` / `get_action_outcome` | lineage by `order_id` / `action_id` |
 
 Cursor (IAM identity token, ~1h TTL — do not commit it):
