@@ -254,6 +254,7 @@ def test_mcp_http_initialize_status_and_tools(client: TestClient) -> None:
     init = client.post(
         "/mcp",
         headers=headers,
+        follow_redirects=False,
         json={
             "jsonrpc": "2.0",
             "id": 1,
