@@ -207,6 +207,32 @@ def test_decision_with_simulate(client: TestClient) -> None:
     assert missing.status_code == 404
 
 
+def test_simulate_rejects_action_not_in_policy(client: TestClient) -> None:
+    decided = client.post(
+        "/v1/decision",
+        json={**_predict_payload("bind-1"), "simulate": False},
+    )
+    assert decided.status_code == 200, decided.text
+    body = decided.json()
+    recommended = body["decision"]["recommended_action"]
+    cheaper = "NO_ACTION" if recommended != "NO_ACTION" else "AT_RISK_NOTICE"
+    resp = client.post(
+        "/v1/action/simulate",
+        json={
+            "order_id": body["prediction"]["order_id"],
+            "prediction_id": body["prediction"]["prediction_id"],
+            "decision_id": body["decision"]["decision_id"],
+            "action_type": cheaper,
+            "model_version": body["prediction"]["model_version"],
+            "policy_version": body["decision"]["policy_version"],
+            "observed_promise_miss": True,
+            "basket_value": 180.0,
+        },
+    )
+    assert resp.status_code == 400
+    assert "frozen policy" in resp.json()["detail"]
+
+
 def test_agent_review_endpoint(client: TestClient) -> None:
     pred = client.post("/v1/predict", json=_predict_payload("agent-api")).json()
     resp = client.post(

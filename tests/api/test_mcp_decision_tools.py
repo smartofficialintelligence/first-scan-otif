@@ -146,3 +146,36 @@ def test_execute_simulated_action_and_outcome(trained_stack) -> None:
     assert action["status"] == "simulated"
     out = decision_tools.get_action_outcome(action["action_id"], ledger=trained_stack[3])
     assert len(out["records"]) >= 1
+
+
+def test_execute_rejects_action_not_in_policy(trained_stack) -> None:
+    rec = decision_tools.recommend_policy_action(
+        service=trained_stack[0],
+        decision_service=trained_stack[1],
+        ledger=trained_stack[3],
+        remaining_to_promise_days=4.0,
+        handling_days=2.0,
+        **_payload("mcp-bind"),
+    )
+    d = rec["decision"]
+    p = rec["prediction"]
+    cheaper = (
+        "AT_RISK_NOTICE"
+        if d["recommended_action"] == "REMAINING_LEG_UPGRADE"
+        else "REMAINING_LEG_UPGRADE"
+    )
+    if cheaper == d["recommended_action"]:
+        cheaper = "NO_ACTION"
+    with pytest.raises(ValueError, match="frozen policy"):
+        decision_tools.execute_simulated_action(
+            order_id=p["order_id"],
+            prediction_id=p["prediction_id"],
+            decision_id=d["decision_id"],
+            action=cheaper,
+            model_version=p["model_version"],
+            policy_version=d["policy_version"],
+            observed_promise_miss=True,
+            basket_value=180.0,
+            executor=trained_stack[2],
+            ledger=trained_stack[3],
+        )

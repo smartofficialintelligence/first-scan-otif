@@ -16,6 +16,7 @@ from olist_ml.monitoring.h5 import assert_retrain_allowed, write_h5_approval
 from olist_ml.monitoring.labels import release_labels
 from olist_ml.monitoring.logs import (
     DRIFT_FEATURE_COLUMNS,
+    label_release_at,
     log_completeness,
     released_rows,
     window_for_scenario,
@@ -147,6 +148,13 @@ def test_evaluate_delayed_loads_offline_pr_auc_from_meta(tmp_path: Path) -> None
     assert report["baseline_pr_auc"] == pytest.approx(0.99)
     assert report["champion_pr_auc"] == pytest.approx(0.99)
     assert report["quality_alarm"] is True
+
+
+def test_label_release_at_uses_outcome_clock() -> None:
+    pred = datetime(2018, 1, 1, tzinfo=UTC)
+    delivered = datetime(2018, 1, 20, tzinfo=UTC)
+    assert label_release_at(pred, outcome_timestamp=delivered) == delivered
+    assert label_release_at(pred) == pred + timedelta(days=7)
 
 
 def test_unreleased_labels_are_ignored_until_release() -> None:

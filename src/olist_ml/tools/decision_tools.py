@@ -14,6 +14,7 @@ from olist_ml.api.dependencies import (
     prediction_service_dep,
     settings_dep,
 )
+from olist_ml.decisions.bind import assert_action_matches_policy
 from olist_ml.decisions.schemas import ActionType
 from olist_ml.decisions.service import DecisionService
 from olist_ml.decisions.value import business_loss_if_miss, score_action
@@ -123,6 +124,7 @@ def get_order_risk(
     limit_miss: float | None = None,
     same_state: float | None = None,
     service: PredictionService | None = None,
+    **history: Any,
 ) -> dict[str, Any]:
     """Return promise-miss risk via PredictionService."""
     svc = service or get_prediction_service()
@@ -153,6 +155,7 @@ def get_order_risk(
         handling_frac_of_promise=handling_frac_of_promise,
         limit_miss=limit_miss,
         same_state=same_state,
+        **history,
     )
     return svc.predict_one(req).model_dump(mode="json")
 
@@ -243,6 +246,7 @@ def recommend_policy_action(
     service: PredictionService | None = None,
     decision_service: DecisionService | None = None,
     ledger: DecisionLedger | None = None,
+    **history: Any,
 ) -> dict[str, Any]:
     """Predict then run deterministic NOC policy (same services as REST /v1/decision)."""
     pred_body = get_order_risk(
@@ -273,6 +277,7 @@ def recommend_policy_action(
         limit_miss=limit_miss,
         same_state=same_state,
         service=service,
+        **history,
     )
     prediction = PredictResponse.model_validate(pred_body)
     dsvc = decision_service or get_decision_service()
@@ -334,11 +339,13 @@ def execute_simulated_action(
     executor: ActionExecutor | None = None,
     ledger: DecisionLedger | None = None,
 ) -> dict[str, Any]:
-    """Run ActionExecutor simulation for an approved action."""
+    """Run ActionExecutor simulation for the frozen policy action only."""
     try:
         action_type = ActionType(action)
     except ValueError as exc:
         raise ValueError(f"Unknown action: {action}") from exc
+    led = ledger or get_ledger()
+    assert_action_matches_policy(led, decision_id=decision_id, action=action_type.value)
     ex = executor or get_executor()
     result = ex.execute(
         ActionRequest(
@@ -356,7 +363,6 @@ def execute_simulated_action(
         )
     )
     if persist_ledger:
-        led = ledger or get_ledger()
         led.append_action(result)
         led.append_outcome(
             {

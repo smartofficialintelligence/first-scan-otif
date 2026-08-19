@@ -80,7 +80,16 @@ def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
 def label_release_at(
     prediction_timestamp: datetime,
     delay: timedelta = DEFAULT_LABEL_DELAY,
+    *,
+    outcome_timestamp: datetime | None = None,
 ) -> datetime:
+    """When the promise-miss label is knowable.
+
+    Prefer customer delivery (the outcome clock). Fall back to prediction_ts + delay
+    only when delivery is not yet in the log.
+    """
+    if outcome_timestamp is not None:
+        return outcome_timestamp
     return prediction_timestamp + delay
 
 

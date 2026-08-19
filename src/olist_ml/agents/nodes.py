@@ -76,6 +76,7 @@ def node_score_actions(state: AgentReviewState) -> dict[str, Any]:
             p2_score_threshold=state.get("p2_score_threshold"),
         )
     )
+    dtools.get_ledger().append_decision(policy)
     return {
         "action_values": values,
         "policy_recommendation": {

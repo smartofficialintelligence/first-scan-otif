@@ -146,15 +146,22 @@ def _pit_window_stats(
     count_prefix: str,
     rate_prefix: str | None = None,
     rate_source: str = "long_delivery",
+    observed_at_col: str | None = "order_delivered_customer_date",
     mean_specs: list[tuple[str, str]] | None = None,
 ) -> pd.DataFrame:
     """
     Point-in-time rolling stats per entity (strictly before current row).
 
+    Counts use prior *events* in the window. Rates use only priors whose
+    outcome timestamp (``observed_at_col``) is strictly before the current
+    row's ``time_col`` — labels that were not yet knowable are excluded
+    from both numerator and denominator.
+
     mean_specs: list of (output_col_prefix, source_col) producing `{prefix}_{window}`.
     """
     mean_specs = mean_specs or []
-    cols = [entity_col, time_col, rate_source, *{src for _, src in mean_specs}]
+    extra = [observed_at_col] if observed_at_col and observed_at_col in df.columns else []
+    cols = [entity_col, time_col, rate_source, *{src for _, src in mean_specs}, *extra]
     missing_rate = rate_source not in df.columns
     if missing_rate:
         raise ValueError(f"PIT rate_source column missing: {rate_source}")
@@ -162,16 +169,24 @@ def _pit_window_stats(
     work["_row"] = np.arange(len(work))
     work[time_col] = pd.to_datetime(work[time_col], utc=True)
     work = work.sort_values([entity_col, time_col, "_row"])
+    if observed_at_col and observed_at_col in work.columns:
+        work[observed_at_col] = pd.to_datetime(work[observed_at_col], utc=True, errors="coerce")
 
     out_rows: list[dict[str, float | int]] = []
+    nat_ns = np.iinfo(np.int64).max
     for _, g in work.groupby(entity_col, sort=False):
         times = g[time_col].to_numpy(dtype="datetime64[ns]")
-        # ns integers for searchsorted
         t_ns = times.astype("datetime64[ns]").astype(np.int64)
         late = g[rate_source].to_numpy(dtype=float)
+        if observed_at_col and observed_at_col in g.columns:
+            obs = g[observed_at_col].to_numpy(dtype="datetime64[ns]")
+            nat_mask = np.isnat(obs)
+            obs_ns = obs.astype("datetime64[ns]").view("int64")
+            obs_ns = np.where(nat_mask, nat_ns, obs_ns)
+        else:
+            obs_ns = np.full(len(g), nat_ns, dtype=np.int64)
         means_src = {src: g[src].to_numpy(dtype=float) for _, src in mean_specs}
         rows = g["_row"].to_numpy()
-        csum_late = np.concatenate([[0.0], np.cumsum(late)])
         csum_means = {
             src: np.concatenate([[0.0], np.cumsum(np.nan_to_num(arr, nan=0.0))])
             for src, arr in means_src.items()
@@ -181,14 +196,18 @@ def _pit_window_stats(
             t_i = t_ns[i]
             for suffix, days in windows_days.items():
                 start_ns = t_i - int(days) * 24 * 3600 * 1_000_000_000
-                # priors: times < t_i and times >= start
                 left = int(np.searchsorted(t_ns, start_ns, side="left"))
                 right = i  # exclusive — excludes current
                 count = max(0, right - left)
                 rec[f"{count_prefix}_{suffix}"] = float(count)
                 if rate_prefix is not None:
                     if count:
-                        rate = float((csum_late[right] - csum_late[left]) / count)
+                        knowable = obs_ns[left:right] < t_i
+                        n_obs = int(knowable.sum())
+                        if n_obs:
+                            rate = float(late[left:right][knowable].sum() / n_obs)
+                        else:
+                            rate = 0.0
                     else:
                         rate = 0.0
                     rec[f"{rate_prefix}_{suffix}"] = rate

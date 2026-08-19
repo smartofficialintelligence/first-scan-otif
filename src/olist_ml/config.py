@@ -45,6 +45,9 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8080
 
+    feast_repo_path: Path = Path("feature_repo")
+    feast_online_enabled: bool = False
+
     feature_freshness_sla_hours: int = Field(default=36)
 
     # Decision policy (D1–D2): versioned simulation economics

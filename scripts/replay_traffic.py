@@ -100,37 +100,38 @@ def row_to_request(row: pd.Series) -> PredictRequest:
         "handling_frac_of_promise",
         "limit_miss",
         "same_state",
+        "approval_lag_hours",
+        "avg_product_weight_g",
+        "freight_to_basket_ratio",
         "seller_order_count_7d",
         "seller_order_count_30d",
         "seller_order_count_90d",
         "seller_late_rate_7d",
         "seller_late_rate_30d",
         "seller_late_rate_90d",
+        "seller_avg_freight_30d",
+        "seller_avg_freight_90d",
+        "seller_avg_basket_30d",
+        "seller_avg_basket_90d",
+        "customer_order_count_30d",
+        "customer_order_count_90d",
+        "customer_late_rate_90d",
+        "category_late_rate_30d",
+        "category_late_rate_90d",
+        "category_order_count_90d",
     ):
         if key in row and pd.notna(row[key]):
             payload[key] = float(row[key])
+    if "primary_category" in row and pd.notna(row["primary_category"]):
+        payload["primary_category"] = str(row["primary_category"])
     return PredictRequest.model_validate(payload)
 
 
 def _predict_inprocess(service: PredictionService, request: PredictRequest) -> dict[str, Any]:
     t0 = time.perf_counter()
-    stale = False
-    freshness_ts = None
-    feast_ms = 0.0
-    lookup_t0 = time.perf_counter()
-    if getattr(service, "feast_client", None) is not None:
-        try:
-            rows = service.feast_client.get_online_features([request.seller_id])
-            feast_ms = (time.perf_counter() - lookup_t0) * 1000.0
-            if rows:
-                stale = bool(rows[0].stale)
-                freshness_ts = rows[0].feature_timestamp
-        except Exception:  # noqa: BLE001 — feast optional on local replay
-            feast_ms = (time.perf_counter() - lookup_t0) * 1000.0
-    else:
-        feast_ms = 0.0
-    resp = service.predict_one(request, stale_features=stale)
+    resp = service.predict_one(request)
     latency_ms = (time.perf_counter() - t0) * 1000.0
+    ts = resp.feature_timestamp
     return {
         "order_id": resp.order_id,
         "promise_miss_probability": resp.promise_miss_probability,
@@ -139,9 +140,9 @@ def _predict_inprocess(service: PredictionService, request: PredictRequest) -> d
         "latency_ms": latency_ms,
         "http_status": 200,
         "error_class": None,
-        "feature_freshness_ts": freshness_ts.isoformat() if freshness_ts else None,
-        "feast_lookup_ms": feast_ms,
-        "stale_features": stale,
+        "feature_freshness_ts": ts.isoformat() if ts else None,
+        "feast_lookup_ms": resp.feast_lookup_ms if resp.feast_lookup_ms is not None else 0.0,
+        "stale_features": bool(resp.stale_features),
         "prediction_timestamp": resp.prediction_timestamp.isoformat(),
     }
 
@@ -294,7 +295,15 @@ def run_replay(
                 pred = _predict_http(client, base_url, request)
 
             pred_ts = request.prediction_timestamp or request.purchase_timestamp
-            release_at = label_release_at(pred_ts, delay=label_delay)
+            outcome_ts = None
+            if "order_delivered_customer_date" in row and pd.notna(row["order_delivered_customer_date"]):
+                outcome_ts = pd.Timestamp(row["order_delivered_customer_date"])
+                if outcome_ts.tzinfo is None:
+                    outcome_ts = outcome_ts.tz_localize("UTC")
+                outcome_ts = outcome_ts.to_pydatetime()
+            release_at = label_release_at(
+                pred_ts, delay=label_delay, outcome_timestamp=outcome_ts
+            )
 
             record = {
                 "event_id": f"{scenario}-{request.order_id}",

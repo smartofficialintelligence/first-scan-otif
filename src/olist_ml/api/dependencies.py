@@ -5,12 +5,16 @@ from __future__ import annotations
 from functools import lru_cache
 
 from fastapi import Header, HTTPException
+from starlette.requests import Request
+from starlette.responses import JSONResponse, Response
 
 from olist_ml.actions.executor import ActionExecutor
 from olist_ml.config import Settings, get_settings
 from olist_ml.decisions.service import DecisionService
 from olist_ml.inference.predictor import PredictionService
 from olist_ml.outcomes.ledger import DecisionLedger
+
+_OPEN_PATHS = frozenset({"/health", "/ready"})
 
 
 @lru_cache
@@ -53,3 +57,20 @@ def verify_api_key(x_api_key: str | None = Header(default=None)) -> None:
         return
     if not settings.api_key or x_api_key != settings.api_key:
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
+
+
+def _settings_for_request(request: Request) -> Settings:
+    getter = request.app.dependency_overrides.get(settings_dep, settings_dep)
+    return getter()
+
+
+async def api_key_middleware(request: Request, call_next) -> Response:
+    """Gate REST and MCP with the same API key. Probes stay open."""
+    settings = _settings_for_request(request)
+    path = request.url.path.rstrip("/") or "/"
+    if settings.auth_mode != "api_key" or path in _OPEN_PATHS:
+        return await call_next(request)
+    supplied = request.headers.get("x-api-key")
+    if not settings.api_key or supplied != settings.api_key:
+        return JSONResponse({"detail": "Invalid or missing API key"}, status_code=401)
+    return await call_next(request)

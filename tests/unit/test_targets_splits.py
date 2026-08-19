@@ -89,3 +89,6 @@ def test_blocked_columns_constant() -> None:
     assert "order_delivered_customer_date" in BLOCKED_SOURCE_COLUMNS
     assert "order_delivered_carrier_date" in BLOCKED_SOURCE_COLUMNS
     assert "review_score" in BLOCKED_SOURCE_COLUMNS
+    from olist_ml.features.contracts import FEATURE_COLUMNS
+
+    assert set(BLOCKED_SOURCE_COLUMNS).isdisjoint(FEATURE_COLUMNS)

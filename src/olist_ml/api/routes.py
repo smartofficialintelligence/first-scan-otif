@@ -15,6 +15,7 @@ from olist_ml.api.dependencies import (
     prediction_service_dep,
     verify_api_key,
 )
+from olist_ml.decisions.bind import assert_action_matches_policy, latest_prediction
 from olist_ml.decisions.schemas import ActionType
 from olist_ml.decisions.service import DecisionService
 from olist_ml.features.assembler import noc_context_from_request
@@ -47,7 +48,7 @@ def ready(service: PredictionService = Depends(prediction_service_dep)) -> Ready
     return service.readiness()
 
 
-@router.get("/v1/metrics")
+@router.get("/v1/metrics", dependencies=[Depends(verify_api_key)])
 def metrics() -> dict[str, Any]:
     """In-process service + ML metrics snapshot (JSON)."""
     return get_metrics().snapshot()
@@ -62,13 +63,16 @@ def model_info(service: PredictionService = Depends(prediction_service_dep)) -> 
 def predict(
     body: PredictRequest,
     service: PredictionService = Depends(prediction_service_dep),
+    ledger: DecisionLedger = Depends(decision_ledger_dep),
 ) -> PredictResponse:
     if not service.ready:
         raise HTTPException(status_code=503, detail="Model not ready")
     try:
-        return service.predict_one(body)
+        prediction = service.predict_one(body)
     except Exception as exc:  # noqa: BLE001 — surface as 400 for bad feature payloads
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    ledger.append_prediction(prediction)
+    return prediction
 
 
 @router.post("/v1/explain", response_model=ExplainResponse, dependencies=[Depends(verify_api_key)])
@@ -200,6 +204,9 @@ def simulate_action(
             detail=f"Invalid action_type: {body.action_type}",
         ) from exc
     try:
+        assert_action_matches_policy(
+            ledger, decision_id=body.decision_id, action=action_type.value
+        )
         result = executor.execute(
             ActionRequest(
                 order_id=body.order_id,
@@ -254,7 +261,10 @@ def action_lookup(
 
 
 @router.post("/v1/agent/review", dependencies=[Depends(verify_api_key)])
-def agent_review(body: AgentReviewRequest) -> dict[str, Any]:
+def agent_review(
+    body: AgentReviewRequest,
+    ledger: DecisionLedger = Depends(decision_ledger_dep),
+) -> dict[str, Any]:
     """LangGraph bounded agent review (tool-driven; optional human gate)."""
     try:
         from olist_ml.agents.graph import run_agent_review
@@ -264,12 +274,21 @@ def agent_review(body: AgentReviewRequest) -> dict[str, Any]:
             detail="Agent extras required. Install with: uv sync --extra agent",
         ) from exc
 
+    stored = latest_prediction(ledger, body.prediction_id)
+    proba = body.promise_miss_probability
+    model_version = body.model_version
+    if stored is not None:
+        if stored.get("promise_miss_probability") is not None:
+            proba = float(stored["promise_miss_probability"])
+        if stored.get("model_version"):
+            model_version = str(stored["model_version"])
+
     result = run_agent_review(
         {
             "order_id": body.order_id,
             "prediction_id": body.prediction_id,
-            "model_version": body.model_version,
-            "promise_miss_probability": body.promise_miss_probability,
+            "model_version": model_version,
+            "promise_miss_probability": proba,
             "basket_value": body.basket_value,
             "seller_id": body.seller_id,
             "remaining_to_promise_days": body.remaining_to_promise_days,

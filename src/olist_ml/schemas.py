@@ -84,6 +84,8 @@ class PredictResponse(BaseModel):
     target: str = "promise_miss_at_handoff"
     p1_score_threshold: float | None = None
     p2_score_threshold: float | None = None
+    stale_features: bool = False
+    feast_lookup_ms: float | None = None
 
 
 class ModelInfoResponse(BaseModel):

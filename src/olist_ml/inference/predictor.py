@@ -12,6 +12,8 @@ import numpy as np
 
 from olist_ml.config import Settings
 from olist_ml.features.assembler import frame_from_requests, select_feature_frame
+from olist_ml.features.contracts import ONLINE_SELLER_FEATURES
+from olist_ml.features.feast_client import FeastSellerClient
 from olist_ml.inference.explain import (
     SHAP_NOTE,
     STUB_NOTE,
@@ -50,6 +52,44 @@ class PredictionService:
         self._model: Any | None = None
         self._meta: ModelMeta | None = None
         self._shap_explainer: Any | None = None
+        self.feast_client: FeastSellerClient | None = None
+        self.last_feast_lookup_ms: float = 0.0
+        if settings.feast_online_enabled:
+            self.feast_client = FeastSellerClient(
+                repo_path=settings.feast_repo_path,
+                freshness_sla_hours=settings.feature_freshness_sla_hours,
+            )
+
+    def hydrate_request(self, request: PredictRequest) -> tuple[PredictRequest, bool]:
+        """Fill omitted online seller features from Feast. Request values win.
+
+        Does not invent history: Feast is queried only for None fields. Missing
+        Feast entity stays None here; assembler applies cold-start 0 after.
+        """
+        self.last_feast_lookup_ms = 0.0
+        if self.feast_client is None or not request.seller_id:
+            return request, False
+        needed = [name for name in ONLINE_SELLER_FEATURES if getattr(request, name) is None]
+        if not needed:
+            return request, False
+        started = time.perf_counter()
+        try:
+            rows = self.feast_client.get_online_features([request.seller_id])
+        except Exception:
+            logger.exception("Feast online lookup failed for seller_id=%s", request.seller_id)
+            self.last_feast_lookup_ms = (time.perf_counter() - started) * 1000.0
+            return request, True
+        self.last_feast_lookup_ms = (time.perf_counter() - started) * 1000.0
+        if not rows:
+            return request, True
+        row = rows[0]
+        updates = {
+            name: row.features[name]
+            for name in needed
+            if name in row.features
+        }
+        filled = request.model_copy(update=updates)
+        return filled, bool(row.stale)
 
     @property
     def ready(self) -> bool:
@@ -102,6 +142,8 @@ class PredictionService:
             if not self.ready or self._model is None or self._meta is None:
                 raise RuntimeError("Model not ready")
 
+            request, feast_stale = self.hydrate_request(request)
+            stale_features = bool(stale_features or feast_stale)
             frame = frame_from_requests([request])
             X = select_feature_frame(frame)
             proba = float(self._model.predict_proba(X)[0, 1])
@@ -125,6 +167,8 @@ class PredictionService:
                 target=self._meta.target,
                 p1_score_threshold=self._meta.p1_score_threshold,
                 p2_score_threshold=self._meta.p2_score_threshold,
+                stale_features=stale_features,
+                feast_lookup_ms=self.last_feast_lookup_ms,
             )
         except Exception:
             err = True

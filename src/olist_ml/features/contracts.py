@@ -67,6 +67,23 @@ ONLINE_SELLER_FEATURES: Final[list[str]] = [
     "seller_late_rate_90d",
 ]
 
+# History columns that must come from the request or Feast, not silent zeros
+# before hydration. Cold-start 0 is applied only after Feast (seller online)
+# or when the caller omitted an offline-only field.
+REQUEST_HISTORY_FEATURES: Final[list[str]] = [
+    *ONLINE_SELLER_FEATURES,
+    "seller_avg_freight_30d",
+    "seller_avg_freight_90d",
+    "seller_avg_basket_30d",
+    "seller_avg_basket_90d",
+    "customer_order_count_30d",
+    "customer_order_count_90d",
+    "customer_late_rate_90d",
+    "category_late_rate_30d",
+    "category_late_rate_90d",
+    "category_order_count_90d",
+]
+
 # Raw logistics timestamps must not enter the model matrix.
 # Derived handoff clocks (handling_days, remaining_to_promise_days, …) are allowed.
 BLOCKED_SOURCE_COLUMNS: Final[list[str]] = [

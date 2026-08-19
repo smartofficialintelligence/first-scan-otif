@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pandas as pd
+
 from olist_ml.data.loaders import load_olist_tables
 from olist_ml.data.targets import build_labeled_orders
 from olist_ml.features.build import build_feature_table
@@ -40,6 +42,37 @@ def test_seller_history_excludes_current_order() -> None:
         # last row history count should equal number of earlier rows in fixture window
         last = g.iloc[-1]
         assert last["seller_order_count_90d"] == float(len(g) - 1)
+
+
+def test_late_rate_uses_only_observed_prior_outcomes() -> None:
+    """A prior handoff whose delivery is after the current scan must not enter late_rate."""
+    from olist_ml.features.build import _pit_window_stats
+
+    frame = pd.DataFrame(
+        {
+            "seller_id": ["s", "s"],
+            "handoff_ts": pd.to_datetime(
+                ["2018-01-01T00:00:00Z", "2018-01-05T00:00:00Z"], utc=True
+            ),
+            "order_delivered_customer_date": pd.to_datetime(
+                ["2018-01-20T00:00:00Z", "2018-01-10T00:00:00Z"], utc=True
+            ),
+            "long_delivery": [1, 0],
+            "freight_value": [10.0, 10.0],
+        }
+    )
+    stats = _pit_window_stats(
+        frame,
+        entity_col="seller_id",
+        time_col="handoff_ts",
+        windows_days={"90d": 90},
+        count_prefix="seller_order_count",
+        rate_prefix="seller_late_rate",
+        mean_specs=None,
+    )
+    second = stats.set_index("_row").loc[1]
+    assert second["seller_order_count_90d"] == 1.0
+    assert second["seller_late_rate_90d"] == 0.0
 
 
 def test_derived_order_features_present() -> None:

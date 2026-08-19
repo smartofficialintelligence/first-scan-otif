@@ -10,30 +10,23 @@ from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder
 
 from olist_ml.features import handoff as handoff_clocks
-from olist_ml.features.contracts import CATEGORICAL_FEATURES, FEATURE_COLUMNS, NUMERIC_FEATURES
+from olist_ml.features.contracts import (
+    BLOCKED_SOURCE_COLUMNS,
+    CATEGORICAL_FEATURES,
+    FEATURE_COLUMNS,
+    NUMERIC_FEATURES,
+    REQUEST_HISTORY_FEATURES,
+)
 from olist_ml.schemas import PredictRequest
 
-# Optional request / Feast fields defaulted to 0 when absent (cold-start / local mode).
+# Request-native numerics plus history. History is filled from Feast (seller
+# online) in PredictionService before this assembler runs; remaining None is
+# true cold-start (0), not a substitute for an online lookup.
 _OPTIONAL_NUMERIC_DEFAULTS: tuple[str, ...] = (
     "approval_lag_hours",
     "same_state",
     "avg_product_weight_g",
-    "seller_order_count_7d",
-    "seller_order_count_30d",
-    "seller_order_count_90d",
-    "seller_late_rate_7d",
-    "seller_late_rate_30d",
-    "seller_late_rate_90d",
-    "seller_avg_freight_30d",
-    "seller_avg_freight_90d",
-    "seller_avg_basket_30d",
-    "seller_avg_basket_90d",
-    "customer_order_count_30d",
-    "customer_order_count_90d",
-    "customer_late_rate_90d",
-    "category_late_rate_30d",
-    "category_late_rate_90d",
-    "category_order_count_90d",
+    *REQUEST_HISTORY_FEATURES,
 )
 
 
@@ -131,6 +124,9 @@ def noc_context_from_request(request: PredictRequest) -> dict[str, float]:
 
 
 def select_feature_frame(df: pd.DataFrame) -> pd.DataFrame:
+    blocked = [c for c in FEATURE_COLUMNS if c in BLOCKED_SOURCE_COLUMNS]
+    if blocked:
+        raise ValueError(f"Blocked source columns in model matrix: {blocked}")
     missing = [c for c in FEATURE_COLUMNS if c not in df.columns]
     if missing:
         raise ValueError(f"Missing feature columns: {missing}")

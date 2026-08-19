@@ -2,7 +2,7 @@
 
 **Actionable ML in production shape:** a fulfillment problem, a model that drives an operating decision, and a measured outcome. Not a notebook. Not a dashboard.
 
-This repo is the production loop on public [Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce) Brazilian e-commerce data: seller, parcel, and delivery-promise events. A calibrated ranker is served on **GCP Cloud Run** (REST + MCP). A frozen exception policy turns the score into work. Agents execute that action; they do not invent a cheaper one.
+This repo is the production loop on public [Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce) Brazilian e-commerce data: seller, parcel, and delivery-promise events. A calibrated ranker is served on **GCP Cloud Run** (REST + MCP). A frozen exception policy turns the score into work. LangGraph copies that action; MCP `execute_simulated_action` and REST `/v1/action/simulate` reject any other named action.
 
 It is a portfolio system you can run and inspect, not a live 3PL. Organic marketplace traffic is replaced by chronological holdout replay. The point is the path **raw data → production model → adopted decision**, with features, stack, architecture, and impact you can walk in a screen.
 
@@ -14,19 +14,19 @@ Walkthrough: [`ARCHITECTURE.md`](ARCHITECTURE.md) · Numbers: [`docs/business_as
 
 ### What is in production
 
-Champion model **`local-20260818T041243Z`** (isotonic-calibrated XGBoost) scored in-process on Cloud Run `olist-ml-api` (IAM-gated, min instances 0). Same process mounts **REST** and **MCP** (`POST /mcp`). Local: `make serve-local` on `:8080`. Teardown: `make gcp-down`.
+Champion model **`local-20260819T060630Z`** (isotonic-calibrated XGBoost) scored in-process on Cloud Run `olist-ml-api` (IAM-gated, min instances 0). Same process mounts **REST** and **MCP** (`POST /mcp`). Local: `make serve-local` on `:8080`. Teardown: `make gcp-down`.
 
 The **decision** in production is not “here is a probability.” It is a queue band: late notice, at-risk notice, remaining-leg upgrade proxy, or no action (`noc-handoff-policy-v1`). Promote, retrain, and spend above $20 stay with a person.
 
 ### Features
 
-Knowable at **first carrier scan**. Historical windows are 7 / 30 / 90 day, events strictly before the scan, current order excluded. Train and serve share one contract.
+Knowable at **first carrier scan**. Historical windows are 7 / 30 / 90 day; prior **handoffs** are strictly before the scan; current order excluded. Train and serve share column names in [`contracts.py`](src/olist_ml/features/contracts.py). Omitted online seller history is filled from Feast when `feast_online_enabled` (off on Cloud Run); remaining missing history is 0 after that lookup.
 
 | Group | Examples |
 |---|---|
 | Promise clocks | `handling_days`, `remaining_to_promise_days`, `handling_frac_of_promise`, `limit_miss` |
 | Shipment | `item_count`, `basket_value`, `freight_value`, `geo_distance_km`, `same_state` |
-| Seller history (Feast online) | `seller_order_count_{30,90}d`, `seller_late_rate_{30,90}d` |
+| Seller history (request fields) | `seller_order_count_{7,30,90}d`, `seller_late_rate_{7,30,90}d` |
 | Context | purchase clocks, payment, customer/seller state |
 | **Never in X** | customer delivery, raw carrier timestamp, reviews |
 
@@ -39,18 +39,18 @@ Detail below and in [`docs/features.md`](docs/features.md).
 ### Architecture
 
 ```text
-Olist CSVs → (GCS) BigQuery → dbt marts → Feast
-        → train / calibrate / register candidate (MLflow)
-        → PredictionService (one object)
+Olist CSVs → pandas feature table → train / calibrate / MLflow candidate
+          ↘ (GCS) BigQuery → dbt marts → Feast (warehouse; not on Cloud Run predict)
+        → PredictionService (request body → baked joblib)
               ├─ REST  /v1/predict  /v1/decision  /v1/explain
               └─ MCP   predict_promise_miss  recommend_policy_action  …
-        → frozen P0–P3 policy → agent copies action → simulated ledger
+        → frozen P0–P3 policy → LangGraph copies action → simulated ledger
         → delayed-label eval, 90/10 canary, drift alarm, human promote
 ```
 
 ### Business impact (what is measured vs assumed)
 
-**Measured:** ranking quality for an exception queue on a later test window (n = 14,471, **4.6%** miss rate). Top **2.5%** of scores: **41.6%** precision, **9.0×** lift vs random. Top **10%**: **22.2%** precision, **4.8×** lift, ~half of misses. Test PR-AUC **0.296**, ROC-AUC **0.816**, Brier **0.038**.
+**Measured:** ranking quality for an exception queue on a later test window (n = 14,471, **4.6%** miss rate). Top **2.5%** of scores: **46.3%** precision, **10.0×** lift vs random. Top **10%**: **22.7%** precision, **4.9×** lift, ~half of misses. Test PR-AUC **0.320**, ROC-AUC **0.834**, Brier **0.037**.
 
 **Assumed, not causal:** miss cost, upgrade cost, and prevention rate (`econ-sim-v3`). `allow_causal_roi_claims: false`. Intervention lift needs an experiment (switchback or A/B on the action). This repo does not fake one. Ranking lift is the KPI this slice earned.
 
@@ -82,27 +82,27 @@ REST and MCP share `PredictionService`. Agents do not get a second, undocumented
 
 ## Model quality and queue lift
 
-Champion **`local-20260818T041243Z`** (calibrated XGBoost, 8 Optuna trials). Test **n = 14,471**, promise-miss rate **4.6%**.
+Champion **`local-20260819T060630Z`** (calibrated XGBoost, 25 Optuna trials; late rates use observed customer delivery only). Test **n = 14,471**, promise-miss rate **4.6%**.
 
 Lead with **exception-queue lift** (how much better the work list is than a random draw), then ranking/calibration. Accuracy on a rare miss is the wrong headline.
 
 | Capacity (test) | Precision | Recall | Lift vs 4.6% base |
 |---:|---:|---:|---:|
-| Top 2.5% (P1-sized queue) | **41.6%** | 22.4% | **9.0×** |
-| Top 10% (P2-sized queue) | **22.2%** | 48.0% | **4.8×** |
+| Top 2.5% (P1-sized queue) | **46.3%** | 25.0% | **10.0×** |
+| Top 10% (P2-sized queue) | **22.7%** | 49.0% | **4.9×** |
 
 Among the highest-risk fortieth of later orders, about **2 in 5** actually miss the promise. The top tenth captures about **half** of test misses. That is the capacity story for a NOC: scarce attention, ranked work.
 
 | Ranking / calibration | Test | Bootstrap 95% CI |
 |---|---:|---|
-| PR-AUC | **0.296** | 0.264 – 0.329 |
-| ROC-AUC | **0.816** | 0.799 – 0.833 |
-| Brier | 0.038 | 0.035 – 0.041 |
-| ECE | 0.019 | — |
+| PR-AUC | **0.320** | 0.286 – 0.355 |
+| ROC-AUC | **0.834** | 0.817 – 0.849 |
+| Brier | 0.037 | 0.035 – 0.040 |
+| ECE | 0.014 | — |
 
-Validation (where policy cutoffs are frozen): PR-AUC **0.478**, ROC-AUC **0.838**. Test miss rate is lower than validation (12.3% → 4.6%). Thresholds stay frozen rather than being re-fit on later traffic, so the queue definition does not silently drift with the base rate.
+Validation (where policy cutoffs are frozen): PR-AUC **0.455**, ROC-AUC **0.822**. Test miss rate is lower than validation (12.3% → 4.6%). Thresholds stay frozen rather than being re-fit on later traffic, so the queue definition does not silently drift with the base rate.
 
-Policy cutoffs from validation scores: **P1 = 0.5625**, **P2 = 0.3155**.
+Policy cutoffs from validation scores: **P1 = 0.5989**, **P2 = 0.2963**.
 
 ---
 
@@ -113,13 +113,13 @@ The model does not pick the action. A versioned policy (`noc-handoff-policy-v1`)
 | Band | Rule | Workflow action |
 |---|---|---|
 | **P0** | Remaining days to promise ≤ 0 | `LATE_NOTICE` (already late; clock rule, not a ranker) |
-| **P1** | Score ≥ 0.5625 | `REMAINING_LEG_UPGRADE` if eligible, else `AT_RISK_NOTICE` |
-| **P2** | Score ≥ 0.3155 | `AT_RISK_NOTICE` |
+| **P1** | Score ≥ 0.5989 | `REMAINING_LEG_UPGRADE` if eligible, else `AT_RISK_NOTICE` |
+| **P2** | Score ≥ 0.2963 | `AT_RISK_NOTICE` |
 | **P3** | Else | `NO_ACTION` |
 
 Upgrade eligibility (demo proxy, not a carrier SKU): P1 **and** `0 < remaining ≤ 7` days **and** (`geo ≥ 100 km` **or** not same state). Intervention cost ≥ **$20** waits for a person — high-stakes model-adjacent spend is not autonomous.
 
-The agent **copies** `recommended_action`. Documented MCP tools are the skill surface (score, explain, recommend, simulate). The agent cannot substitute a cheaper eligible action. That is how agentic AI stays infrastructure: same APIs as the application, human-owned policy, human review on promote / retrain / spend.
+LangGraph **copies** `recommended_action` (it does not re-argmax EV). Documented MCP tools are the skill surface (score, explain, recommend, simulate). `execute_simulated_action` / `POST /v1/action/simulate` take a named action and reject it unless it matches the ledger's frozen policy decision. Human review remains on promote / retrain / spend ≥ $20.
 
 ### Unit economics in simulation — not claimed P&L
 
@@ -136,23 +136,23 @@ upgrade prevent rate ≈ 0.35                  (assumed Bernoulli, not fitted li
 
 ---
 
-## Features (messy ops data, leakage-safe)
+## Features (messy ops data, current order excluded)
 
-Grain: one row per `order_id` at first scan. Historical windows are 7 / 30 / 90 day, events **strictly before** `handoff_ts`, current order excluded. Definitions live in dbt + a shared Python contract — the feature analog of a semantic layer: one meaning in train and in serve.
+Grain: one row per `order_id` at first scan. Historical **counts** use prior handoffs with `event_ts < handoff_ts`, current order excluded. `*_late_rate_*` uses only priors whose customer delivery was already observed (`order_delivered_customer_date < current handoff_ts`); the positive class is still `long_delivery` (>14d). Champion training is the pandas builder (`build_feature_table`); dbt marts are a parallel warehouse path.
 
 **Request-native (on `/v1/predict`):** basket, freight, item / seller / category counts, payment, customer and seller state, haversine distance, handling days, days remaining to promise, handling as a fraction of horizon, ship-limit miss, purchase clocks.
 
-**Online Feast (seller only in v1):** `seller_order_count_{30,90}d`, `seller_late_rate_{30,90}d`. Stale lookup (>36h SLA) still predicts with priors and increments `stale_feature_rate`.
+**Seller / customer / category history:** on the request. `predict_one` hydrates omitted *online seller* fields from Feast when enabled (request values win). Remaining missing history is 0 after that lookup, not instead of it. Replay copies the full history columns into the request.
 
 **Blocked:** reviews; raw carrier or customer delivery timestamps; any window that includes the current order.
 
-Training and serving share [`src/olist_ml/features/contracts.py`](src/olist_ml/features/contracts.py). Feature audit: [`docs/features.md`](docs/features.md).
+Training and serving share column names in [`src/olist_ml/features/contracts.py`](src/olist_ml/features/contracts.py). Feature audit: [`docs/features.md`](docs/features.md).
 
 ---
 
 ## Serving: REST and MCP
 
-One FastAPI process so application traffic and agent traffic cannot diverge. Local: `make serve-local` → `http://127.0.0.1:8080`. Cloud: Cloud Run `olist-ml-api` on GCP (min instances 0, IAM invoker, not `allUsers`). MCP is Streamable HTTP at `POST /mcp` on the **same** URL.
+One FastAPI process so REST and MCP cannot diverge on **scoring** (`PredictionService`). Simulate tools take a named action and bind it to the frozen policy row on the ledger. Local: `make serve-local` → `http://127.0.0.1:8080`. Cloud: Cloud Run `olist-ml-api` on GCP (min instances 0, IAM invoker, not `allUsers`). MCP is Streamable HTTP at `POST /mcp` on the **same** URL. When `AUTH_MODE=api_key`, the same header gates REST and `/mcp` (`/health` and `/ready` stay open).
 
 ### REST
 
@@ -166,7 +166,7 @@ One FastAPI process so application traffic and agent traffic cannot diverge. Loc
 | `POST` | `/v1/explain` | Tree SHAP on the booster (pre-calibration; displayed `p` is isotonic) |
 | `GET` | `/v1/policies/current` | Frozen policy + simulation economics |
 | `POST` | `/v1/decision` | Predict → exception policy; optional simulate + ledger |
-| `POST` | `/v1/action/simulate` | Execute a **named** action (no real side effects) |
+| `POST` | `/v1/action/simulate` | Execute the frozen policy action (named action must match the ledger) |
 | `GET` | `/v1/orders/{order_id}/decision` | Prediction / decision / action lineage |
 | `GET` | `/v1/actions/{action_id}` | Ledger rows for one action |
 | `POST` | `/v1/agent/review` | Copy-the-action review (optional human gate) |
@@ -183,7 +183,7 @@ Same domain services as REST. No duplicated inference.
 | `recommend_policy_action` | predict → `DecisionService` (`POST /v1/decision`) |
 | `list_available_actions` / `get_policy_metrics` | `noc-handoff-policy-v1` + `econ-sim-v3` |
 | `calculate_action_value` | simulation score for one approved action |
-| `execute_simulated_action` | `ActionExecutor` (ledger only) |
+| `execute_simulated_action` | `ActionExecutor` (must match frozen policy) |
 | `get_decision_history` / `get_action_outcome` | lineage by `order_id` / `action_id` |
 
 Cursor (IAM identity token, ~1h TTL — do not commit it):

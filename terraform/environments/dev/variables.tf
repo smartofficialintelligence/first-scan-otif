@@ -54,7 +54,7 @@ variable "invoker_sa_email" {
 variable "extra_invoker_members" {
   type        = list(string)
   description = "Additional Cloud Run invokers (user: or group:). Laptop testing."
-  default     = ["user:mr.kuehn@gmail.com"]
+  default     = []
 }
 
 variable "enable_serving" {

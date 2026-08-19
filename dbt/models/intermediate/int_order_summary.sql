@@ -81,7 +81,8 @@ select
       * pow(sin(((acos(-1) / 180) * (sg.lng - cg.lng)) / 2), 2)
   )) as geo_distance_km,
   extract(hour from o.prediction_ts) as purchase_hour,
-  extract(dayofweek from o.prediction_ts) - 1 as purchase_dow,
+  -- pandas dayofweek: Monday=0 … Sunday=6. BigQuery DAYOFWEEK is Sunday=1.
+  mod(extract(dayofweek from o.prediction_ts) + 5, 7) as purchase_dow,
   extract(month from o.prediction_ts) as purchase_month,
   case when extract(dayofweek from o.prediction_ts) in (1, 7) then 1 else 0 end as is_weekend
 from {{ ref('stg_orders') }} o
