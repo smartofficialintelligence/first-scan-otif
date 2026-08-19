@@ -29,6 +29,12 @@ variable "invoker_sa_email" {
   default     = ""
 }
 
+variable "extra_invoker_members" {
+  type        = list(string)
+  description = "Additional IAM members granted roles/run.invoker (e.g. user:you@gmail.com)."
+  default     = []
+}
+
 resource "google_cloud_run_v2_service" "api" {
   name     = var.name
   location = var.region
@@ -104,6 +110,16 @@ resource "google_cloud_run_v2_service_iam_member" "invoker" {
   name     = google_cloud_run_v2_service.api.name
   role     = "roles/run.invoker"
   member   = "serviceAccount:${var.invoker_sa_email}"
+}
+
+resource "google_cloud_run_v2_service_iam_member" "extra_invokers" {
+  for_each = toset(var.extra_invoker_members)
+
+  project  = var.project_id
+  location = google_cloud_run_v2_service.api.location
+  name     = google_cloud_run_v2_service.api.name
+  role     = "roles/run.invoker"
+  member   = each.value
 }
 
 output "service_name" {

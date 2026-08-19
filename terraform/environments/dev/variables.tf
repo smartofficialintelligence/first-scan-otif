@@ -51,6 +51,12 @@ variable "invoker_sa_email" {
   default     = ""
 }
 
+variable "extra_invoker_members" {
+  type        = list(string)
+  description = "Additional Cloud Run invokers (user: or group:). Laptop testing."
+  default     = ["user:mr.kuehn@gmail.com"]
+}
+
 variable "enable_serving" {
   type        = bool
   description = "Deprecated alias for enable_cloud_run (does not create Vertex)."

@@ -43,11 +43,12 @@ module "cloud_run" {
   count  = (var.enable_cloud_run || var.enable_serving) ? 1 : 0
   source = "../../modules/cloud_run"
 
-  project_id       = var.project_id
-  region           = var.region
-  name             = "${var.name_prefix}-api"
-  image            = var.serving_image
-  invoker_sa_email = var.invoker_sa_email
+  project_id            = var.project_id
+  region                = var.region
+  name                  = "${var.name_prefix}-api"
+  image                 = var.serving_image
+  invoker_sa_email      = var.invoker_sa_email
+  extra_invoker_members = var.extra_invoker_members
 }
 
 module "vertex_endpoint" {

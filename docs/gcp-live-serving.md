@@ -27,6 +27,30 @@ The serving image is a multi-stage Docker build (`Dockerfile` target `serving`) 
 
 Image builds go through **Cloud Build** when local Docker cannot mount overlay (typical in this Cloud Agent: Docker-in-Docker, overlay-on-overlay, `EINVAL` — not a full disk). Do **not** `docker system prune` / delete `/var/lib/docker/overlay2` to “fix” that; the root filesystem is already overlay, so nested overlay mounts will keep failing and a storage reset can take the daemon down. On a laptop with a real ext4/xfs data root, `gcp-up` still tries a local `docker build` first.
 
+## Hit the API from a laptop
+
+The URL is on the public internet. IAM is still required (not `allUsers`).
+
+`gcloud auth print-identity-token --audiences=...` **only works for service accounts**. From a user login (`gcloud auth login`), use one of:
+
+```bash
+gcloud config set project "$GCP_PROJECT_ID"   # or the demo project id
+gcloud run services proxy olist-ml-api --region=us-central1
+# other terminal:
+curl -s http://127.0.0.1:8080/ready
+curl -s http://127.0.0.1:8080/v1/model
+```
+
+Or, without `--audiences`:
+
+```bash
+URI=https://olist-ml-api-dmkg75dg4a-uc.a.run.app
+TOKEN=$(gcloud auth print-identity-token)
+curl -s -H "Authorization: Bearer $TOKEN" "$URI/ready"
+```
+
+Your Google user must have `roles/run.invoker` on the service (`extra_invoker_members` in Terraform, default includes the operator laptop account).
+
 ## What stays off
 
 - Redis / Memorystore (Feast online remains SQLite for this demo)
