@@ -39,34 +39,38 @@ NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 if [[ "$AFTER_DOWN" == true ]]; then
   RUN_LIST="$(gcloud run services list --region="$REGION" --project="$PROJECT" --format='value(metadata.name)' 2>/dev/null || true)"
-  TF_URI="$(terraform -chdir=terraform/environments/dev output -raw cloud_run_uri 2>/dev/null || echo null)"
-  TF_DASH="$(terraform -chdir=terraform/environments/dev output -raw monitoring_dashboard_id 2>/dev/null || echo null)"
-  python3 - <<PY
+  TF_URI="$(terraform -chdir=terraform/environments/dev output -raw cloud_run_uri 2>/dev/null || true)"
+  TF_DASH="$(terraform -chdir=terraform/environments/dev output -raw monitoring_dashboard_id 2>/dev/null || true)"
+  export EVIDENCE_OUT="$OUT" EVIDENCE_NOW="$NOW" EVIDENCE_RUN_LIST="${RUN_LIST:-}" EVIDENCE_TF_URI="${TF_URI:-}" EVIDENCE_TF_DASH="${TF_DASH:-}"
+  python3 - <<'PY'
+import json
+import os
 from pathlib import Path
-p = Path("$OUT")
-text = p.read_text() if p.exists() else "# GCP serving proof\n\n"
-proj = Path("artifacts/gcp_up_meta.json")
-project = ""
-if proj.exists():
-    import json
-    project = json.loads(proj.read_text()).get("project") or ""
 
-def redact(s):
+p = Path(os.environ["EVIDENCE_OUT"])
+text = p.read_text() if p.exists() else "# GCP serving proof\n\n"
+project = ""
+meta = Path("artifacts/gcp_up_meta.json")
+if meta.exists():
+    project = json.loads(meta.read_text()).get("project") or ""
+
+def redact(s: str) -> str:
     t = s or ""
     return t.replace(project, "<gcp-project>") if project else t
 
-run_list = redact("""${RUN_LIST:-"(none)"}""") or "(none)"
-tf_uri = redact("""$TF_URI""")
-tf_dash = redact("""$TF_DASH""")
+run_list = redact(os.environ.get("EVIDENCE_RUN_LIST") or "") or "(none)"
+tf_uri = redact(os.environ.get("EVIDENCE_TF_URI") or "") or "null"
+tf_dash = redact(os.environ.get("EVIDENCE_TF_DASH") or "") or "null"
+now = os.environ["EVIDENCE_NOW"]
 block = f"""
 
 ## Turned off
 
-- Timestamp (UTC): $NOW
-- `gcloud run services list` names: {run_list}
-- Terraform `cloud_run_uri`: `{tf_uri}`
-- Terraform `monitoring_dashboard_id`: `{tf_dash}`
-- Artifact Registry and warehouse (BQ / GCS / IAM) were **left in place** so `make gcp-up` can turn serving back on.
+- Timestamp (UTC): {now}
+- gcloud run services list names: {run_list}
+- Terraform cloud_run_uri: `{tf_uri}`
+- Terraform monitoring_dashboard_id: `{tf_dash}`
+- Artifact Registry and warehouse (BQ / GCS / IAM) were left in place so make gcp-up can turn serving back on.
 
 """
 if "## Turned off" in text:

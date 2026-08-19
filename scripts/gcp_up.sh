@@ -58,17 +58,23 @@ echo "==> image $IMAGE"
 echo "==> build + push image"
 gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
 built=0
-if docker info >/dev/null 2>&1; then
-  if env DOCKER_BUILDKIT=0 docker build --target serving -t "$IMAGE" "$ROOT" \
-    && docker push "$IMAGE"; then
+# Nested overlay (Docker-in-Docker): kernel overlay-on-overlay mounts return EINVAL.
+# Do not prune /var/lib/docker or switch drivers here — that does not fix nested overlay
+# and can destabilize the daemon. Cloud Build is the reliable path in this environment.
+docker_root_fstype="$(findmnt -no FSTYPE /var/lib/docker 2>/dev/null || true)"
+if [[ "$docker_root_fstype" == overlay* || "${GCP_UP_USE_CLOUD_BUILD:-}" == "1" ]]; then
+  echo "==> local Docker root is ${docker_root_fstype:-unknown} (nested); using Cloud Build"
+else
+  if docker info >/dev/null 2>&1; then
+    if docker build --target serving -t "$IMAGE" "$ROOT" && docker push "$IMAGE"; then
+      built=1
+    fi
+  elif sudo docker build --target serving -t "$IMAGE" "$ROOT" && sudo docker push "$IMAGE"; then
     built=1
   fi
-elif sudo env DOCKER_BUILDKIT=0 docker build --target serving -t "$IMAGE" "$ROOT" \
-  && sudo docker push "$IMAGE"; then
-  built=1
 fi
 if [[ "$built" -eq 0 ]]; then
-  echo "==> local Docker failed; using Cloud Build"
+  echo "==> Cloud Build → $IMAGE"
   gcloud builds submit --tag "$IMAGE" --project="$PROJECT" --timeout=1800 --quiet "$ROOT"
 fi
 

@@ -25,7 +25,7 @@ make gcp-down      # destroy Cloud Run + dashboard; keep Artifact Registry + BQ 
 
 The serving image is a multi-stage Docker build (`Dockerfile` target `serving`) with `artifacts/model.joblib` + `model_meta.json` baked in. The API scores that joblib in-process. Platform auth is Cloud Run IAM (`roles/run.invoker` for the operator SA). The app itself uses `AUTH_MODE=off`.
 
-Local Docker is used when it works. If overlay/BuildKit fails (nested VMs), `gcp-up` falls back to **Cloud Build** so the same command still produces an Artifact Registry image.
+Image builds go through **Cloud Build** when local Docker cannot mount overlay (typical in this Cloud Agent: Docker-in-Docker, overlay-on-overlay, `EINVAL` — not a full disk). Do **not** `docker system prune` / delete `/var/lib/docker/overlay2` to “fix” that; the root filesystem is already overlay, so nested overlay mounts will keep failing and a storage reset can take the daemon down. On a laptop with a real ext4/xfs data root, `gcp-up` still tries a local `docker build` first.
 
 ## What stays off
 
