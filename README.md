@@ -1,115 +1,77 @@
-# Olist Production ML
+# First-scan OTIF scoring
 
-Public portfolio artifact: **promise-miss / OTIF exception scoring at first carrier scan** on the Olist Brazilian E-Commerce dataset, on **GCP**.
+At the first carrier scan, is this order likely to miss the promise date? If so, which
+operating band should it enter?
 
-This is not a notebook demo. It is an end-to-end ML platform slice: features, training, registry, serving, canary, monitoring, cost-controlled teardown, plus a **decision / agent action layer** (deterministic NOC policy → LangGraph executes the frozen action → simulated interventions).
+That is the whole product. A binary scorer ranks orders at
+`handoff_ts = order_delivered_carrier_date`. The label is
+`promise_miss`: the customer received the package after the promised ETA.
+A frozen policy maps score to P0–P3. An optional agent **copies** that
+action; it does not invent a cheaper one. Simulated dollars are a
+sensitivity check, not causal ROI.
 
-## Status
+Olist Brazilian e-commerce data. Decision-science portfolio, not a
+carrier production system.
 
-| Milestone | Status |
-|---|---|
-| M1 Local production model | implemented (`cursor/milestone-1-local-model-fd7a`) |
-| M2 BigQuery + dbt | merged to `main` (PR #3) |
-| M3 Feast | implemented on `cursor/milestones-remaining-642f` (SQLite demo-off) |
-| M4 Vertex training + MLflow | implemented on `cursor/milestones-remaining-642f` (local pipeline + candidate registry) |
-| M5 Managed inference | **live Cloud Run on/off** (`make gcp-up` / `gcp-down`); Vertex endpoint stays off |
-| M6 MCP | implemented on `cursor/milestones-remaining-642f` |
-| M7 CI/CD + Terraform hardening | implemented on `cursor/milestones-remaining-642f` |
-| M8 Monitoring | feature PSI, delayed labels, exported metrics, TF dashboard module (off by default) |
-| M9 Canary + replay + rollback | 90/10 + delayed-label canary; named drift scenarios |
-| M10 Airflow triggers | replay, labels, delayed eval, drift, H5-gated retrain (local DAGs; no Composer required) |
-| M11 Polish | implemented on `cursor/milestones-remaining-642f` (docs/runbook/cost placeholders) |
-| Decision + agent (D1–D13) | **complete** on `main` — simulation H9/H10 approved; causal ROI disallowed |
-| Handoff NOC policy (ADR 0006) | merged to `main` (PR #19); interviewer packet + CI follow-up on this branch |
+## What it does
 
-Details: [docs/milestones.md](docs/milestones.md)
+1. **Score at first scan.** Champion `local-20260818T041243Z`: test
+   PR-AUC **0.296**, ROC-AUC **0.816**, miss rate **4.6%**, Brier
+   **0.038**, ECE **0.019**. P1 / P2 cutoffs **0.5625 / 0.3155**.
+2. **Put the order in a band.** P0 hold, P1 exception queue, P2 watch,
+   P3 no action — deterministic rules (`docs/handoff-policy.md`).
+3. **Serve the same scorer.** FastAPI on Cloud Run: `/ready`,
+   `/v1/predict`, `/v1/explain` (Tree SHAP), `/mcp` for Cursor.
+4. **Operate it.** Replay a bad canary, watch `/ready` fail, promote
+   the last good artifact. Tear the stack down when you are done
+   (`make gcp-down`).
+5. **Do not claim ROI.** `allow_causal_roi_claims: false`. The queue
+   table below is ranking quality, not dollars saved.
 
-## Locked architecture (short)
+| Slice (test) | Precision | Lift vs 4.6% base |
+| --- | ---: | ---: |
+| Top 2.5% | 41.6% | 9.0× |
+| Top 10% | 22.2% | 4.8× |
 
-| Layer | Choice |
-|---|---|
-| Warehouse / transforms | BigQuery + dbt |
-| Feature store | Feast (BQ offline, SQLite online in this demo; Redis would be the prod shared store) |
-| Orchestration | Airflow |
-| Training | Vertex AI Pipelines (XGBoost + Optuna) |
-| Experiments / registry | MLflow |
-| Model serving | Vertex AI Endpoint |
-| App APIs | FastAPI on Cloud Run (REST + MCP) |
+Walkthrough: [`ARCHITECTURE.md`](ARCHITECTURE.md). Business write-up:
+[`docs/business_assessment.md`](docs/business_assessment.md). Policy:
+[`docs/handoff-policy.md`](docs/handoff-policy.md).
 
-Full walkthrough (function, stack, tradeoffs, operate-the-model): [ARCHITECTURE.md](ARCHITECTURE.md)  
-Binding tables: [docs/LOCKED_DECISIONS.md](docs/LOCKED_DECISIONS.md)
-
-## ML problem
-
-At **first carrier scan**, predict `P(promise_miss)` — customer delivery after the promised ETA ([ADR 0006](docs/adr/0006-handoff-promise-miss-noc.md)). API field: `promise_miss_probability`.
-
-Policy bands P0–P3 are deterministic (already-late notice, remaining-leg upgrade proxy, at-risk notice, or no action). The agent does not choose policy. Simulated $ is **not** causal ROI.
-
-Details: [docs/ml-problem.md](docs/ml-problem.md) · Assumptions: [docs/limitations-assumptions-proxies.md](docs/limitations-assumptions-proxies.md) · Business read: [docs/business_assessment.md](docs/business_assessment.md)
-
-## Quick start (local)
+## Run it
 
 ```bash
-make sync
-make fixtures
-make test
-make train-local
-make serve-local
-# other terminal:
-curl -s localhost:8080/health
-curl -s localhost:8080/ready
+make setup && make data
+make serve-local          # FastAPI + /mcp on :8000
+# optional live GCP (IAM-gated; tear down after)
+make gcp-up && make gcp-smoke && make gcp-down
+make canary-bad           # local rollback demo
+make demo-decision        # P0 vs P3 + ledger, no LLM
 ```
 
-Live Cloud Run (no Redis, no Vertex Endpoint). Tear down the same day:
+Python **3.11+**. `uv` recommended. Tests: `make test`. Lint: `make lint`.
 
-```bash
-make gcp-up && make gcp-smoke && make gcp-evidence && make gcp-down
-```
+## What is in the repo
 
-Details: [docs/gcp-live-serving.md](docs/gcp-live-serving.md) · Proof: [docs/evidence/gcp-serving-run.md](docs/evidence/gcp-serving-run.md)
+| Piece | Role |
+| --- | --- |
+| BigQuery + dbt | Warehouse + `ml_*` views |
+| Feast | Offline Parquet; **SQLite** online (Redis skipped for cost) |
+| Champion joblib | Calibrated XGBoost, SHA-pinned |
+| FastAPI / Cloud Run | Predict, explain, MCP |
+| Terraform | Artifact Registry, Cloud Run, IAM. Vertex, Composer, Redis **off** |
+| Decision graph | Copies frozen P0–P3; LangSmith when a tracing key is set |
 
-Pipeline + canary (no GCP):
+Live URI is not committed. After `gcp-up`, `gcloud run services describe olist-ml-api --region=us-central1 --format='value(status.url)'`.
 
-```bash
-make train-pipeline
-make canary-bad          # delayed-label gates → ROLLBACK recommendation
-make approve-h5 && make retrain-trigger  # H5-gated candidate (needs drift alarm if reason=drift)
-make airflow-train-local # unconstrained M4 demo (no Composer, no H5)
-make demo-decision       # predict→policy→agent→sim harness (needs agent extra)
-```
+Cursor → Cloud Run MCP: IAM invoker + `gcloud auth print-identity-token` as
+`Authorization: Bearer …` on `https://<service>/mcp`. Token lasts ~1h.
+Do not commit it.
 
-Optional full Olist (when download mirror works or CSVs are placed in `data/raw`):
+## Limits
 
-```bash
-make download-olist
-make train-olist
-```
+- Olist public data, not live carrier events.
+- Feast online is SQLite in this demo.
+- SHAP is tree-level (pre-calibration); displayed `p` is isotonic.
+- No production SLO, no real-money loop.
 
-## Cost posture
-
-Demo resources are ephemeral:
-
-- `make demo-up` / `demo-down` — local API
-- `make gcp-up` / `gcp-down` — live Cloud Run + Monitoring; registry kept
-
-Policy: [COST.md](COST.md) · Ops: [RUNBOOK.md](RUNBOOK.md)
-
-## Simulation
-
-No organic traffic. Deterministic holdout replay drives canary, drift, and rollback demos.
-
-Contract: [docs/simulation.md](docs/simulation.md) · Canary: [docs/m9-canary-replay.md](docs/m9-canary-replay.md)
-
-Intervention “what-if” paths use a separate ActionExecutor with **versioned assumption economics** (not causal ROI). Interviewer walkthrough: [docs/demo-script.md](docs/demo-script.md).
-
-## Build order
-
-Vertical slices — see [docs/milestones.md](docs/milestones.md).
-
-## Why not Databricks?
-
-Transferable open seams + real GCP IaC/IAM/CI matter more here than a single lakehouse vendor. See [docs/adr/0001-gcp-not-databricks.md](docs/adr/0001-gcp-not-databricks.md).
-
-## Human gates
-
-Automation stops at risk-bearing steps (feature audit, promote, terraform apply, retrain approval). Listed in [docs/LOCKED_DECISIONS.md](docs/LOCKED_DECISIONS.md).
+License: MIT. Data: [Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce) terms.
