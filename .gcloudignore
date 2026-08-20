@@ -7,7 +7,11 @@ __pycache__
 .env
 sa-key.json
 data/raw/
-data/feast/
+# Bake the SQLite online store when present (gitignored except .gitkeep).
+data/feast/*
+!data/feast/.gitkeep
+!data/feast/online.db
+!data/feast/registry.db
 terraform/**/.terraform/
 terraform/**/*.tfstate*
 terraform/**/tfplan*
