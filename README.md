@@ -1,6 +1,6 @@
 # First-scan OTIF
 
-**Actionable ML in production shape:** a fulfillment problem, a model that drives an operating decision, and a measured outcome. Not a notebook. Not a dashboard.
+**Actionable ML in production shape:** a fulfillment problem, a model that drives an operating decision, and a measured outcome. 
 
 This repo is the production loop on public [Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce) Brazilian e-commerce data: seller, parcel, and delivery-promise events. A calibrated ranker is served on **GCP Cloud Run** (REST + MCP). A frozen exception policy turns the score into work. LangGraph copies that action; MCP `execute_simulated_action` and REST `/v1/action/simulate` reject any other named action.
 
@@ -245,7 +245,7 @@ Local stdio: `make mcp-serve`. After `gcp-up`, resolve the URI with `gcloud run 
 
 ---
 
-## Operating the model (notebook is not production)
+## Operating the model
 
 There is no organic firehose. Traffic is a **deterministic chronological holdout** that never trains ([`docs/simulation.md`](docs/simulation.md)). Labels are not used for quality the day you score: a release job waits **seven days**, then delayed PR-AUC / Brier run on released rows only.
 
