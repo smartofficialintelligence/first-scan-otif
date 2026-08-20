@@ -80,6 +80,33 @@ def test_ingest_stages_through_gcs():
     assert "load_table_from_dataframe" not in src, "that path bypasses the bucket"
 
 
+def test_feature_repo_imports_without_gcp_project(monkeypatch: pytest.MonkeyPatch):
+    """Unset GCP_PROJECT_ID must not raise on import (serving / local inspect)."""
+    import sys
+
+    pytest.importorskip("feast")
+    monkeypatch.delenv("GCP_PROJECT_ID", raising=False)
+    repo = str(ROOT / "feature_repo")
+    inserted = repo not in sys.path
+    if inserted:
+        sys.path.insert(0, repo)
+    for name in ("features", "entities"):
+        sys.modules.pop(name, None)
+    try:
+        import features as feast_features  # type: ignore[import-not-found]
+
+        assert feast_features.PROJECT_IS_PLACEHOLDER is True
+        table = getattr(feast_features.seller_features_source, "table", None) or str(
+            feast_features.seller_features_source
+        )
+        assert "unset-project" in str(table)
+    finally:
+        for name in ("features", "entities"):
+            sys.modules.pop(name, None)
+        if inserted:
+            sys.path.remove(repo)
+
+
 def test_gated_pipeline_opts_out_of_training_registration():
     """pipelines/components.py registers once after gates; training must not also register."""
     import inspect

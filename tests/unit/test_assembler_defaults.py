@@ -71,6 +71,22 @@ def test_remaining_to_promise_derived_from_handoff_and_eta() -> None:
     assert float(frame.iloc[0]["limit_miss"]) == 1.0
 
 
+def test_handling_days_floored_when_handoff_precedes_purchase() -> None:
+    """Clock skew must not produce a large negative handling clock for NOC bands."""
+    req = _request(
+        prediction_timestamp=datetime(2018, 1, 5, 12, 0, tzinfo=UTC),
+        handoff_timestamp=datetime(2018, 1, 1, 12, 0, tzinfo=UTC),
+    )
+    frame = frame_from_requests([req])
+    assert float(frame.iloc[0]["handling_days"]) == pytest.approx(-1.0)
+
+
+def test_handling_frac_zero_horizon_is_zero() -> None:
+    req = _request(handling_days=2.0, estimated_delivery_horizon_days=0.0)
+    frame = frame_from_requests([req])
+    assert float(frame.iloc[0]["handling_frac_of_promise"]) == 0.0
+
+
 def test_remaining_to_promise_falls_back_to_horizon_minus_handling() -> None:
     req = _request(
         remaining_to_promise_days=None,
