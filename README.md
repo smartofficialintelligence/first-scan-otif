@@ -20,7 +20,7 @@ The **decision** in production is not “here is a probability.” It is a queue
 
 ### Features
 
-Knowable at **first carrier scan**. Historical windows are 7 / 30 / 90 day; prior **handoffs** are strictly before the scan; current order excluded. Train and serve share column names in [`contracts.py`](src/olist_ml/features/contracts.py). Omitted online seller history is filled from Feast when `feast_online_enabled` (off on Cloud Run); remaining missing history is 0 after that lookup.
+Knowable at **first carrier scan**. Historical windows are 7 / 30 / 90 day; prior **handoffs** are strictly before the scan; current order excluded. Train and serve share column names in [`contracts.py`](src/olist_ml/features/contracts.py). Omitted online seller history is filled from **Feast in the request path** (`feast_online_enabled` defaults on, and the Cloud Run image ships the Feast client plus the materialized SQLite store); remaining missing history is 0 after that lookup. Lookups fail open — an unmaterialized store degrades to cold-start defaults instead of erroring, and trips a circuit breaker so no request pays registry-load latency twice.
 
 | Group | Examples |
 |---|---|
@@ -35,15 +35,17 @@ Detail below and in [`docs/features.md`](docs/features.md).
 ### Stack
 
 **GCP · BigQuery · dbt · Feast · MLflow · XGBoost · FastAPI on Cloud Run · MCP.**  <br>
-**Optimized for cost:** Turn-key Terraform deployment and teardown of assets and IAM governance. 
-Optional Vertex training pipeline; Vertex Endpoint / Redis / Composer are disabled.
+**Optimized for cost:** Turn-key Terraform deployment and teardown of assets and IAM governance.
+Vertex Endpoint / Redis / Composer are disabled; the Vertex pipeline file is a **compile-or-skip stub**, not a second training path.
 
 ### Architecture
 
 ```text
-Olist CSVs → pandas feature table → train / calibrate / MLflow candidate
-          ↘ (GCS) BigQuery → dbt marts → Feast (warehouse; not on Cloud Run predict)
-        → PredictionService (request body → baked joblib)
+Olist CSVs → GCS raw bucket → BigQuery → dbt marts ─┐
+                                                    ├→ Feast (offline: BQ, online: SQLite)
+Olist CSVs → pandas PIT feature table ──────────────┘   warehouse snapshot / Feast history
+        → train / calibrate → MLflow candidate → human promote → champion joblib
+        → PredictionService (request + Feast online lookup → baked joblib)
               ├─ REST  /v1/predict  /v1/decision  /v1/explain
               └─ MCP   predict_promise_miss  recommend_policy_action  …
         → frozen P0–P3 policy → LangGraph copies action → simulated ledger
@@ -178,7 +180,9 @@ delay days    ≈ observed (delivery − EDD)+   (0 if upgrade “succeeds”; e
 
 ## Features (messy ops data, current order excluded)
 
-Grain: one row per `order_id` at first scan. Historical **counts** use prior handoffs with `event_ts < handoff_ts`, current order excluded. `*_late_rate_*` uses only priors whose customer delivery was already observed (`order_delivered_customer_date < current handoff_ts`); the positive class is still `long_delivery` (>14d). Champion training is the pandas builder (`build_feature_table`); dbt marts are a parallel warehouse path.
+Grain: one row per `order_id` at first scan. Historical **counts** use prior handoffs with `event_ts < handoff_ts`, current order excluded. `*_late_rate_*` uses only priors whose customer delivery was already observed (`order_delivered_customer_date < current handoff_ts`); the positive class is still `long_delivery` (>14d).
+
+Champion training starts from the pandas builder (`build_feature_table`) and then **consumes the warehouse when it is present** ([`features/historical.py`](src/olist_ml/features/historical.py)): a complete `ml.fct_training_snapshot` export replaces the training table, otherwise a Feast historical retrieval overlays the online seller columns. The overlay joins on `(seller_id, handoff_ts)` — never `seller_id` alone, which would attach a seller's later history to their earlier orders. `snapshot_id` on the model artifact records which path produced it (`pandas_builder`, `feast_historical`, or `dbt_fct_training_snapshot`).
 
 **Request-native (on `/v1/predict`):** basket, freight, item / seller / category counts, payment, customer and seller state, haversine distance, handling days, days remaining to promise, handling as a fraction of horizon, ship-limit miss, purchase clocks.
 
@@ -209,7 +213,7 @@ One FastAPI process so REST and MCP cannot diverge on **scoring** (`PredictionSe
 | `POST` | `/v1/action/simulate` | Frozen policy action; $ sim plus `simulated_delay_days_avoided` |
 | `GET` | `/v1/orders/{order_id}/decision` | Prediction / decision / action lineage |
 | `GET` | `/v1/actions/{action_id}` | Ledger rows for one action |
-| `POST` | `/v1/agent/review` | Copy-the-action review (optional human gate) |
+| `POST` | `/v1/agent/review` | Copy-the-action LangGraph review (optional human gate); the `agent` extra ships in the serving image, so this runs on Cloud Run |
 
 ### MCP tools (agent skill surface)
 
@@ -265,14 +269,14 @@ Automation stops where adoption and money live: canary → 100% traffic, alarm �
 
 ## Stack
 
-| Concern | Choice | Intentionally not |
-|---|---|---|
-| Cloud / warehouse | **GCP, BigQuery, dbt**, Terraform, teardown | A notebook with a warehouse screenshot |
-| Features | Feast; **SQLite** online for this demo | Always-on Redis / Vertex Feature Store (cost) |
-| Train / registry | Local **or Vertex pipeline**; **MLflow** is model truth | Notebook cells as the production path |
-| Serve | FastAPI + joblib on **Cloud Run** | A second inference stack for agents |
-| Orchestration | Airflow DAGs as local CLIs | Idle Cloud Composer |
-| Agents | MCP tools + LangGraph **copy policy** | LLM chooses the exception band |
+| Concern | Choice | Where it actually runs | Intentionally not |
+|---|---|---|---|
+| Cloud / warehouse | **GCP, BigQuery, dbt**, Terraform, teardown | Raw CSVs land in the GCS bucket; BigQuery loads **from those objects**; dbt builds the marts | A notebook with a warehouse screenshot |
+| Features | **Feast** — offline BigQuery, **SQLite** online | In the Cloud Run request path: the image ships the Feast client + materialized store; lookups fail open | Always-on Redis / Vertex Feature Store (cost) |
+| Train / registry | XGBoost + Optuna + isotonic; **MLflow** | Every champion train registers a run and tags `git_sha` / `snapshot_id`; promotion stays a named-human file swap. The *currently published* champion predates this wiring and has no run behind it — see [ARCHITECTURE.md §7](ARCHITECTURE.md) | Notebook cells as the production path; automated promotion |
+| Serve | FastAPI + joblib on **Cloud Run** | One `PredictionService` behind REST and MCP | A second inference stack for agents |
+| Orchestration | Airflow DAGs as local CLIs (`airflow` extra makes the DAG objects real) | A workstation / local scheduler | Idle Cloud Composer |
+| Agents | MCP tools + **LangGraph** copy policy | Both ship in the serving image; the graph copies the frozen action | LLM chooses the exception band |
 
 Vertex Endpoint, Memorystore Redis, and Composer stay **off** unless a person reviews a plan — same cost discipline you would want on a live GCP estate. Idle after `make gcp-down` is near $0/day. [`COST.md`](COST.md), [`docs/adr/0003-demo-cost-switches.md`](docs/adr/0003-demo-cost-switches.md).
 

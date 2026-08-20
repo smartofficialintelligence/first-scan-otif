@@ -2,35 +2,16 @@
 
 from __future__ import annotations
 
-import os
-import subprocess
 import uuid
 from datetime import UTC, datetime
-from functools import lru_cache
 from pathlib import Path
 
 from olist_ml.decisions.economics import PolicyEconomicsConfig, load_policy_economics
 from olist_ml.decisions.policy import apply_noc_policy
 from olist_ml.decisions.routing import requires_agent_review
 from olist_ml.decisions.schemas import DecisionContext, DecisionResult
+from olist_ml.gitinfo import current_git_sha
 from olist_ml.schemas import PredictResponse
-
-
-@lru_cache(maxsize=1)
-def _git_sha() -> str | None:
-    env = os.environ.get("GIT_SHA") or os.environ.get("GITHUB_SHA")
-    if env:
-        return env.strip()[:40]
-    try:
-        out = subprocess.check_output(
-            ["git", "rev-parse", "HEAD"],
-            stderr=subprocess.DEVNULL,
-            text=True,
-            timeout=2,
-        )
-        return out.strip()[:40]
-    except (OSError, subprocess.SubprocessError):
-        return None
 
 
 class DecisionService:
@@ -94,7 +75,7 @@ class DecisionService:
             decision_source=source,  # type: ignore[arg-type]
             rationale=rationale,
             decision_timestamp=datetime.now(UTC),
-            git_sha=_git_sha(),
+            git_sha=current_git_sha(),
             basket_value=context.basket_value,
             business_loss_if_miss=loss,
             assumptions_disclaimer=self.config.assumptions_disclaimer,

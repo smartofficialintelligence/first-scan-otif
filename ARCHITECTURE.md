@@ -91,33 +91,38 @@ Recorded in [docs/adr/0006-handoff-promise-miss-noc.md](docs/adr/0006-handoff-pr
 ```text
 Public Olist CSVs
         │
+        ├─────────────────────────────┐
+        ▼                             ▼
+  pandas PIT builder          GCS raw bucket → BigQuery (load from those objects)
+  (champion base)                     │
+        │                             ▼
+        │                     dbt: staging → intermediate → ML marts
+        │                     (labels, PIT history, geo, training snapshot)
+        │                             │
+        │                             ▼
+        │                     Feast registry
+        │                     ├── offline: BigQuery (apply / materialize / historical)
+        │                     └── online:  SQLite (shipped in the serving image;
+        │                                  Redis is the multi-replica prod answer)
+        │                             │
+        ◄─────────────────────────────┘
+        │  warehouse overlay when present: a complete training snapshot replaces
+        │  the table; else Feast history overlays seller columns on (seller_id, handoff_ts)
         ▼
-  Load (local fixtures, or GCS → BigQuery)
-        │
-        ▼
-  dbt: staging → intermediate → ML marts
-  (labels, PIT history, geo, training snapshot)
-        │
-        ▼
-  Feast registry
-  ├── offline: training retrieval
-  └── online: seller features (SQLite in this demo; Redis is what we'd use in a multi-replica prod lookup)
-        │
-        ▼
-  Train (local pipeline or Vertex)
-  XGBoost + Optuna (PR-AUC) → isotonic calibration on frozen valid
+  Train  XGBoost + Optuna (PR-AUC) → isotonic calibration on frozen valid
         │
         ▼
   MLflow: REGISTERED_CANDIDATE   ← automation stops here
+  (every champion train registers; run tagged git_sha + snapshot_id)
         │
-        │  person reviews offline gates
+        │  person reviews offline gates, then promotes (file swap, named approver)
         ▼
   Serve: PredictionService
   REST (Cloud Run / uvicorn)  and  MCP  share this object
         │
         ├─ request-native features (basket, geo, handoff clocks)
-        ├─ optional Feast get(seller_id)
-        └─ model artifact or Vertex endpoint
+        ├─ Feast get(seller_id) — on by default, warmed at startup, fails open
+        └─ champion joblib baked into the image
         │
         ▼
   Deterministic policy  →  recommended action
@@ -152,10 +157,10 @@ Intentionally **not** “everything is Vertex” and **not** Databricks.
 | Cloud | GCP | Real IAM, Terraform, teardown; transferable platform seams | Databricks Free Edition is cheaper and hides seams; see [docs/adr/0001-gcp-not-databricks.md](docs/adr/0001-gcp-not-databricks.md) |
 | Warehouse | BigQuery | Native dbt, cheap at Olist scale | Spark/Databricks lakehouse |
 | Transforms | dbt Core | Tested, reviewed SQL; serving must reproduce the same definitions | Train-only pandas feature scripts as source of truth |
-| Feature store | Feast (BQ offline, **SQLite online**) | Same Feast contract and freshness SLA. SQLite is **$0** and enough for a single process / this demo. A real multi-replica prod system would use Redis (or similar KV) so every Cloud Run instance shares one online store. Memorystore was not stood up here because it is always-on cost. | Vertex Feature Store as the primary store (less portable); Memorystore Redis for this demo |
-| Training jobs | Vertex Pipelines **or** `pipelines/local_pipeline.py` | Same step graph: validate → tune → train → calibrate → evaluate → register | Notebook cells as the production path |
-| Experiments / registry | MLflow | Version, tags, candidate lifecycle | Vertex Experiments / Model Registry as the system of record |
-| Model host | Joblib locally; Vertex Endpoint when cloud serving is on | Managed traffic split when you pay for it | Always-on endpoint |
+| Feature store | Feast (BQ offline, **SQLite online**) | Same Feast contract and freshness SLA. The serving image ships the Feast client and the materialized SQLite store, so online lookup is in the **deployed request path**, not just a local demo. SQLite is **$0** and correct for an immutable single-process replica; a multi-replica prod system would use Redis so instances share one store and can refresh it independently of a deploy. Memorystore was not stood up here because it is always-on cost. | Vertex Feature Store as the primary store (less portable); Memorystore Redis for this demo |
+| Training jobs | `pipelines/local_pipeline.py` | Step graph: validate → tune → train → calibrate → evaluate → register. `pipelines/vertex_pipeline.py` is a **compile-or-skip stub** that writes a JSON description — it submits no job and is not a second training path | Notebook cells as the production path; claiming a Vertex training path that does not run |
+| Experiments / registry | MLflow (local SQLite backend) | **Every** champion train registers a candidate and tags `git_sha` + `snapshot_id`, so the deployed model has a run behind it. Promotion to champion remains a named-human file swap — the registry records lineage, a person owns the swap | A shared tracking server (needs an always-on DB); automated promotion |
+| Model host | Champion joblib baked into the Cloud Run image | Immutable revision: the artifact and the code ship together, and `/ready` fails if it did not load | Vertex Endpoint (always-on cost); pulling a model at boot |
 | App | FastAPI on Cloud Run (min instances 0) | REST + MCP over **one** `PredictionService` | Separate inference stacks per interface |
 | Orchestration | Airflow DAGs as **local Python entrypoints**; Composer only for a live demo window | Cross-system jobs (replay, labels, drift, retrain) without a $ idle Composer bill | Always-on Composer |
 | IaC | Terraform modules, apply **off** until a person reviews the plan | IAM and public exposure are risk-bearing | CI `terraform apply` |
@@ -210,7 +215,17 @@ Automation **does not** set champion. Local: `make train-pipeline` or `make airf
 
 **Calibration language for interviews:** Brier is mean squared error on probabilities. ECE is expected calibration error (reliability vs predicted confidence). Both are reported because a useful queue needs ranking **and** probabilities you can threshold.
 
-Artifacts: `artifacts/model.joblib` + `model_meta.json` (gitignored). Meta stores feature names, metrics, git SHA, snapshot id, and the P1/P2 score thresholds.
+Artifacts: `artifacts/model.joblib` + `model_meta.json` (gitignored). Meta stores feature names, metrics, git SHA, snapshot id, and the P1/P2 score thresholds — `git_sha` and `snapshot_id` are populated on every run, so an artifact says which commit trained it and whether the features came from the warehouse or the pandas builder.
+
+**MLflow is on the champion path.** `run_training` registers a candidate by default (`register_mlflow=True`) into `sqlite:///{artifact_dir}/mlflow.db`, tagged `REGISTERED_CANDIDATE` with the same git SHA and snapshot id. `pipelines/components.py` passes `register_mlflow=False` because it registers once itself after the offline gates — one candidate, one run. This closed a real gap: `make train-local` used to skip MLflow entirely, so a promoted champion had no run behind it.
+
+> **Provenance of the currently published champion.** `local-20260819T170145Z`
+> was trained on 2026-08-19, *before* the wiring above landed (2026-08-20), so
+> its `git_sha` and `snapshot_id` are null and it has **no MLflow run behind
+> it**. Every train from now on does. The published metrics in §3 belong to that
+> pre-wiring champion; a retrain through the wired path will move them slightly
+> and is the step that makes the lineage claim true of the deployed model, not
+> just of the code. Stated here rather than left for a reader to discover.
 
 ---
 
@@ -223,7 +238,7 @@ Client
   → FastAPI  (REST + Streamable HTTP MCP at /mcp; stdio via olist-mcp)
        → auth (API key when AUTH_MODE=api_key; open for local; Cloud Run IAM on the live URI)
        → schema validation (PredictRequest)
-       → assemble features (request + optional Feast)
+       → assemble features (request + Feast online lookup, warmed at startup)
        → predict / explain
        → metrics counters
   → JSON: probability, risk_band, model_version, prediction_id, timestamps
@@ -235,7 +250,9 @@ Client
 
 **Explain:** SHAP on a sampled/synchronous path with a latency budget. Not on the hot path for every canary event.
 
-**Local:** `make serve-local` (uvicorn :8080). **Cloud:** `make gcp-up` deploys the same app on Cloud Run with the champion joblib baked into the image. Vertex Endpoint is a separate flag (`enable_vertex_endpoint`, default **off**) and is not part of the turn-key path.
+**Local:** `make serve-local` (uvicorn :8080). **Cloud:** `make gcp-up` deploys the same app on Cloud Run with the champion joblib **and the Feast online store** baked into the image. Vertex Endpoint is a separate flag (`enable_vertex_endpoint`, default **off**), creates an empty endpoint with no model deployed, and is not part of the turn-key path — nothing in this repo scores against Vertex.
+
+**Feast at serve time:** `feast_online_enabled` defaults on. The client loads [`feature_repo/feature_store.serving.yaml`](feature_repo/feature_store.serving.yaml) — the same registry and online store minus the offline block, because Feast eagerly imports whatever offline driver the config names and a serving container has no BigQuery deps. The store is warmed during startup (inside the Cloud Run startup probe) so no request pays registry-load latency; request-path lookups are single-digit milliseconds. If the store was never materialized, the client trips a circuit breaker, logs once, and serves on request values plus cold-start defaults.
 
 ---
 
@@ -353,7 +370,9 @@ App deploy CI does not train. Train CI (`train-model.yml`) is manual dispatch an
 
 Local: `make export-monitoring` → `artifacts/monitoring_dashboard.json` (volume, errors, latency, mix, stale features, last drift and delayed-eval snapshots, plus `business_sim` ledger rollup). `make decision-eval` writes the same rollup as `artifacts/decision_impact.md` (action mix, late→on-time, spend).
 
-GCP: Terraform module under `terraform/modules/monitoring` (Cloud Run request count / p95 / instance time, plus a text panel for the ML signals). Flag `enable_monitoring` defaults **false**, same as serving. Applying it is a real infra change. Simulated $ / OTIF flips are **not** Cloud Monitoring metrics.
+GCP: Terraform module under `terraform/modules/monitoring` — a dashboard (Cloud Run request count / p95 / instance time, plus a text panel for the ML signals) **and two alert policies**: 5xx rate and p95 latency above 2s. The policies deliberately have no notification channel; they raise incidents in Cloud Monitoring, which is the part you can demonstrate without paying for a pager. Flag `enable_monitoring` defaults **false**, same as serving; `make gcp-up` turns it on. Applying it is a real infra change.
+
+ML-quality alarms (feature PSI, delayed-label PR-AUC) stay **local JSON** on purpose: they are computed from holdout replay, not from Cloud Run request metrics, so Cloud Monitoring is not where they belong. Simulated $ / OTIF flips are **not** Cloud Monitoring metrics either.
 
 ---
 
@@ -420,7 +439,9 @@ Live serving proof: [docs/gcp-live-serving.md](docs/gcp-live-serving.md), [docs/
 
 **Local (default interview path):** fixtures → tests → train → uvicorn → MCP → decision/agent harness → replay → release labels → delayed-label canary → drift scenario → approve retrain → new candidate. No bill.
 
-**Needs credentials + an apply someone reviewed:** live BigQuery/dbt, Vertex endpoint, Composer, Cloud Monitoring dashboard, Cloud Run. Feast online stays SQLite unless you explicitly add Redis.
+**Needs credentials + an apply someone reviewed:** live BigQuery/dbt, GCS ingest, Feast apply/materialize from BigQuery, Vertex endpoint, Composer, Cloud Monitoring dashboard + alerts, Cloud Run. Feast online stays SQLite unless you explicitly add Redis.
+
+**Feast without credentials:** `make feast-materialize-local` builds the same online store from the local pandas builder — same entity, feature view, feature service, store, and serving code path; only the row source differs (local CSVs instead of the BigQuery mart). That keeps the online lookup demonstrable at $0. It is not a claim that BigQuery ran; `make feast-apply` is the warehouse path.
 
 Terraform **validate** runs in CI. Terraform **apply** does not.
 

@@ -74,6 +74,22 @@ resource "google_cloud_run_v2_service" "api" {
         name  = "AUTH_MODE"
         value = "off"
       }
+      # Feast online hydration in the request path. The image carries the
+      # client and whatever store `feast materialize` produced at build time;
+      # lookups fail open, so an unmaterialized store degrades to cold-start
+      # defaults rather than erroring.
+      env {
+        name  = "FEAST_ONLINE_ENABLED"
+        value = "true"
+      }
+      env {
+        name  = "FEAST_REPO_PATH"
+        value = "/app/feature_repo"
+      }
+      env {
+        name  = "GCP_PROJECT_ID"
+        value = var.project_id
+      }
       resources {
         limits = {
           cpu    = "1"

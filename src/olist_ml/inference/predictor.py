@@ -107,6 +107,10 @@ class PredictionService:
         self._model, self._meta = load_artifact(model_path, meta_path)
         self._shap_explainer = None
         logger.info("Loaded model_version=%s", self._meta.model_version)
+        # Registry construction costs seconds; do it here (inside the startup
+        # probe) rather than on the first scored request after a cold start.
+        if self.feast_client is not None:
+            self.feast_client.warm()
 
     def readiness(self) -> ReadyResponse:
         if not self.ready:

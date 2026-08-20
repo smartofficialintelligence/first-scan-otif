@@ -21,7 +21,9 @@ jobs:
 
       - name: Sync dependencies
         # Prefer extras that do not require live GCP; placeholder creds suffice for dbt parse.
-        run: uv sync --extra dev --extra ml --extra mcp --extra agent --extra gcp
+        # `feast` is the light serving-sized extra the image installs — kept
+        # explicit so CI exercises the same online path Cloud Run runs.
+        run: uv sync --extra dev --extra ml --extra mcp --extra agent --extra feast --extra gcp
 
       - name: Ruff
         run: uv run ruff check src tests scripts pipelines
@@ -55,4 +57,7 @@ jobs:
           terraform validate
 
       - name: Docker build
+        # base stage = app + Feast/agent extras + feature_repo. The serving
+        # stage additionally bakes the champion artifact, which CI has no
+        # trained model for.
         run: docker build --target base .

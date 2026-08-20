@@ -24,7 +24,8 @@ terraform/**/terraform.tfvars
 terraform/**/tfplan
 terraform/**/*.tfplan
 dbt/.user.yml
-data/feast/
+data/feast/*
+!data/feast/.gitkeep
 artifacts/
 *.pem
 sa-key.json

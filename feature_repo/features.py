@@ -15,9 +15,14 @@ from feast.types import Float64, UnixTimestamp
 from entities import seller
 
 PROJECT = os.environ.get("GCP_PROJECT_ID", "").strip()
-if not PROJECT:
-    # feast apply loads this module; require the project from env (no hardcoded id).
-    raise RuntimeError("Set GCP_PROJECT_ID before feast apply / materialize")
+# `feast apply` / `materialize` resolve a real table and still require the env
+# var (checked in scripts/feast_apply_materialize.py). Importing this module
+# without it — tooling, tests, a serving container inspecting definitions —
+# yields a placeholder table name instead of raising, so an unset project can
+# never take down the serving process.
+PROJECT_IS_PLACEHOLDER = not PROJECT
+if PROJECT_IS_PLACEHOLDER:
+    PROJECT = "unset-project"
 
 seller_features_source = BigQuerySource(
     name="seller_features_bq",

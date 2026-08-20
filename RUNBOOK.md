@@ -51,10 +51,36 @@ Details: [docs/gcp-live-serving.md](docs/gcp-live-serving.md). After `gcp-down`,
 ## Feast
 
 ```text
-make feast-apply       # apply + materialize (needs GCP creds; SQLite online demo-off)
-make feast-historical  # offline retrieval sample
-make feast-parity      # offline/online parity check
+make feast-materialize-local  # $0: build the online store from local CSVs (no creds)
+make feast-apply              # warehouse path: apply + materialize from BigQuery (needs creds)
+make feast-historical         # offline retrieval sample -> artifacts/feast_historical.parquet
+make feast-parity             # offline/online parity check
+make export-training-snapshot # ml.fct_training_snapshot -> parquet the trainer reads
 ```
+
+Online lookup is **on by default** (`feast_online_enabled`) and the serving image
+ships the client plus whatever store existed at build time. Order matters:
+materialize *before* `make gcp-up`, or the image carries an empty store.
+
+Checking it is live:
+
+```text
+# startup log, once per process
+Feast online store ready (repo=feature_repo)
+
+# or, when the store was never materialized
+Feast online store unavailable (...) — serving on request values and cold-start defaults
+```
+
+`feast_lookup_ms` and `feature_freshness_ts` are always keys on the prediction
+log; a working store shows single-digit ms and a non-null timestamp. Lookups
+fail open, so an empty store degrades to cold-start defaults rather than
+erroring — and trips a circuit breaker so only the first request pays for the
+discovery.
+
+Fixture timestamps are from 2018 and would always read stale against the 36h
+SLA, so `feast-materialize-local` passes `--freshen` to rewrite the timestamps
+to now. The feature **values** are still the historical point-in-time ones.
 
 ## Canary / replay
 

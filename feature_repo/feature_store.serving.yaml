@@ -1,0 +1,22 @@
+# Serving-side Feast config. Copied over feature_store.yaml inside the image.
+#
+# The offline_store block is deliberately absent. Feast eagerly imports the
+# offline driver named in the config, so declaring `bigquery` here would make
+# the serving container require google-cloud-bigquery and fail every lookup
+# without it. A serving replica only ever calls get_online_features; the
+# BigQuery offline store belongs on the workstation that runs
+# `feast apply` / `feast materialize` (the `gcp` extra).
+#
+# The registry still describes BigQuery-sourced feature views — that
+# deserializes fine on the light `feast` package. Paths are relative to this
+# file's directory (/app/feature_repo), pointing at the store baked in at
+# build time.
+project: olist_ml
+provider: local
+registry:
+  registry_type: file
+  path: ../data/feast/registry.db
+online_store:
+  type: sqlite
+  path: ../data/feast/online.db
+entity_key_serialization_version: 3

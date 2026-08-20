@@ -1,6 +1,7 @@
 .PHONY: sync lint typecheck test train-local serve-local smoke-local fixtures download-olist
 .PHONY: m2-env-check gcp-auth tf-fmt tf-validate tf-plan dbt-deps dbt-compile dbt-build ingest-bq ingest-fixtures-bq
-.PHONY: feast-apply feast-historical feast-parity demo-up demo-down mcp-serve
+.PHONY: feast-apply feast-historical feast-parity feast-materialize-local
+.PHONY: export-training-snapshot demo-up demo-down mcp-serve
 .PHONY: train-pipeline promote-candidate airflow-train-local replay-baseline canary-bad drift-check teardown-endpoint
 .PHONY: demo-decision agent-evals decision-eval demo-decision-api economics-gate overrun-experiment miss-history-experiment short-promise-experiment early-delta-experiment
 .PHONY: gcp-up gcp-down gcp-smoke gcp-evidence
@@ -27,13 +28,13 @@ download-olist:
 	uv run python scripts/download_olist.py --dest data/raw
 
 train-local:
-	uv run olist-train --data-dir data/fixtures --trials 5
+	uv run --extra ml olist-train --data-dir data/fixtures --trials 5
 
 train-olist:
-	uv run olist-train --data-dir data/raw --trials 25
+	uv run --extra ml olist-train --data-dir data/raw --trials 25
 
 train-pipeline:
-	uv run python scripts/run_train_pipeline.py --data-dir data/fixtures --trials 3
+	uv run --extra ml python scripts/run_train_pipeline.py --data-dir data/fixtures --trials 3
 
 # H6: candidate → champion swap is a named-person decision, never a train side effect.
 promote-candidate:
@@ -127,7 +128,7 @@ export-monitoring:
 	uv run python scripts/export_monitoring.py
 
 airflow-train-local:
-	uv run python airflow/dags/olist_train_dag.py --local --data-dir data/fixtures --trials 3
+	uv run --extra ml python airflow/dags/olist_train_dag.py --local --data-dir data/fixtures --trials 3
 
 teardown-endpoint:
 	uv run python scripts/teardown_endpoint.py
@@ -178,22 +179,31 @@ dbt-build:
 	cd dbt && uv run dbt build --profiles-dir .
 
 ingest-bq:
-	uv run python scripts/ingest_olist.py --data-dir data/raw
+	uv run --extra gcp python scripts/ingest_olist.py --data-dir data/raw
 
 ingest-fixtures-bq:
-	uv run python scripts/ingest_olist.py --data-dir data/fixtures
+	uv run --extra gcp python scripts/ingest_olist.py --data-dir data/fixtures
 
 # --- Milestone 3 (Feast; online = SQLite demo-off; Redis later for demo-on) ---
 
 feast-apply: m2-env-check
 	@test -n "$$GOOGLE_APPLICATION_CREDENTIALS" || (echo "Run: source <(bash scripts/materialize_gcp_creds.sh)" >&2; exit 1)
 	mkdir -p data/feast
-	uv run python scripts/feast_apply_materialize.py --repo feature_repo
+	uv run --extra gcp python scripts/feast_apply_materialize.py --repo feature_repo
+
+# $0 online store from local CSVs (same Feast API, same store, same serving
+# path as feast-apply; rows come from the pandas builder, not BigQuery).
+feast-materialize-local:
+	uv run --extra feast python scripts/feast_materialize_local.py --data-dir data/fixtures --freshen
+
+export-training-snapshot: m2-env-check
+	@test -n "$$GOOGLE_APPLICATION_CREDENTIALS" || (echo "Run: source <(bash scripts/materialize_gcp_creds.sh)" >&2; exit 1)
+	uv run --extra gcp python scripts/export_training_snapshot.py
 
 feast-historical: m2-env-check
 	@test -n "$$GOOGLE_APPLICATION_CREDENTIALS" || (echo "Run: source <(bash scripts/materialize_gcp_creds.sh)" >&2; exit 1)
-	uv run python scripts/feast_historical.py
+	uv run --extra gcp python scripts/feast_historical.py
 
 feast-parity: m2-env-check
 	@test -n "$$GOOGLE_APPLICATION_CREDENTIALS" || (echo "Run: source <(bash scripts/materialize_gcp_creds.sh)" >&2; exit 1)
-	uv run python scripts/feast_parity.py
+	uv run --extra gcp python scripts/feast_parity.py

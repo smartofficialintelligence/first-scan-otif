@@ -14,6 +14,8 @@ from olist_ml.data.targets import build_labeled_orders
 from olist_ml.features.assembler import make_preprocessor, select_feature_frame
 from olist_ml.features.build import build_feature_table
 from olist_ml.features.contracts import FEATURE_COLUMNS, TARGET_COLUMN, TARGET_NAME
+from olist_ml.features.historical import apply_warehouse_features
+from olist_ml.gitinfo import current_git_sha
 from olist_ml.logging import get_logger, setup_logging
 from olist_ml.training.evaluate import evaluate_predictions, score_capacity_thresholds
 from olist_ml.training.package import ModelMeta, new_model_version, save_artifact
@@ -24,12 +26,22 @@ from olist_ml.training.tune import tune_xgboost
 logger = get_logger(__name__)
 
 
-def run_training(settings: Settings, data_dir: Path | None = None) -> ModelMeta:
+def run_training(
+    settings: Settings,
+    data_dir: Path | None = None,
+    *,
+    register_mlflow: bool = True,
+) -> ModelMeta:
     setup_logging(settings.log_level)
     root = data_dir or settings.data_dir
     tables = load_olist_tables(root)
     labeled = build_labeled_orders(tables["orders"])
     features = build_feature_table(tables, labeled)
+
+    # dbt snapshot / Feast historical feed the champion when they exist, so the
+    # warehouse is an input rather than an unused export. Falls back to pandas.
+    warehouse = apply_warehouse_features(features, settings)
+    features = warehouse.frame
 
     splits = temporal_split(
         features,
@@ -108,7 +120,10 @@ def run_training(settings: Settings, data_dir: Path | None = None) -> ModelMeta:
             "p2_score_threshold": p2_score_threshold,
             "n_calibration": float(len(cal_df)),
             "n_threshold": float(len(thr_df)),
+            "warehouse_overlay_rows": float(warehouse.overlay_rows),
         },
+        git_sha=current_git_sha(),
+        snapshot_id=warehouse.snapshot_id,
         n_train=len(train_df),
         n_valid=len(valid_df),
         n_test=len(test_df),
@@ -140,12 +155,52 @@ def run_training(settings: Settings, data_dir: Path | None = None) -> ModelMeta:
     )
     replay_csv = settings.artifact_dir / "replay_holdout.csv"
     splits.replay_holdout.to_csv(replay_csv, index=False)
+
+    if register_mlflow:
+        run_id = register_training_run(meta, cand_model, cand_meta, settings)
+        logger.info("MLflow candidate registered run_id=%s", run_id)
+
     logger.info(
-        "Training complete model_version=%s test_pr_auc=%.4f",
+        "Training complete model_version=%s test_pr_auc=%.4f snapshot=%s",
         version,
         test_report["metrics"]["pr_auc"],
+        meta.snapshot_id,
     )
     return meta
+
+
+def mlflow_tracking_uri(settings: Settings) -> str:
+    """Tracking store beside the artifacts it describes (tests get a tmp dir)."""
+    return f"sqlite:///{(settings.artifact_dir / 'mlflow.db').resolve()}"
+
+
+def register_training_run(
+    meta: ModelMeta,
+    model_path: Path,
+    meta_path: Path,
+    settings: Settings,
+) -> str:
+    """Log this run to MLflow and tag it REGISTERED_CANDIDATE.
+
+    Every champion now has registry lineage — ``make train-local`` used to skip
+    MLflow entirely, so the deployed model had no run behind it. A missing
+    ``ml`` extra raises rather than silently skipping: a candidate that never
+    reached the registry must not look like one that did.
+    """
+    try:
+        from olist_ml.registry.mlflow_registry import log_and_register_candidate
+    except ImportError as exc:  # pragma: no cover - depends on install extras
+        raise RuntimeError(
+            "MLflow is required to register a training run. Install the extra "
+            "(`uv sync --extra ml`) or call run_training(register_mlflow=False)."
+        ) from exc
+
+    return log_and_register_candidate(
+        meta,
+        model_path,
+        meta_path,
+        tracking_uri=mlflow_tracking_uri(settings),
+    )
 
 
 def main(argv: list[str] | None = None) -> None:
