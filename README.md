@@ -34,8 +34,9 @@ Detail below and in [`docs/features.md`](docs/features.md).
 
 ### Stack
 
-**GCP · BigQuery · dbt · Feast · MLflow · XGBoost · FastAPI on Cloud Run · MCP.** 
-**Optimize for cost:** Turn-key Terraform deployment and teardown of assets and IAM governance. Optional Vertex training pipeline; Vertex Endpoint / Redis / Composer are disabled.
+**GCP · BigQuery · dbt · Feast · MLflow · XGBoost · FastAPI on Cloud Run · MCP.**  <br>
+**Optimized for cost:** Turn-key Terraform deployment and teardown of assets and IAM governance. 
+Optional Vertex training pipeline; Vertex Endpoint / Redis / Composer are disabled.
 
 ### Architecture
 
