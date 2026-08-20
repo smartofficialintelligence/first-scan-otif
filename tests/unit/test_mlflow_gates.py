@@ -95,6 +95,35 @@ def test_log_and_register_candidate_file_store(tmp_path: Path, monkeypatch: pyte
     assert info["tags"]["snapshot_id"] == "feast_historical"
 
 
+def test_register_candidate_enforce_gates_does_not_log(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Gated pipeline registration must not write an MLflow run that failed H3."""
+    from pipelines.components import register_candidate
+
+    called: list[str] = []
+    monkeypatch.setattr(
+        "pipelines.components.log_and_register_candidate",
+        lambda *_a, **_k: called.append("logged") or "run-id",
+    )
+    meta = ModelMeta(
+        model_version="v-bad",
+        trained_at="t",
+        feature_names=["f"],
+        best_params={},
+        metrics={"test_pr_auc": 0.10},
+    )
+    with pytest.raises(RuntimeError, match="Offline promotion checks failed"):
+        register_candidate(
+            meta,
+            model_path=Path("unused.joblib"),
+            meta_path=Path("unused.json"),
+            champion_metrics={"test_pr_auc": 0.90},
+            enforce_gates=True,
+        )
+    assert called == []
+
+
 def test_log_and_register_candidate_unknown_provenance_when_missing(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
