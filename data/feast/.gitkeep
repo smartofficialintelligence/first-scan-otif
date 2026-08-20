@@ -1,0 +1,4 @@
+Feast online store + registry land here from `make feast-apply` (workstation,
+needs GCP creds). Gitignored: they are build outputs, not source. The serving
+image bakes whatever is present at build time; if empty, online lookups fail
+open to request values and cold-start defaults.

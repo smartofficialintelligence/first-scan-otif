@@ -46,7 +46,10 @@ def run_train_steps(
     cfg = settings or get_settings()
     if trials is not None:
         cfg.n_optuna_trials = trials
-    meta = run_training(cfg, data_dir=Path(data_dir))
+    # register_candidate() below is this pipeline's registration step (it runs
+    # the offline gates first), so training must not also register — one
+    # candidate, one run.
+    meta = run_training(cfg, data_dir=Path(data_dir), register_mlflow=False)
     logger.info(
         "Train steps complete version=%s metrics_keys=%s",
         meta.model_version,

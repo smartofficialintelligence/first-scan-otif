@@ -49,6 +49,18 @@ agent = [
     "langgraph>=0.2.0",
     "langsmith>=0.2.0",
 ]
+# Serving-sized Feast: SQLite online store only. The heavy BigQuery offline
+# store, dbt, and Vertex SDKs stay in the `gcp` extra (apply/materialize run on
+# a workstation, not in the request path).
+feast = [
+  "feast>=0.40.0",
+]
+# Makes the DAG objects in airflow/dags/ real (`dag is not None`) for a local
+# scheduler. Deliberately not installed in CI or the serving image — Composer
+# stays off; the DAG files also run as plain CLIs without this.
+airflow = [
+  "apache-airflow>=2.9.0",
+]
 
 [project.scripts]
 olist-train = "olist_ml.training.pipeline:main"

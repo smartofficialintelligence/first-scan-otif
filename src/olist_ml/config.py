@@ -46,7 +46,11 @@ class Settings(BaseSettings):
     port: int = 8080
 
     feast_repo_path: Path = Path("feature_repo")
-    feast_online_enabled: bool = False
+    # On by default: the serving image ships the Feast client and online store,
+    # so omitted seller history is hydrated rather than silently cold-started.
+    # Lookups fail open (PredictionService.hydrate_request) when the store is
+    # absent or stale, so an unmaterialized repo degrades instead of erroring.
+    feast_online_enabled: bool = True
 
     feature_freshness_sla_hours: int = Field(default=36)
 

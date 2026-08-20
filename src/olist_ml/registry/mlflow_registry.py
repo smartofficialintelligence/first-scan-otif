@@ -125,10 +125,17 @@ def log_and_register_candidate(
     mlflow.set_experiment(experiment_name)
 
     with start_run(run_name=meta.model_version, tracking_uri=uri) as run:
+        # git_sha / snapshot_id make a run auditable: which commit trained it and
+        # whether the features came from the warehouse or the pandas builder.
+        provenance = {
+            "git_sha": meta.git_sha or "unknown",
+            "snapshot_id": meta.snapshot_id or "unknown",
+        }
         mlflow.set_tags(
             {
                 "lifecycle_state": LIFECYCLE_TRAINED,
                 "model_version": meta.model_version,
+                **provenance,
             }
         )
         log_params({f"param_{k}": v for k, v in meta.best_params.items()})
@@ -155,6 +162,7 @@ def log_and_register_candidate(
             {
                 "lifecycle_state": LIFECYCLE_REGISTERED_CANDIDATE,
                 "model_version": meta.model_version,
+                **provenance,
             }
         )
         run_id = run.info.run_id
