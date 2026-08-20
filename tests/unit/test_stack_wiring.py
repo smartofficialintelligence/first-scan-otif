@@ -78,3 +78,13 @@ def test_ingest_stages_through_gcs():
     assert "load_table_from_uri" in src, "BigQuery must load from the GCS object"
     assert "upload_from_filename" in src, "raw CSVs must land in the bucket"
     assert "load_table_from_dataframe" not in src, "that path bypasses the bucket"
+
+
+def test_gated_pipeline_opts_out_of_training_registration():
+    """pipelines/components.py registers once after gates; training must not also register."""
+    import inspect
+
+    from pipelines.components import run_train_steps
+
+    src = inspect.getsource(run_train_steps)
+    assert "register_mlflow=False" in src

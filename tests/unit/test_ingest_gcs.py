@@ -63,3 +63,19 @@ def test_load_reads_from_gcs_uris_not_dataframes():
     assert not client.load_table_from_dataframe.called
     uri = client.load_table_from_uri.call_args.args[0]
     assert uri.startswith("gs://")
+    job_config = client.load_table_from_uri.call_args.kwargs["job_config"]
+    assert job_config.skip_leading_rows == 1
+    assert job_config.write_disposition == ingest.bigquery.WriteDisposition.WRITE_TRUNCATE
+    assert job_config.autodetect is not True
+    assert job_config.schema  # header names must stay explicit, not string_field_N
+
+
+def test_upload_raises_when_required_csv_is_missing(tmp_path):
+    ingest = _load_module()
+    blob = MagicMock()
+    bucket = MagicMock()
+    bucket.blob.return_value = blob
+    client = MagicMock()
+    client.bucket.return_value = bucket
+    with patch.object(ingest.storage, "Client", return_value=client), pytest.raises(FileNotFoundError):
+        ingest.upload_raw_to_gcs(tmp_path, "proj", "bkt")

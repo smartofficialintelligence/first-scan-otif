@@ -73,6 +73,8 @@ def test_log_and_register_candidate_file_store(tmp_path: Path, monkeypatch: pyte
         feature_names=["f1"],
         best_params={"max_depth": 3},
         metrics={"test_pr_auc": 0.5, "valid_pr_auc": 0.51},
+        git_sha="abc1234",
+        snapshot_id="feast_historical",
         n_train=10,
         n_valid=5,
         n_test=5,
@@ -89,3 +91,31 @@ def test_log_and_register_candidate_file_store(tmp_path: Path, monkeypatch: pyte
     assert info["lifecycle_state"] == LIFECYCLE_REGISTERED_CANDIDATE
     assert info["model_version"] == meta.model_version
     assert "test_pr_auc" in info["metrics"]
+    assert info["tags"]["git_sha"] == "abc1234"
+    assert info["tags"]["snapshot_id"] == "feast_historical"
+
+
+def test_log_and_register_candidate_unknown_provenance_when_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A null SHA/snapshot must still be tagged, never silently omitted."""
+    model_path = tmp_path / "model.joblib"
+    meta_path = tmp_path / "model_meta.json"
+    joblib.dump(_StubBundle(), model_path)
+    meta = ModelMeta(
+        model_version="test-unknown-prov",
+        trained_at="2020-01-01T00:00:00+00:00",
+        feature_names=["f1"],
+        best_params={},
+        metrics={"test_pr_auc": 0.5},
+        git_sha=None,
+        snapshot_id=None,
+    )
+    meta_path.write_text(json.dumps(meta.__dict__), encoding="utf-8")
+    tracking = f"sqlite:///{tmp_path / 'mlflow.db'}"
+    monkeypatch.setenv("MLFLOW_TRACKING_URI", tracking)
+
+    run_id = log_and_register_candidate(meta, model_path, meta_path, tracking_uri=tracking)
+    info = get_candidate_info(run_id, tracking_uri=tracking)
+    assert info["tags"]["git_sha"] == "unknown"
+    assert info["tags"]["snapshot_id"] == "unknown"
