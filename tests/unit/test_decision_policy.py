@@ -170,6 +170,15 @@ def test_decision_service_from_prediction(policy_cfg) -> None:
     assert len(result.alternative_actions) >= 1
     assert len(result.assumptions_disclaimer) > 0
     assert result.decision_source in {"deterministic_policy", "agent_review_pending"}
+    assert result.git_sha is None or (len(result.git_sha) >= 7)
+
+
+def test_decision_records_shared_git_sha(policy_cfg, monkeypatch) -> None:
+    """Decision rows must use the same helper as model meta, not a second lookup."""
+    monkeypatch.setattr("olist_ml.decisions.service.current_git_sha", lambda: "abc1234def")
+    svc = DecisionService(config=policy_cfg)
+    result = svc.decide(_ctx())
+    assert result.git_sha == "abc1234def"
 
 
 def test_decision_context_low_score_no_action(policy_cfg) -> None:
