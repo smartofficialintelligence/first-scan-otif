@@ -213,6 +213,50 @@ def test_env_path_overrides_artifact_dir(tmp_path, monkeypatch):
     assert result.overlay_rows == 1
 
 
+def test_feast_overlay_without_event_timestamp_does_not_seller_join(tmp_path):
+    """Missing scan timestamps must skip the overlay, never join seller-wide.
+
+    A seller-only join would attach this 0.99 late-rate to both of s1's orders.
+    """
+    pd.DataFrame(
+        {
+            "seller_id": ["s1"],
+            "seller_late_rate_7d": [0.99],
+        }
+    ).to_parquet(tmp_path / "feast_historical.parquet", index=False)
+
+    result = apply_warehouse_features(_features(), _settings(tmp_path))
+    assert result.snapshot_id == SNAPSHOT_PANDAS
+    assert result.overlay_rows == 0
+    assert result.frame["seller_late_rate_7d"].tolist() == [0.0, 0.0, 0.0]
+
+
+def test_dbt_snapshot_wins_over_feast_overlay(tmp_path):
+    """A complete dbt snapshot replaces the table; Feast must not mix in on top."""
+    row = {col: 0.0 for col in FEATURE_COLUMNS}
+    row.update(
+        {
+            "seller_id": "s-dbt",
+            "handoff_ts": pd.Timestamp("2018-03-01", tz="UTC"),
+            TARGET_COLUMN: 0,
+            "seller_late_rate_7d": 0.11,
+        }
+    )
+    pd.DataFrame([row]).to_parquet(tmp_path / "fct_training_snapshot.parquet", index=False)
+    pd.DataFrame(
+        {
+            "seller_id": ["s-dbt"],
+            "event_timestamp": pd.to_datetime(["2018-03-01"], utc=True),
+            "seller_late_rate_7d": [0.99],
+        }
+    ).to_parquet(tmp_path / "feast_historical.parquet", index=False)
+
+    result = apply_warehouse_features(_features(), _settings(tmp_path))
+    assert result.snapshot_id == SNAPSHOT_DBT
+    assert list(result.frame["seller_id"]) == ["s-dbt"]
+    assert result.frame["seller_late_rate_7d"].iloc[0] == pytest.approx(0.11)
+
+
 def test_dbt_env_path_overrides_artifact_dir(tmp_path, monkeypatch):
     elsewhere = tmp_path / "elsewhere"
     elsewhere.mkdir()

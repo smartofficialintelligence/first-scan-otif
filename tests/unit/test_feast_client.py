@@ -187,6 +187,36 @@ def test_empty_seller_ids_short_circuit() -> None:
     assert client.get_online_features([]) == []
 
 
+def test_hydrate_fails_open_when_lookup_raises() -> None:
+    """A live-store timeout/exception must not 500 the predict path."""
+    from olist_ml.config import Settings
+    from olist_ml.inference.predictor import PredictionService
+    from olist_ml.schemas import PredictRequest
+
+    now = datetime.now(tz=UTC)
+    settings = Settings(feast_online_enabled=True)
+    service = PredictionService(settings)
+    assert service.feast_client is not None
+
+    def boom(_seller_ids, **_kwargs):  # noqa: ANN001, ANN003
+        raise RuntimeError("online store timeout")
+
+    service.feast_client.get_online_features = boom  # type: ignore[method-assign]
+    req = PredictRequest(
+        order_id="o",
+        seller_id="s_online",
+        purchase_timestamp=now,
+        item_count=1,
+        basket_value=10.0,
+        freight_value=1.0,
+        estimated_delivery_horizon_days=5.0,
+    )
+    filled, stale = service.hydrate_request(req)
+    assert stale is True
+    assert filled.order_id == "o"
+    assert filled.seller_order_count_30d is None
+
+
 def test_hydrate_fails_open_when_circuit_is_tripped() -> None:
     """A dead online store must not raise on the predict path."""
     from olist_ml.config import Settings
