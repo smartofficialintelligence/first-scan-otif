@@ -1,3 +1,11 @@
+> **Historical snapshot — champion `local-20260819T170145Z`.** Kept as the record
+> of the figures quoted externally on 2026-08-19. The current champion is
+> `local-20260821T203846Z`; its snapshot is
+> [`decision-impact-holdout-local-20260821T203846Z.md`](decision-impact-holdout-local-20260821T203846Z.md),
+> which explains why the action mix moved (a point-in-time fix shifted the frozen
+> thresholds). Ranking metrics are effectively unchanged: top-2.5% precision is
+> identical at 0.4598 and top-10% recall improved.
+
 # Simulated policy impact — holdout replay snapshot
 
 > Snapshot of `artifacts/decision_impact.md` from `make decision-eval` after a full holdout policy replay (n = 9,647 orders, champion `local-20260819T170145Z`, econ-sim-v3, 2026-08-19). Regenerate: score the replay holdout, run `scripts/policy_replay.py --ledger`, then `make decision-eval`.

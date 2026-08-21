@@ -60,17 +60,22 @@ Capacity is the business story: on the later test window (~4.6% miss rate), the 
 | Agent | Copies `recommended_action`. Does not re-choose |
 | External side effects | Off. Simulated ledger only |
 
-Published local champion `local-20260819T170145Z` (100 Optuna trials, test n=14,471):
+Published local champion `local-20260821T203846Z` (100 Optuna trials, test n=14,471; MLflow run `d1de28a2`, `snapshot_id=feast_historical`):
 
 | Metric | Test |
 |---|---|
-| PR-AUC | 0.310 (bootstrap 95% CI 0.28–0.34) |
+| PR-AUC | 0.309 (bootstrap 95% CI 0.28–0.34) |
 | ROC-AUC | 0.827 |
 | Miss rate | 4.6% |
 | Brier | 0.037 |
-| ECE | 0.004 |
+| ECE | 0.005 |
 
-Policy cutoffs are **frozen validation score thresholds** (P1 = 0.50, P2 ≈ 0.25) read from the held-out half of the validation window (the earlier half fits early stopping + isotonic calibration; the two never share rows), not live percentiles of today’s traffic. The full validation window's miss rate is higher than the test book's (12.3% → 4.6%); that shift is part of the story, not something to hide.
+Queue precision is what the business claim rests on, and it did not move across the
+point-in-time fix: top 2.5% = **0.4598** (identical to the prior champion), top 10%
+recall = 0.4963 (up from 0.4873). Prior champion `local-20260819T170145Z` remains
+documented in [docs/evidence/decision-impact-holdout.md](docs/evidence/decision-impact-holdout.md).
+
+Policy cutoffs are **frozen validation score thresholds** (P1 = 0.489, P2 ≈ 0.239) read from the held-out half of the validation window (the earlier half fits early stopping + isotonic calibration; the two never share rows), not live percentiles of today’s traffic. The full validation window's miss rate is higher than the test book's (12.3% → 4.6%); that shift is part of the story, not something to hide.
 
 ### Why not the earlier targets
 

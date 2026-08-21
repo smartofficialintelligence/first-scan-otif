@@ -58,7 +58,7 @@ Olist CSVs → pandas PIT feature table ─────────────�
 
 **Assumed, not causal:** miss cost, upgrade cost, and prevention rate (`econ-sim-v3`). Replay also credits **delay days avoided** when an upgrade Bernoulli succeeds (observed overrun, or a 6-day miss median). Notices do not change days late. No new EDD is invented. `allow_causal_roi_claims: false`. Intervention lift needs an experiment (switchback or A/B on the action). This repo does not fake one. Ranking lift is the KPI this slice earned.
 
-**Simulated ops rollup (same assumptions, operator language):** `make demo-decision` appends NOC simulations to the ledger; holdout `scripts/policy_replay.py` does the same at window scale. Then `make decision-eval` prints and writes `artifacts/decision_impact.md` — how many of each action ran, how many deliveries moved late→on-time, delay-days avoided, and spend. Same block is `business_sim` on `GET /v1/metrics` and in `make export-monitoring`. If the ledger has no actions, eval falls back to `artifacts/policy_replay_report.json`. That is the JD-facing outcome sentence. It is still not observed P&L. A full-holdout snapshot (9,647 orders): [`docs/evidence/decision-impact-holdout.md`](docs/evidence/decision-impact-holdout.md) — 630 interventions, 27 late deliveries moved on-time, 88.8 delay-days avoided, $1,432 simulated spend — including a three-policy comparison (do-nothing / naive threshold / NOC) where the cheap-notice baseline "wins" on simulated net value while changing zero physical outcomes. That asymmetry is why the policy is a banded capacity rule, not EV-argmax, and why intervention lift waits for an experiment.
+**Simulated ops rollup (same assumptions, operator language):** `make demo-decision` appends NOC simulations to the ledger; holdout `scripts/policy_replay.py` does the same at window scale. Then `make decision-eval` prints and writes `artifacts/decision_impact.md` — how many of each action ran, how many deliveries moved late→on-time, delay-days avoided, and spend. Same block is `business_sim` on `GET /v1/metrics` and in `make export-monitoring`. If the ledger has no actions, eval falls back to `artifacts/policy_replay_report.json`. That is the JD-facing outcome sentence. It is still not observed P&L. A full-holdout snapshot (9,647 orders) for the current champion `local-20260821T203846Z`: [`docs/evidence/decision-impact-holdout-local-20260821T203846Z.md`](docs/evidence/decision-impact-holdout-local-20260821T203846Z.md) — 603 interventions, 25 late deliveries moved on-time, 86.4 delay-days avoided, $1,200 simulated spend. The prior champion's snapshot ([`decision-impact-holdout.md`](docs/evidence/decision-impact-holdout.md), 630 / 27 / 88.8 / $1,432) is kept: a point-in-time fix shifted the frozen thresholds, so the action mix moved while ranking did not — top-2.5% precision is identical at 46% — including a three-policy comparison (do-nothing / naive threshold / NOC) where the cheap-notice baseline "wins" on simulated net value while changing zero physical outcomes. That asymmetry is why the policy is a banded capacity rule, not EV-argmax, and why intervention lift waits for an experiment.
 
 ---
 
@@ -142,7 +142,7 @@ Among the highest-risk fortieth of later orders, about **2 in 5** actually miss 
 
 The validation window is split in half by time: the earlier half fits early stopping and isotonic calibration; the later half — untouched by any fitting — freezes the policy cutoffs and is what "validation" metrics report (PR-AUC **0.356**, ROC-AUC **0.820**, miss rate 4.8% vs 4.6% on test). Thresholds stay frozen rather than being re-fit on later traffic, so the queue definition does not silently drift with the base rate.
 
-Policy cutoffs from held-out validation scores: **P1 = 0.5000**, **P2 = 0.2471**.
+Policy cutoffs from held-out validation scores: **P1 = 0.4895**, **P2 = 0.2387** (champion `local-20260821T203846Z`; they travel in `model_meta.json`, so a promote can move them).
 
 ---
 
@@ -153,8 +153,8 @@ The model does not pick the action. A versioned policy (`noc-handoff-policy-v1`)
 | Band | Rule | Workflow action |
 |---|---|---|
 | **P0** | Remaining days to promise ≤ 0 | `LATE_NOTICE` (already late; clock rule, not a ranker) |
-| **P1** | Score ≥ 0.5000 | `REMAINING_LEG_UPGRADE` if eligible, else `AT_RISK_NOTICE` |
-| **P2** | Score ≥ 0.2471 | `AT_RISK_NOTICE` |
+| **P1** | Score ≥ 0.4895 | `REMAINING_LEG_UPGRADE` if eligible, else `AT_RISK_NOTICE` |
+| **P2** | Score ≥ 0.2387 | `AT_RISK_NOTICE` |
 | **P3** | Else | `NO_ACTION` |
 
 Upgrade eligibility (demo proxy, not a carrier SKU): P1 **and** `0 < remaining ≤ 7` days **and** (`geo ≥ 100 km` **or** not same state). Intervention cost ≥ **$20** waits for a person — high-stakes model-adjacent spend is not autonomous.
