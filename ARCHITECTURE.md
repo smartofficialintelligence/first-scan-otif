@@ -121,7 +121,8 @@ Public Olist CSVs
   REST (Cloud Run / uvicorn)  and  MCP  share this object
         │
         ├─ request-native features (basket, geo, handoff clocks)
-        ├─ Feast get(seller_id) — on by default, warmed at startup, fails open
+        ├─ Feast get(seller_id) — wired, warmed at startup, fails open;
+        │                        GATED OFF pending pandas/warehouse reconciliation (§6)
         └─ champion joblib baked into the image
         │
         ▼
@@ -191,7 +192,18 @@ raw CSVs
 
 **Blocked:** reviews; raw delivery timestamps; any window that includes the current order or closes on the right.
 
-**Training–serving consistency:** `src/olist_ml/features/contracts.py` is shared. Offline rows come from the dbt snapshot / Feast historical path, not a second feature dialect. A parity test compares offline vs online seller values when Feast is on.
+**Training–serving consistency:** `src/olist_ml/features/contracts.py` is shared — the same column contract for train and serve. Two different parity questions live here, and only one of them currently passes.
+
+| Parity question | Status (2026-08-21) |
+|---|---|
+| Feast **online** store vs its **BigQuery offline** source | **Passes.** `scripts/feast_parity.py`, 20 sellers, 1e-06 tolerance, verified against live BigQuery |
+| **pandas builder** vs **dbt marts** (the two feature implementations) | **Fails.** ~10% of rows disagree |
+
+The second was measured over all 96,475 joined rows after a full ingest and dbt build: seller order counts differ on 9,937 rows (max difference 46 orders) and `seller_late_rate_90d` differs on 10,340. Multi-seller orders do not explain it (only 1.3% of orders have more than one seller); a grain mismatch between the marts and the order-level pandas table is the leading hypothesis, not yet confirmed.
+
+**Consequence, and why online hydration is off.** The champion trains on the pandas builder. Hydrating omitted seller history from the warehouse would hand the model values produced by a different definition — training/serving skew. So `feast_online_enabled` defaults to **false** and the Cloud Run env sets `FEAST_ONLINE_ENABLED=false`, even though the client, the materialized store, and the serving config all ship in the image. One env var turns it on once the definitions agree.
+
+Worth saying plainly in an interview: the offline/online parity harness is what caught this, pointed at the system's own two implementations. Gating the feature is the honest response; a green checkbox over a 10% disagreement would not be.
 
 **Stale online features:** seller SLA for demos is 36 hours. If lookup is stale, still predict with fallback priors and increment `stale_feature_rate`. Freshness timestamp and Feast lookup milliseconds are **always keys on the prediction log** (null / 0 when Feast is off).
 
@@ -238,7 +250,7 @@ Client
   → FastAPI  (REST + Streamable HTTP MCP at /mcp; stdio via olist-mcp)
        → auth (API key when AUTH_MODE=api_key; open for local; Cloud Run IAM on the live URI)
        → schema validation (PredictRequest)
-       → assemble features (request + Feast online lookup, warmed at startup)
+       → assemble features (request; + Feast online lookup when enabled)
        → predict / explain
        → metrics counters
   → JSON: probability, risk_band, model_version, prediction_id, timestamps
@@ -252,7 +264,7 @@ Client
 
 **Local:** `make serve-local` (uvicorn :8080). **Cloud:** `make gcp-up` deploys the same app on Cloud Run with the champion joblib **and the Feast online store** baked into the image. Vertex Endpoint is a separate flag (`enable_vertex_endpoint`, default **off**), creates an empty endpoint with no model deployed, and is not part of the turn-key path — nothing in this repo scores against Vertex.
 
-**Feast at serve time:** `feast_online_enabled` defaults on. The client loads [`feature_repo/feature_store.serving.yaml`](feature_repo/feature_store.serving.yaml) — the same registry and online store minus the offline block, because Feast eagerly imports whatever offline driver the config names and a serving container has no BigQuery deps. The store is warmed during startup (inside the Cloud Run startup probe) so no request pays registry-load latency; request-path lookups are single-digit milliseconds. If the store was never materialized, the client trips a circuit breaker, logs once, and serves on request values plus cold-start defaults.
+**Feast at serve time:** `feast_online_enabled` defaults **off** (see §6 — the pandas and warehouse definitions disagree on ~10% of rows). Everything else is in place, so enabling it is one env var. The client loads [`feature_repo/feature_store.serving.yaml`](feature_repo/feature_store.serving.yaml) — the same registry and online store minus the offline block, because Feast eagerly imports whatever offline driver the config names and a serving container has no BigQuery deps. The store is warmed during startup (inside the Cloud Run startup probe) so no request pays registry-load latency; request-path lookups are single-digit milliseconds. If the store was never materialized, the client trips a circuit breaker, logs once, and serves on request values plus cold-start defaults.
 
 ---
 

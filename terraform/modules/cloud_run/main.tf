@@ -74,13 +74,14 @@ resource "google_cloud_run_v2_service" "api" {
         name  = "AUTH_MODE"
         value = "off"
       }
-      # Feast online hydration in the request path. The image carries the
-      # client and whatever store `feast materialize` produced at build time;
-      # lookups fail open, so an unmaterialized store degrades to cold-start
-      # defaults rather than erroring.
+      # Feast online hydration. The image carries the client and the store, and
+      # lookups fail open — but this is "false" until the pandas and warehouse
+      # feature definitions are reconciled (~10% of rows disagree; see
+      # ARCHITECTURE.md §6). Flip to "true" after that, not before: the champion
+      # trains on pandas values.
       env {
         name  = "FEAST_ONLINE_ENABLED"
-        value = "true"
+        value = "false"
       }
       env {
         name  = "FEAST_REPO_PATH"

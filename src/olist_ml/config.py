@@ -46,11 +46,19 @@ class Settings(BaseSettings):
     port: int = 8080
 
     feast_repo_path: Path = Path("feature_repo")
-    # On by default: the serving image ships the Feast client and online store,
-    # so omitted seller history is hydrated rather than silently cold-started.
-    # Lookups fail open (PredictionService.hydrate_request) when the store is
-    # absent or stale, so an unmaterialized repo degrades instead of erroring.
-    feast_online_enabled: bool = True
+    # Gated OFF pending feature-definition reconciliation (2026-08-21).
+    #
+    # The wiring is complete — the serving image ships the Feast client and the
+    # materialized store, and offline/online parity passes at 1e-06. But a
+    # pandas-vs-warehouse comparison over 96,475 rows found the two feature
+    # implementations disagree on ~10% of rows (seller counts differ by up to
+    # 46; seller_late_rate_90d differs on 10,340 rows). The champion trains on
+    # the pandas builder, so hydrating from the warehouse would feed the model
+    # values computed by a different definition — training/serving skew.
+    #
+    # Set FEAST_ONLINE_ENABLED=true to turn hydration on once the definitions
+    # agree. See ARCHITECTURE.md §6.
+    feast_online_enabled: bool = False
 
     feature_freshness_sla_hours: int = Field(default=36)
 

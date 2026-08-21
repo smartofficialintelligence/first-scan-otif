@@ -20,7 +20,7 @@ The **decision** in production is not “here is a probability.” It is a queue
 
 ### Features
 
-Knowable at **first carrier scan**. Historical windows are 7 / 30 / 90 day; prior **handoffs** are strictly before the scan; current order excluded. Train and serve share column names in [`contracts.py`](src/olist_ml/features/contracts.py). Omitted online seller history is filled from **Feast in the request path** (`feast_online_enabled` defaults on, and the Cloud Run image ships the Feast client plus the materialized SQLite store); remaining missing history is 0 after that lookup. Lookups fail open — an unmaterialized store degrades to cold-start defaults instead of erroring, and trips a circuit breaker so no request pays registry-load latency twice.
+Knowable at **first carrier scan**. Historical windows are 7 / 30 / 90 day; prior **handoffs** are strictly before the scan; current order excluded. Train and serve share column names in [`contracts.py`](src/olist_ml/features/contracts.py). Omitted online seller history can be filled from **Feast** (the Cloud Run image ships the Feast client, the serving config, and the materialized SQLite store); remaining missing history is 0 after that lookup. Hydration is currently **gated off** — a pandas-vs-warehouse comparison found the two feature implementations disagree on ~10% of rows, so serving warehouse values to a pandas-trained model would be skew. See [ARCHITECTURE.md §6](ARCHITECTURE.md). Lookups fail open — an unmaterialized store degrades to cold-start defaults instead of erroring, and trips a circuit breaker so no request pays registry-load latency twice.
 
 | Group | Examples |
 |---|---|
