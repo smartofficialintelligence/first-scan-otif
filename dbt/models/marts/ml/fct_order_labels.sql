@@ -8,7 +8,7 @@ select
   handoff_ts,
   order_delivered_customer_date,
   order_estimated_delivery_date,
-  timestamp_diff(order_delivered_customer_date, prediction_ts, hour) / 24.0 as delivery_days,
+  timestamp_diff(order_delivered_customer_date, prediction_ts, second) / 86400.0 as delivery_days,
   case
     when order_delivered_customer_date is null then null
     when order_estimated_delivery_date is null then null
@@ -18,7 +18,7 @@ select
   case
     when order_delivered_customer_date is null then null
     when prediction_ts is null then null
-    when timestamp_diff(order_delivered_customer_date, prediction_ts, hour) / 24.0 > 14
+    when timestamp_diff(order_delivered_customer_date, prediction_ts, second) / 86400.0 > 14
       then 1
     else 0
   end as long_delivery

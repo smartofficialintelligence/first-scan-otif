@@ -53,18 +53,17 @@ def test_cloud_run_enables_feast(cloud_run_tf):
     assert "FEAST_REPO_PATH" in cloud_run_tf
 
 
-def test_feast_hydration_is_gated_off_pending_parity():
-    """Wired but off: pandas and warehouse feature definitions disagree on ~10%
-    of rows, so hydrating a pandas-trained model from the warehouse is skew.
-    Flip this (and the Cloud Run env) together, once the definitions agree."""
+def test_feast_hydration_enabled_after_parity(cloud_run_tf):
+    """On only because pandas and the warehouse now agree exactly.
+
+    Both sides had a bug: pandas counted same-instant siblings as priors, and
+    dbt truncated long_delivery to whole hours. Re-gate this (and the Cloud Run
+    env, which must stay in step) if the parity check ever regresses.
+    """
     from olist_ml.config import Settings
 
-    assert Settings().feast_online_enabled is False
-
-
-def test_cloud_run_env_matches_the_gate(cloud_run_tf):
-    """The service env must not re-enable what the default gates off."""
-    assert 'value = "false"' in cloud_run_tf.split("FEAST_ONLINE_ENABLED")[1][:120]
+    assert Settings().feast_online_enabled is True
+    assert 'value = "true"' in cloud_run_tf.split("FEAST_ONLINE_ENABLED")[1][:200]
 
 
 def test_monitoring_module_defines_alert_policies():

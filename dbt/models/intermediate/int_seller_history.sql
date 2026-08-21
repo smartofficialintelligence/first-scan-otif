@@ -13,7 +13,7 @@ with labeled as (
     prediction_ts,
     order_delivered_customer_date,
     case
-      when timestamp_diff(order_delivered_customer_date, prediction_ts, hour) / 24.0 > 14
+      when timestamp_diff(order_delivered_customer_date, prediction_ts, second) / 86400.0 > 14
         then 1
       else 0
     end as long_delivery

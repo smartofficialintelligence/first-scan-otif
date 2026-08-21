@@ -46,19 +46,16 @@ class Settings(BaseSettings):
     port: int = 8080
 
     feast_repo_path: Path = Path("feature_repo")
-    # Gated OFF pending feature-definition reconciliation (2026-08-21).
+    # On: the pandas builder and the dbt/Feast warehouse now agree exactly on
+    # all six online seller features across all 96,475 rows (verified against
+    # live BigQuery, 2026-08-21). Reaching that took a fix on each side — a
+    # tie-handling bug in the pandas PIT windows and hour-truncation in the dbt
+    # long_delivery label. Until both landed this defaulted to False, because
+    # hydrating a pandas-trained model from the warehouse would have been skew.
     #
-    # The wiring is complete — the serving image ships the Feast client and the
-    # materialized store, and offline/online parity passes at 1e-06. But a
-    # pandas-vs-warehouse comparison over 96,475 rows found the two feature
-    # implementations disagree on ~10% of rows (seller counts differ by up to
-    # 46; seller_late_rate_90d differs on 10,340 rows). The champion trains on
-    # the pandas builder, so hydrating from the warehouse would feed the model
-    # values computed by a different definition — training/serving skew.
-    #
-    # Set FEAST_ONLINE_ENABLED=true to turn hydration on once the definitions
-    # agree. See ARCHITECTURE.md §6.
-    feast_online_enabled: bool = False
+    # Lookups fail open and trip a circuit breaker if the store is missing, so
+    # an unmaterialized repo degrades to cold-start defaults. See ARCHITECTURE §6.
+    feast_online_enabled: bool = True
 
     feature_freshness_sla_hours: int = Field(default=36)
 

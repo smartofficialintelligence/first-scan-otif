@@ -196,15 +196,19 @@ raw CSVs
 
 | Parity question | Status (2026-08-21) |
 |---|---|
-| Feast **online** store vs its **BigQuery offline** source | **Passes.** `scripts/feast_parity.py`, 20 sellers, 1e-06 tolerance, verified against live BigQuery |
-| **pandas builder** vs **dbt marts** (the two feature implementations) | **Fails.** ~10% of rows disagree |
+| Feast **online** store vs its **BigQuery offline** source | **Passes.** `scripts/feast_parity.py`, 20 sellers, 1e-06 tolerance |
+| **pandas builder** vs **dbt marts** (the two feature implementations) | **Passes.** 0 mismatches on all six online seller features across all 96,475 rows |
 
-The second was measured over all 96,475 joined rows after a full ingest and dbt build: seller order counts differ on 9,937 rows (max difference 46 orders) and `seller_late_rate_90d` differs on 10,340. Multi-seller orders do not explain it (only 1.3% of orders have more than one seller); a grain mismatch between the marts and the order-level pandas table is the leading hypothesis, not yet confirmed.
+Getting the second to pass took a fix on each side, found by comparing the two implementations against live BigQuery:
 
-**Consequence, and why online hydration is off.** The champion trains on the pandas builder. Hydrating omitted seller history from the warehouse would hand the model values produced by a different definition — training/serving skew. So `feast_online_enabled` defaults to **false** and the Cloud Run env sets `FEAST_ONLINE_ENABLED=false`, even though the client, the materialized store, and the serving config all ship in the image. One env var turns it on once the definitions agree.
+- **pandas** cut its point-in-time window at the row's *position* rather than at the first row sharing that timestamp, so the 2nd+ order in a same-instant tie group counted its twins as history — 9,937 of 96,475 rows, always 1 too high. That contradicted §3's "events strictly before `handoff_ts`". Regression tests: `tests/unit/test_pit_ties.py`.
+- **dbt** computed `long_delivery` with `timestamp_diff(..., hour) / 24.0`, truncating to whole hours where pandas used exact seconds. 211 orders (0.22%) got the opposite label, and because a mislabeled order is a prior for every later order in that seller's window, it moved 10,340 rate values.
 
-Worth saying plainly in an interview: the offline/online parity harness is what caught this, pointed at the system's own two implementations. Gating the feature is the honest response; a green checkbox over a 10% disagreement would not be.
+Derived clocks in `int_order_summary.sql` still truncate to hours. Harmless today — those mart columns feed nothing, since `fct_training_snapshot` is missing 21 contract columns and cannot train — but they must move to second resolution before the marts are ever a training source. Noted in the model.
 
+**Consequence.** With the definitions agreeing, `feast_online_enabled` defaults to **true** and Cloud Run sets `FEAST_ONLINE_ENABLED=true`: hydrating omitted seller history from the warehouse now feeds the model the same numbers it trained on. One caveat on sequencing — that only holds for a champion trained *after* the pandas fix, so promote the corrected model before deploying an image with hydration on.
+
+Worth saying plainly in an interview: the offline/online parity harness is what caught this, pointed at the system's own two implementations. Two independent bugs, one on each side, neither visible from either implementation alone.
 **Stale online features:** seller SLA for demos is 36 hours. If lookup is stale, still predict with fallback priors and increment `stale_feature_rate`. Freshness timestamp and Feast lookup milliseconds are **always keys on the prediction log** (null / 0 when Feast is off).
 
 Feature audit: [docs/features.md](docs/features.md), [docs/h2-feature-audit.md](docs/h2-feature-audit.md).

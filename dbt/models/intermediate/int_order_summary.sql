@@ -44,6 +44,11 @@ select
   o.order_delivered_customer_date,
   o.order_estimated_delivery_date,
   i.shipping_limit_date,
+  -- NOTE: these derived clocks still truncate to whole hours, while the pandas
+  -- builder uses exact seconds. Harmless today (these mart columns feed nothing —
+  -- fct_training_snapshot lacks 21 contract columns and cannot train), but they
+  -- must move to second resolution before the marts are ever used for training.
+  -- The long_delivery label was already moved; see int_seller_history.sql.
   timestamp_diff(o.order_estimated_delivery_date, o.prediction_ts, hour) / 24.0
     as estimated_delivery_horizon_days,
   greatest(

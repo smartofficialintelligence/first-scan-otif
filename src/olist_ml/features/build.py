@@ -197,7 +197,13 @@ def _pit_window_stats(
             for suffix, days in windows_days.items():
                 start_ns = t_i - int(days) * 24 * 3600 * 1_000_000_000
                 left = int(np.searchsorted(t_ns, start_ns, side="left"))
-                right = i  # exclusive — excludes current
+                # Strictly before: cut at the FIRST row sharing this timestamp,
+                # not at the current position. Using `i` kept earlier siblings
+                # scanned in the same instant, so the 2nd+ order in a tie group
+                # counted its twins as history — the contract in ARCHITECTURE §3
+                # is "events strictly before handoff_ts". dbt's
+                # `hist.handoff_ts < cur.handoff_ts` always did this correctly.
+                right = int(np.searchsorted(t_ns, t_i, side="left"))
                 count = max(0, right - left)
                 rec[f"{count_prefix}_{suffix}"] = float(count)
                 if rate_prefix is not None:

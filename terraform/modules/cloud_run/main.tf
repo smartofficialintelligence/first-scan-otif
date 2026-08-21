@@ -74,14 +74,14 @@ resource "google_cloud_run_v2_service" "api" {
         name  = "AUTH_MODE"
         value = "off"
       }
-      # Feast online hydration. The image carries the client and the store, and
-      # lookups fail open — but this is "false" until the pandas and warehouse
-      # feature definitions are reconciled (~10% of rows disagree; see
-      # ARCHITECTURE.md §6). Flip to "true" after that, not before: the champion
-      # trains on pandas values.
+      # Feast online hydration. Safe to run because the pandas builder and the
+      # dbt/Feast warehouse now agree exactly on all six online seller features
+      # (96,475 rows, verified against live BigQuery — see ARCHITECTURE.md §6).
+      # The image carries the client and the materialized store; lookups fail
+      # open, so a missing store degrades to cold-start defaults.
       env {
         name  = "FEAST_ONLINE_ENABLED"
-        value = "false"
+        value = "true"
       }
       env {
         name  = "FEAST_REPO_PATH"
