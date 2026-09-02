@@ -59,8 +59,6 @@ PR-AUC 0.309, ROC-AUC 0.827, Brier 0.037. Live serve (2k replay): 100% HTTP 200,
 
 ## What this demonstrates
 
-Hiring-manager scan. Each row is something you can open in the repo or watch in the screenshots.
-
 | Skill | How it shows up here |
 |---|---|
 | **Business problem → adopted decision** | Score is not the product. The product is a capacity-constrained exception queue with a versioned policy and a simulated ops rollup |
