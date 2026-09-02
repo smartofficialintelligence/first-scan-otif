@@ -1,6 +1,6 @@
 # System architecture
 
-Interview reference for this repository. Read this first; the other docs are supporting detail.
+Interview deep-dive. Start at [README.md](README.md) for the recruiter-facing summary and [docs/README.md](docs/README.md) for the full index. This file is the 15-minute walk.
 
 This system scores **whether an Olist order will miss its customer-facing delivery promise**, at the moment the parcel first hits the carrier. That score feeds a **fulfillment exception queue** (notice, remaining-leg upgrade proxy, or no action). The same scoring path is used for REST, MCP, training, and replay. Nothing here is a notebook that happens to have an API bolted on.
 
