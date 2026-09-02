@@ -2,7 +2,7 @@
 
 **Production-shaped ML for a fulfillment exception queue.**
 
-At first carrier scan, score whether an order will miss the delivery date already promised to the customer. A frozen policy turns that score into work (notice, remaining-leg upgrade, or nothing). REST and MCP share one scorer. Agents copy the action. They cannot invent a cheaper one.
+At first carrier scan, score whether an order will miss the delivery date already promised to the customer. A frozen policy turns that score into work (notice, remaining-leg upgrade, or nothing). REST and MCP share one scorer. An agent can only execute the action the policy already chose. If it tries a different action, the server rejects it.
 
 Public [Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce) Brazilian e-commerce data. Runnable locally and on GCP. A portfolio system you can inspect, not a live 3PL.
 
@@ -130,7 +130,7 @@ A coding agent on the **live IAM-gated Cloud Run** MCP endpoint. Same `Predictio
 </details>
 
 <details>
-<summary><strong>5 · The agent cannot pick a cheaper action</strong>: server refuses any execute that is not the frozen policy action</summary>
+<summary><strong>5 · Policy is enforced</strong>: executing any action other than the one the policy chose is rejected</summary>
 
 ![Server refuses AT_RISK_NOTICE: not the frozen policy action for this decision](docs/img/05-policy-refusal.png)
 
