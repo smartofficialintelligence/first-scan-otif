@@ -154,7 +154,7 @@ The ~1-minute lines in the latency tile are held-open **agent MCP streaming conn
 
 ---
 
-## Architecture (one picture)
+## Architecture
 
 ```text
 Olist CSVs → GCS → BigQuery → dbt marts ─┐
