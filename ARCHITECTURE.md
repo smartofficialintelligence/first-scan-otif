@@ -41,7 +41,7 @@ That is an OTIF / promise-miss question, not a duration question. Duration (“w
 | Serving / platform | `promise_miss_probability`, risk band, `model_version`, timestamps |
 | Agents / tools | Same scores via MCP; same policy recommendation; simulated action only |
 
-Capacity is the business story: on the later test window (~4.6% miss rate), the top 2.5% by score is about **9×** a random draw; the top 10% captures about **half** of misses at ~5× enrichment. Ranking metrics (PR-AUC) are appendix. Lead with queue precision and remaining-leg window.
+The business story is the exception queue, not the ranker. On holdout replay the frozen policy is the only arm that moves late deliveries on-time (25 of 882 under sim). Queue precision is why that list is worth staffing: on the later test window (~4.6% miss rate), the top 2.5% by score is **10×** a random draw; the top 10% captures about **half** of misses. Ranking metrics (PR-AUC) are appendix. Lead with actions / OTIF / spend, then queue precision.
 
 ---
 

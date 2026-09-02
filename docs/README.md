@@ -2,7 +2,7 @@
 
 The [root README](../README.md) is the landing page. This index is the rest of the system, grouped the way a hiring conversation usually goes.
 
-**Suggested read:** [README](../README.md) (2 min) → [ARCHITECTURE.md](../ARCHITECTURE.md) (interview walk) → [business_assessment.md](business_assessment.md) (numbers).
+**Suggested read:** [README](../README.md) (2 min) → [business_assessment.md](business_assessment.md) (impact, then ranker) → [ARCHITECTURE.md](../ARCHITECTURE.md) (interview walk).
 
 ---
 
@@ -19,11 +19,11 @@ What is scored, when, and what action the score is allowed to trigger.
 | [limitations-assumptions-proxies.md](limitations-assumptions-proxies.md) | What is measured vs assumed vs proxied |
 | [LOCKED_DECISIONS.md](LOCKED_DECISIONS.md) | Binding table of product and platform choices |
 
-## Model and quality
+## Impact and model quality
 
 | Doc | What it answers |
 |---|---|
-| [business_assessment.md](business_assessment.md) | Test metrics, queue lift, base-rate shift, simulated ops rollup |
+| [business_assessment.md](business_assessment.md) | Business impact first: action mix, late→on-time, spend, then queue lift and ranking |
 | [evidence/decision-impact-holdout-local-20260821T203846Z.md](evidence/decision-impact-holdout-local-20260821T203846Z.md) | Current-champion holdout replay: action mix, late→on-time, spend |
 | [evidence/decision-impact-holdout.md](evidence/decision-impact-holdout.md) | Prior-champion snapshot (kept for comparison) |
 | [gate-defaults.md](gate-defaults.md) | Offline promote/canary numeric gates |

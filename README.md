@@ -16,10 +16,44 @@ raw events → point-in-time features → calibrated ranker
 
 The loop this is built to show: **business problem → model that drives a decision → measured outcome.**
 
+The outcome is not a leaderboard score. It is a work queue: which orders get a notice or a remaining-leg upgrade, how many late deliveries the policy moves, and what that costs under versioned assumptions.
+
 | 60 seconds | 15 minutes | Deep dive |
 |---|---|---|
 | This page | [ARCHITECTURE.md](ARCHITECTURE.md) | [Documentation index](docs/README.md) |
-| Skills and headlines below | Interview walk, §17 | Numbers, ADRs, runbooks, evidence |
+| Impact, then the decision | Interview walk, §17 | [business_assessment.md](docs/business_assessment.md), ADRs, evidence |
+
+---
+
+## Business impact
+
+Champion `local-20260821T203846Z` on a chronological holdout that never trains (**n = 9,647** orders, 882 observed misses). Same seeds, three policies.
+
+| | Do nothing | Naive threshold (score ≥ 0.70, notice only) | **Frozen NOC policy** |
+|---|---:|---:|---:|
+| Interventions | 0 | 332 | **603** (6.3%) |
+| Observed misses reached | 0% | 35.6% | **47.7%** |
+| Late deliveries moved on-time | 0 | 0 | **25** |
+| Delay-days avoided | 0 | 0 | **86.4** |
+| Simulated spend | $0 | $332 | **$1,200** |
+| Net simulated value | $0 | $1,089 | $916 |
+
+The cheap-notice baseline **wins on simulated dollars and changes zero physical outcomes**. The NOC policy is the only arm that upgrades a shipment. That is why the product is a banded capacity rule (late / expensive / notify / ignore), not EV-argmax, and why intervention lift waits for an experiment.
+
+Action mix under the frozen policy: 196 late notices, 329 at-risk notices, 78 remaining-leg upgrades, 9,044 no-action.
+
+**Measured vs assumed.** Ranking quality for the queue is measured on a later test window. Miss cost, upgrade cost, and the 0.35 upgrade prevent rate are versioned simulation (`econ-sim-v3`). `allow_causal_roi_claims: false`. Notices do not change days late. Full write-up: [business_assessment.md](docs/business_assessment.md). Ledger snapshot: [decision-impact-holdout-local-20260821T203846Z.md](docs/evidence/decision-impact-holdout-local-20260821T203846Z.md).
+
+### Why the queue is worth staffing (supporting ranker)
+
+Test **n = 14,471**, miss rate **4.6%**. Accuracy on a rare miss is the wrong headline.
+
+| Capacity | Precision | Lift vs random |
+|---|---:|---:|
+| Top **2.5%** (P1-sized) | **46.0%** | **10.0×** |
+| Top **10%** (P2-sized) | **22.5%** | **4.9×** (~half of misses) |
+
+PR-AUC 0.309, ROC-AUC 0.827, Brier 0.037. Live serve (2k replay): 100% HTTP 200, p95 162 ms, scale-to-zero after.
 
 ---
 
@@ -29,31 +63,16 @@ Hiring-manager scan. Each row is something you can open in the repo or watch in 
 
 | Skill | How it shows up here |
 |---|---|
-| **Decision-science framing** | Score is not the product. The product is a capacity-constrained exception queue with a versioned policy |
+| **Business problem → adopted decision** | Score is not the product. The product is a capacity-constrained exception queue with a versioned policy and a simulated ops rollup |
+| **Honest impact claims** | Ranking lift measured. Intervention $ and late→on-time are labeled simulation. Causal ROI is off |
 | **Leakage-safe features** | Decision time is first scan. Customer delivery is the label only. History is strictly before the scan. [features.md](docs/features.md) |
 | **Train / serve contracts** | Shared column names in [`contracts.py`](src/olist_ml/features/contracts.py). Feast online lookup is **on** in the Cloud Run request path after a pandas/warehouse PIT parity fix |
-| **Ranking + calibration** | XGBoost + Optuna + isotonic. Lead with queue lift, not accuracy. PR-AUC / Brier / ECE reported |
 | **Human-gated MLOps** | MLflow candidate → named promote. Canary, delayed labels, drift alarm. Train CI does not deploy |
 | **Governed agents** | MCP + LangGraph **copy** `recommended_action`. Server refuses any other named execute |
 | **Production serving** | FastAPI on Cloud Run (IAM, min instances 0). REST and MCP are one `PredictionService` |
 | **Warehouse + IaC** | BigQuery, dbt, Terraform, teardown. Vertex Endpoint / Redis / Composer stay off for cost |
 
 **Stack:** GCP · BigQuery · dbt · Feast · MLflow · XGBoost · FastAPI / Cloud Run · MCP · LangGraph · Airflow-as-CLI · Terraform
-
----
-
-## Headlines (later test window)
-
-Champion `local-20260821T203846Z`. Test **n = 14,471**, miss rate **4.6%**.
-
-| | |
-|---|---|
-| Top **2.5%** of scores (P1-sized queue) | **46.0%** precision, **10.0×** lift vs random |
-| Top **10%** (P2-sized queue) | **22.5%** precision, **4.9×** lift, ~half of all misses |
-| Ranking / calibration | PR-AUC **0.310**, ROC-AUC **0.827**, Brier **0.037**, ECE **0.004** |
-| Live serve (2k replay) | 100% HTTP 200, **p95 162 ms**, scale-to-zero after |
-
-**Measured:** ranking quality for an exception queue. **Assumed, not causal:** miss cost, upgrade cost, prevention rate. `allow_causal_roi_claims: false`. Full tables: [business_assessment.md](docs/business_assessment.md). Current-champion holdout snapshot (9,647 orders, 603 interventions, 25 late→on-time under sim): [decision-impact-holdout-local-20260821T203846Z.md](docs/evidence/decision-impact-holdout-local-20260821T203846Z.md).
 
 ---
 
