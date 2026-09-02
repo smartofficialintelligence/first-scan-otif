@@ -24,8 +24,7 @@ What is scored, when, and what action the score is allowed to trigger.
 | Doc | What it answers |
 |---|---|
 | [business_assessment.md](business_assessment.md) | Business impact first: action mix, late→on-time, spend, then queue lift and ranking |
-| [evidence/decision-impact-holdout-local-20260821T203846Z.md](evidence/decision-impact-holdout-local-20260821T203846Z.md) | Current-champion holdout replay: action mix, late→on-time, spend |
-| [evidence/decision-impact-holdout.md](evidence/decision-impact-holdout.md) | Prior-champion snapshot (kept for comparison) |
+| [evidence/decision-impact-holdout-local-20260821T203846Z.md](evidence/decision-impact-holdout-local-20260821T203846Z.md) | Holdout replay: action mix, late→on-time, spend |
 | [gate-defaults.md](gate-defaults.md) | Offline promote/canary numeric gates |
 | [eval_iteration_notes.md](eval_iteration_notes.md) | How the published champion was iterated |
 | [experiments/](experiments/) | Earlier targets (duration, approval-time miss, overrun) |

@@ -56,20 +56,18 @@ delay days    ≈ observed (delivery − EDD)+ ; 0 if the upgrade “succeeds”
 
 Approved as simulation defaults ([h9-h10-economics-gate.md](h9-h10-economics-gate.md)). Do not present net simulated $ as P&L.
 
-Prior champion snapshot (630 interventions, 27 late→on-time, $1,432): [decision-impact-holdout.md](evidence/decision-impact-holdout.md). Ranking at the top of the list did not move. Thresholds did, so the action mix did.
-
 ---
 
 ## Why this queue (supporting ranker)
 
-Later test window: **n = 14,471**, miss rate **4.6%**. Flag by predicted risk. Policy bands use **validation** score cutoffs, not these test-set percentiles.
+Chronological **test set**: 14,471 orders, 4.6% miss rate. This is a different slice from the replay holdout above. Flag by predicted risk. Policy bands use **validation** score cutoffs, not these test-set percentiles.
 
 | Capacity | Precision | Recall | Lift vs 4.6% base |
 |---:|---:|---:|---:|
 | Top 2.5% (P1-sized) | **46.0%** | 24.8% | **10.0×** |
 | Top 10% (P2-sized) | **22.5%** | 49.6% | **4.9×** |
 
-Among the highest-risk fortieth of later orders, about **2 in 5** actually miss the promise (**10.0×** a random draw). The top tenth captures about **half** of test misses. That is the capacity story: scarce attention, ranked work.
+Among the highest-risk fortieth of test orders, about **2 in 5** actually miss the promise (**10.0×** a random draw). The top tenth captures about **half** of test misses. That is the capacity story: scarce attention, ranked work.
 
 ### Persisted policy thresholds (from validation scores)
 
@@ -103,16 +101,16 @@ This is **not** the ADR 0005 long-delivery ranker (test PR-AUC ~0.53 on a 20%+ d
 | Replay | 9,647 | 882 | **9.1%** |
 | All labeled | 96,475 | 7,826 | **8.1%** |
 
-Test miss rate is lower than train/valid. Compare precision to the **test** base rate. Persisted thresholds come from **validation scores**, so the later test book is a harder, lower-score regime.
+Test miss rate is lower than train/valid. Compare precision to the **test** base rate. Policy thresholds are frozen on validation scores, so they are not re-fit to the test set.
 
 ---
 
 ## Business read
 
 - Lead with **exception queue + remaining-leg window + simulated ops**, not overall accuracy.
-- Ranking is strong enough to staff a small high-risk band on a ~5% later-period miss rate.
+- Ranking is strong enough to staff a small high-risk band on a 4.6% test miss rate.
 - Simulated $ is a stakeholder conversation in cost-per-miss language. It is not unit-economics proof.
-- Temporal base-rate shift is part of the story, not something to hide.
+- Train / valid / test miss rates differ. Compare precision to the split you are quoting.
 - Agent **copies** the frozen NOC action (`noc-handoff-policy-v1`). It does not re-argmax EV.
 
 ## Appendix: superseded hero (ADR 0005 long-delivery)

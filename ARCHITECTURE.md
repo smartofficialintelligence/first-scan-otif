@@ -41,7 +41,7 @@ That is an OTIF / promise-miss question, not a duration question. Duration (“w
 | Serving / platform | `promise_miss_probability`, risk band, `model_version`, timestamps |
 | Agents / tools | Same scores via MCP; same policy recommendation; simulated action only |
 
-The business story is the exception queue, not the ranker. On holdout replay the frozen policy is the only arm that moves late deliveries on-time (25 of 882 under sim). Queue precision is why that list is worth staffing: on the later test window (~4.6% miss rate), the top 2.5% by score is **10×** a random draw; the top 10% captures about **half** of misses. Ranking metrics (PR-AUC) are appendix. Lead with actions / OTIF / spend, then queue precision.
+The business story is the exception queue, not the ranker. On holdout replay the frozen policy is the only arm that moves late deliveries on-time (25 of 882 under sim). Queue precision is why that list is worth staffing: on the chronological test set (4.6% miss rate), the top 2.5% by score is **10×** a random draw; the top 10% captures about **half** of misses. Ranking metrics (PR-AUC) are appendix. Lead with actions / OTIF / spend, then queue precision.
 
 ---
 
@@ -70,10 +70,7 @@ Published local champion `local-20260821T203846Z` (100 Optuna trials, test n=14,
 | Brier | 0.037 |
 | ECE | 0.005 |
 
-Queue precision is what the business claim rests on, and it did not move across the
-point-in-time fix: top 2.5% = **0.4598** (identical to the prior champion), top 10%
-recall = 0.4963 (up from 0.4873). Prior champion `local-20260819T170145Z` remains
-documented in [docs/evidence/decision-impact-holdout.md](docs/evidence/decision-impact-holdout.md).
+Queue precision on the test set: top 2.5% = **0.4598**, top 10% recall = 0.4963.
 
 Policy cutoffs are **frozen validation score thresholds** (P1 = 0.489, P2 ≈ 0.239) read from the held-out half of the validation window (the earlier half fits early stopping + isotonic calibration; the two never share rows), not live percentiles of today’s traffic. The full validation window's miss rate is higher than the test book's (12.3% → 4.6%); that shift is part of the story, not something to hide.
 
@@ -83,7 +80,7 @@ Policy cutoffs are **frozen validation score thresholds** (P1 = 0.489, P2 ≈ 0.
 |---|---|---|
 | Promise-miss **at approval** | Weak residual (~0.10–0.22 PR-AUC) | The public ETA already ate geo and horizon |
 | Duration > 14 days from approval | Stronger ranker (~0.53 PR-AUC) | Most long orders were **promised** long. Reconstructs ETA, not a broken promise |
-| Promise-miss **at first scan** | Usable ranker (~0.30 PR-AUC) on a ~5% later-period event | Clocks that are illegal at approval become legal: handling time, days left on the promise, seller missed ship-limit |
+| Promise-miss **at first scan** | Usable ranker (~0.30 PR-AUC) on a ~5% test-set event | Clocks that are illegal at approval become legal: handling time, days left on the promise, seller missed ship-limit |
 
 Duration (`long_delivery`) remains a **diagnostic** label and the point-in-time source for columns named `seller_late_rate_*` (Feast contract kept those names). It is not what the API optimizes.
 
@@ -176,7 +173,7 @@ Intentionally **not** “everything is Vertex” and **not** Databricks.
 
 **Why XGBoost + Optuna + isotonic, not a deep model:** tabular, CPU, calibration-friendly, modest trial budget (25 on full data, fewer on fixtures). No SMOTE on the production path (it fights calibration). Class imbalance uses `scale_pos_weight`.
 
-**Why PR-AUC as the training metric, not accuracy:** positives are rare (about 8% overall, 4.6% on the later test window). Accuracy is a trap. Production *service* metrics are latency, errors, volume, freshness, drift, and **delayed-label** ranking — different from training metrics on purpose.
+**Why PR-AUC as the training metric, not accuracy:** positives are rare (about 8% overall, 4.6% on the chronological test set). Accuracy is a trap. Production *service* metrics are latency, errors, volume, freshness, drift, and **delayed-label** ranking — different from training metrics on purpose.
 
 ---
 
@@ -240,13 +237,7 @@ Artifacts: `artifacts/model.joblib` + `model_meta.json` (gitignored). Meta store
 
 **MLflow is on the champion path.** `run_training` registers a candidate by default (`register_mlflow=True`) into `sqlite:///{artifact_dir}/mlflow.db`, tagged `REGISTERED_CANDIDATE` with the same git SHA and snapshot id. `pipelines/components.py` passes `register_mlflow=False` because it registers once itself after the offline gates — one candidate, one run. This closed a real gap: `make train-local` used to skip MLflow entirely, so a promoted champion had no run behind it.
 
-> **Provenance of the currently published champion.** `local-20260819T170145Z`
-> was trained on 2026-08-19, *before* the wiring above landed (2026-08-20), so
-> its `git_sha` and `snapshot_id` are null and it has **no MLflow run behind
-> it**. Every train from now on does. The published metrics in §3 belong to that
-> pre-wiring champion; a retrain through the wired path will move them slightly
-> and is the step that makes the lineage claim true of the deployed model, not
-> just of the code. Stated here rather than left for a reader to discover.
+The published champion `local-20260821T203846Z` has an MLflow run (`d1de28a2`) tagged with `git_sha` and `snapshot_id=feast_historical`.
 
 ---
 

@@ -27,7 +27,7 @@ The outcome is not a leaderboard score. It is a work queue: which orders get a n
 
 ## Business impact
 
-Champion `local-20260821T203846Z` on a chronological holdout that never trains (**n = 9,647** orders, 882 observed misses). Same seeds, three policies.
+Champion `local-20260821T203846Z` on the **replay holdout** (9,647 orders that never enter training, 882 observed misses). Same seeds, three policies.
 
 | | Do nothing | Naive threshold (score ≥ 0.70, notice only) | **Frozen NOC policy** |
 |---|---:|---:|---:|
@@ -42,11 +42,11 @@ The cheap-notice baseline **wins on simulated dollars and changes zero physical 
 
 Action mix under the frozen policy: 196 late notices, 329 at-risk notices, 78 remaining-leg upgrades, 9,044 no-action.
 
-**Measured vs assumed.** Ranking quality for the queue is measured on a later test window. Miss cost, upgrade cost, and the 0.35 upgrade prevent rate are versioned simulation (`econ-sim-v3`). `allow_causal_roi_claims: false`. Notices do not change days late. Full write-up: [business_assessment.md](docs/business_assessment.md). Ledger snapshot: [decision-impact-holdout-local-20260821T203846Z.md](docs/evidence/decision-impact-holdout-local-20260821T203846Z.md).
+**Measured vs assumed.** Queue ranking is measured on the chronological **test set** (a different slice from the replay above). Miss cost, upgrade cost, and the 0.35 upgrade prevent rate are versioned simulation (`econ-sim-v3`). `allow_causal_roi_claims: false`. Notices do not change days late. Full write-up: [business_assessment.md](docs/business_assessment.md). Ledger snapshot: [decision-impact-holdout-local-20260821T203846Z.md](docs/evidence/decision-impact-holdout-local-20260821T203846Z.md).
 
 ### Why the queue is worth staffing (supporting ranker)
 
-Test **n = 14,471**, miss rate **4.6%**. Accuracy on a rare miss is the wrong headline.
+Chronological **test set**: 14,471 orders, 4.6% miss rate. Accuracy on a rare miss is the wrong headline.
 
 | Capacity | Precision | Lift vs random |
 |---|---:|---:|
