@@ -68,6 +68,21 @@ XGBoost + Optuna + isotonic calibration. Train and serve share column names in [
 
 ---
 
+## Policy
+
+Seller work is done at first carrier scan. Remaining levers are the rest of the journey and customer communication.
+
+| Band | Rule | Action |
+|---|---|---|
+| **P0** | Remaining days ≤ 0 | `LATE_NOTICE` (clock rule, not the ranker) |
+| **P1** | Score ≥ 0.4895 | Remaining-leg upgrade if eligible, else at-risk notice |
+| **P2** | Score ≥ 0.2387 | `AT_RISK_NOTICE` |
+| **P3** | Else | `NO_ACTION` |
+
+Spend ≥ **$20** waits for a person. Cutoffs travel in `model_meta.json`.
+
+---
+
 ## Architecture
 
 ```text
@@ -92,21 +107,6 @@ Olist CSVs → pandas PIT feature table ───┘
 | Operate | Delayed-label eval, 90/10 canary, PSI drift alarm. Train CI does not deploy | Auto-promote, idle Composer |
 
 Vertex Endpoint, Memorystore Redis, and Cloud Composer stay off. Idle after `make gcp-down` is near $0/day. Seams and tradeoffs: [ARCHITECTURE.md](ARCHITECTURE.md). Cost: [COST.md](COST.md).
-
----
-
-## Policy
-
-Seller work is done at first carrier scan. Remaining levers are the rest of the journey and customer communication.
-
-| Band | Rule | Action |
-|---|---|---|
-| **P0** | Remaining days ≤ 0 | `LATE_NOTICE` (clock rule, not the ranker) |
-| **P1** | Score ≥ 0.4895 | Remaining-leg upgrade if eligible, else at-risk notice |
-| **P2** | Score ≥ 0.2387 | `AT_RISK_NOTICE` |
-| **P3** | Else | `NO_ACTION` |
-
-Spend ≥ **$20** waits for a person. Cutoffs travel in `model_meta.json`.
 
 ---
 
