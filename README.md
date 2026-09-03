@@ -14,14 +14,9 @@ raw events → point-in-time features → calibrated ranker
                               simulated action + ledger
 ```
 
-The loop this is built to show: **business problem → model that drives a decision → measured outcome.**
+**business problem → model that drives a decision → measured outcome.** The outcome is a work queue: which orders get a notice or a remaining-leg upgrade, how many late deliveries the policy moves, and what that costs under versioned assumptions.
 
-The outcome is not a leaderboard score. It is a work queue: which orders get a notice or a remaining-leg upgrade, how many late deliveries the policy moves, and what that costs under versioned assumptions.
-
-| 60 seconds | 15 minutes | Deep dive |
-|---|---|---|
-| This page | [ARCHITECTURE.md](ARCHITECTURE.md) | [Documentation index](docs/README.md) |
-| Impact, then the decision | Interview walk, §17 | [business_assessment.md](docs/business_assessment.md), ADRs, evidence |
+[ARCHITECTURE.md](ARCHITECTURE.md) · [business_assessment.md](docs/business_assessment.md) · [Documentation index](docs/README.md)
 
 ---
 
@@ -42,47 +37,67 @@ The cheap-notice baseline **wins on simulated dollars and changes zero physical 
 
 Action mix under the frozen policy: 196 late notices, 329 at-risk notices, 78 remaining-leg upgrades, 9,044 no-action.
 
-**Measured vs assumed.** Queue ranking is measured on the chronological **test set** (a different slice from the replay above). Miss cost, upgrade cost, and the 0.35 upgrade prevent rate are versioned simulation (`econ-sim-v3`). `allow_causal_roi_claims: false`. Notices do not change days late. Full write-up: [business_assessment.md](docs/business_assessment.md). Ledger snapshot: [decision-impact-holdout-local-20260821T203846Z.md](docs/evidence/decision-impact-holdout-local-20260821T203846Z.md).
-
-### Why the queue is worth staffing (supporting ranker)
-
-Chronological **test set**: 14,471 orders, 4.6% miss rate. Accuracy on a rare miss is the wrong headline.
-
-| Capacity | Precision | Lift vs random |
-|---|---:|---:|
-| Top **2.5%** (P1-sized) | **46.0%** | **10.0×** |
-| Top **10%** (P2-sized) | **22.5%** | **4.9×** (~half of misses) |
-
-PR-AUC 0.309, ROC-AUC 0.827, Brier 0.037. Live serve (2k replay): 100% HTTP 200, p95 162 ms, scale-to-zero after.
+**Measured vs assumed.** Queue ranking is measured on the chronological **test set** (a different slice from the replay above). Miss cost, upgrade cost, and the 0.35 upgrade prevent rate are versioned simulation (`econ-sim-v3`). `allow_causal_roi_claims: false`. Notices do not change days late. Detail: [business_assessment.md](docs/business_assessment.md). Ledger: [decision-impact-holdout-local-20260821T203846Z.md](docs/evidence/decision-impact-holdout-local-20260821T203846Z.md).
 
 ---
 
-## What this demonstrates
+## Model
 
-| Skill | How it shows up here |
-|---|---|
-| **Business problem → adopted decision** | Score is not the product. The product is a capacity-constrained exception queue with a versioned policy and a simulated ops rollup |
-| **Honest impact claims** | Ranking lift measured. Intervention $ and late→on-time are labeled simulation. Causal ROI is off |
-| **Leakage-safe features** | Decision time is first scan. Customer delivery is the label only. History is strictly before the scan. [features.md](docs/features.md) |
-| **Train / serve contracts** | Shared column names in [`contracts.py`](src/olist_ml/features/contracts.py). Feast online lookup is **on** in the Cloud Run request path after a pandas/warehouse PIT parity fix |
-| **Human-gated MLOps** | MLflow candidate → named promote. Canary, delayed labels, drift alarm. Train CI does not deploy |
-| **Governed agents** | MCP + LangGraph **copy** `recommended_action`. Server refuses any other named execute |
-| **Production serving** | FastAPI on Cloud Run (IAM, min instances 0). REST and MCP are one `PredictionService` |
-| **Warehouse + IaC** | BigQuery, dbt, Terraform, teardown. Vertex Endpoint / Redis / Composer stay off for cost |
+Champion `local-20260821T203846Z`. Chronological **test set**: 14,471 orders, 4.6% miss rate. Accuracy on a rare miss is the wrong headline.
 
-**Stack:** GCP · BigQuery · dbt · Feast · MLflow · XGBoost · FastAPI / Cloud Run · MCP · LangGraph · Airflow-as-CLI · Terraform
+| Capacity | Precision | Recall | Lift vs 4.6% base |
+|---:|---:|---:|---:|
+| Top 2.5% (P1-sized queue) | **46.0%** | 24.8% | **10.0×** |
+| Top 10% (P2-sized queue) | **22.5%** | 49.6% | **4.9×** |
 
----
-
-## The operating problem
-
-Seller work is done at first carrier scan (`handoff_ts = order_delivered_carrier_date`). Remaining levers are the rest of the journey and customer communication.
+| Ranking / calibration | Test |
+|---|---:|
+| PR-AUC | **0.309** |
+| ROC-AUC | **0.827** |
+| Brier | 0.037 |
+| ECE | 0.005 |
 
 ```text
 promise_miss = customer_delivery > order_estimated_delivery_date
+handoff_ts   = first carrier scan     decision time, split key, PIT cutoff
+prediction_ts = approval (else purchase)   handling / horizon only
+customer delivery                         label only, never a feature
 ```
 
-Duration (“will this take more than 14 days?”) ranks well and answers the wrong question: most long orders were already *promised* long. Promise-miss *at approval* is too weak because the public ETA already absorbed geography. Scoring **at the scan** makes handling time, days left on the promise, and ship-limit miss legal.
+XGBoost + Optuna + isotonic calibration. Train and serve share column names in [`contracts.py`](src/olist_ml/features/contracts.py). History is strictly before the scan. Feature audit: [features.md](docs/features.md). Why this label: [ADR 0006](docs/adr/0006-handoff-promise-miss-noc.md).
+
+---
+
+## Architecture
+
+```text
+Olist CSVs → GCS → BigQuery → dbt marts ─┐
+                                         ├→ Feast (offline: BQ, online: SQLite)
+Olist CSVs → pandas PIT feature table ───┘
+        → train / calibrate → MLflow candidate → human promote → champion joblib
+        → PredictionService (request + Feast online → baked joblib)
+              ├─ REST  /v1/predict  /v1/decision  /v1/explain
+              └─ MCP   predict_promise_miss  recommend_policy_action  …
+        → frozen P0–P3 policy → LangGraph copies action → simulated ledger
+        → delayed-label eval, 90/10 canary, drift alarm, human promote
+```
+
+| Layer | What runs | Intentionally off |
+|---|---|---|
+| Cloud / warehouse | **GCP**, **BigQuery**, **dbt**, Terraform, teardown | Notebook with a warehouse screenshot |
+| Features | **Feast** in the Cloud Run request path (BQ offline, SQLite online in the image). Lookups fail open | Always-on Redis / Vertex Feature Store |
+| Train / registry | **XGBoost**, Optuna, isotonic, **MLflow**. Candidate only until a named promote | Notebook cells as the production path |
+| Serve | **FastAPI** on **Cloud Run** (IAM, min instances 0). One `PredictionService` for REST and MCP | A second scorer for agents |
+| Decision | Frozen P0–P3 policy. LangGraph copies `recommended_action` | LLM chooses the band |
+| Operate | Delayed-label eval, 90/10 canary, PSI drift alarm. Train CI does not deploy | Auto-promote, idle Composer |
+
+Vertex Endpoint, Memorystore Redis, and Cloud Composer stay off. Idle after `make gcp-down` is near $0/day. Seams and tradeoffs: [ARCHITECTURE.md](ARCHITECTURE.md). Cost: [COST.md](COST.md).
+
+---
+
+## Policy
+
+Seller work is done at first carrier scan. Remaining levers are the rest of the journey and customer communication.
 
 | Band | Rule | Action |
 |---|---|---|
@@ -91,13 +106,13 @@ Duration (“will this take more than 14 days?”) ranks well and answers the wr
 | **P2** | Score ≥ 0.2387 | `AT_RISK_NOTICE` |
 | **P3** | Else | `NO_ACTION` |
 
-Spend ≥ **$20** waits for a person. Cutoffs travel in `model_meta.json`, so a promote can move them. Why this label and these bands: [ADR 0006](docs/adr/0006-handoff-promise-miss-noc.md).
+Spend ≥ **$20** waits for a person. Cutoffs travel in `model_meta.json`.
 
 ---
 
 ## See it running
 
-A coding agent on the **live IAM-gated Cloud Run** MCP endpoint. Same `PredictionService` as REST. No side channel.
+A coding agent on the **live IAM-gated Cloud Run** MCP endpoint. Same `PredictionService` as REST. No side channel. Live serve (2k replay): 100% HTTP 200, **p95 162 ms**, scale-to-zero after.
 
 <details>
 <summary><strong>1 · What's serving</strong>: champion version and frozen P1/P2 cutoffs from the promoted artifact</summary>
@@ -149,24 +164,6 @@ A coding agent on the **live IAM-gated Cloud Run** MCP endpoint. Same `Predictio
 The ~1-minute lines in the latency tile are held-open **agent MCP streaming connections**, not inference latency.
 
 </details>
-
----
-
-## Architecture
-
-```text
-Olist CSVs → GCS → BigQuery → dbt marts ─┐
-                                         ├→ Feast (offline: BQ, online: SQLite)
-Olist CSVs → pandas PIT feature table ───┘
-        → train / calibrate → MLflow candidate → human promote → champion joblib
-        → PredictionService (request + Feast online → baked joblib)
-              ├─ REST  /v1/predict  /v1/decision  /v1/explain
-              └─ MCP   predict_promise_miss  recommend_policy_action  …
-        → frozen P0–P3 policy → LangGraph copies action → simulated ledger
-        → delayed-label eval, 90/10 canary, drift alarm, human promote
-```
-
-Seams, tradeoffs, and the “why not one vendor lifecycle” story: [ARCHITECTURE.md](ARCHITECTURE.md). Cost switches: [COST.md](COST.md).
 
 ---
 
