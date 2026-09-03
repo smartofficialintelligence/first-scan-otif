@@ -1,7 +1,7 @@
 [project]
 name = "olist-ml"
 version = "0.1.0"
-description = "Production-shaped promise-miss ranker and governed exception queue on public Olist data (GCP, REST + MCP)"
+description = "First-scan promise-miss ranker, frozen exception policy, LangGraph/MCP agent in simulation, business-impact eval, Cloud Run production path"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
