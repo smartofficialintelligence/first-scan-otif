@@ -2,9 +2,9 @@
 
 **Production-shaped ML for a fulfillment exception queue.**
 
-At first carrier scan, score whether an order will miss the delivery date already promised to the customer. A frozen policy turns that score into work (notice, remaining-leg upgrade, or nothing). A LangGraph/MCP agent executes that action in **simulation**. The system is judged on **business impact** (interventions, late-to-on-time, spend), not only ranking metrics. REST and MCP share one scorer on Cloud Run, with Feast in the request path, MLflow, canary, and human-gated promote.
+An isotonic-calibrated GBT (XGBoost) scores whether an order will miss the delivery date already promised to the customer, at first carrier scan, on public [Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce) Brazilian e-commerce data. A frozen policy turns that score into work (notice, remaining-leg upgrade, or nothing). A LangGraph/MCP agent executes that action in **simulation**. The system is judged on **business impact** (interventions, late-to-on-time, spend), not only ranking metrics. REST and MCP share one scorer on Cloud Run, with Feast in the request path, MLflow, canary, and human-gated promote.
 
-Public [Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce) Brazilian e-commerce data. Runnable locally and on GCP. A portfolio system you can inspect, not a live 3PL.
+Runnable locally and on GCP. A portfolio system you can inspect, not a live 3PL.
 
 ```text
 raw events → point-in-time features → calibrated ranker
