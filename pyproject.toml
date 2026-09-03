@@ -1,7 +1,7 @@
 [project]
 name = "olist-ml"
 version = "0.1.0"
-description = "Isotonic-calibrated GBT on public Olist data: first-scan promise-miss queue, LangGraph/MCP simulation, business-impact eval, Cloud Run, monitoring"
+description = "Isotonic-calibrated GBT on public Olist data: first-scan promise-miss, exception handling policy, LangGraph/MCP simulation, business-impact eval, Cloud Run, monitoring"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
