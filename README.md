@@ -110,7 +110,7 @@ Vertex Endpoint, Memorystore Redis, and Cloud Composer stay off. Idle after `mak
 
 ---
 
-## See it running
+## MCP on live Cloud Run
 
 A coding agent on the **live IAM-gated Cloud Run** MCP endpoint. Same `PredictionService` as REST. No side channel. Live serve (2k replay): 100% HTTP 200, **p95 162 ms**, scale-to-zero after.
 
