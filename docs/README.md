@@ -67,4 +67,4 @@ What is scored, when, and what action the score is allowed to trigger.
 
 ## Build history
 
-Milestone notes in [milestones.md](milestones.md). Spec deltas in [SPEC_AMENDMENTS.md](SPEC_AMENDMENTS.md). Follow-up ideas (not in scope) in [followup-decision-agentic-layer.md](followup-decision-agentic-layer.md).
+Milestone notes in [milestones.md](milestones.md). Spec deltas in [SPEC_AMENDMENTS.md](SPEC_AMENDMENTS.md). Follow-up ideas (not in scope) in [followup-decision-agentic-layer.md](followup-decision-agentic-layer.md). Next slice (backprop through score and policy) in the [README](../README.md#next-steps).

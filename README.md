@@ -187,6 +187,16 @@ make gcp-up && make gcp-smoke && make gcp-down
 
 ---
 
+## Next steps
+
+Today the stack is two frozen stages. Train a calibrated GBT on `promise_miss`. Then apply a hand-set P0–P3 rule. Gradients stop at the label. The policy never updates the score. The score never sees spend, capacity, or late→on-time.
+
+The next slice is one chain: **score → parameterized policy → simulated outcome**, with a business loss that backprops through both. Thresholds, eligibility, and remaining-leg spend become knobs, not a post-hoc rule. The model is trained for the queue it staffs.
+
+That joint-training idea shows up in constrained sequential allocation, learning under censored outcomes, and parameterized heuristics ([Ghosh et al., 2022](https://proceedings.mlr.press/v180/ghosh22a.html), [Liu et al., 2025](https://proceedings.mlr.press/v258/liu25e.html), [Kotecha and del Rio Chanona](https://arxiv.org/abs/2410.18631)). This repo would take the **end-to-end gradient**, not those problem statements: no progressive-hedging solver, no lost-sales inventory controller, no multi-agent GNN. A differentiable score (or a surrogate around the GBT), a soft NOC policy, and a versioned simulator come first.
+
+---
+
 ## What this is not
 
 - A live fulfillment network or carrier integration. Holdout replay substitutes for production traffic.
